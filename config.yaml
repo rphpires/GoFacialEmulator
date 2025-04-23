@@ -1,0 +1,22 @@
+# Configuração do servidor HTTP
+server:
+  address: ":8080"
+
+# Configuração do PostgreSQL (banco centralizado)
+postgres:
+  driver: "postgres"
+  host: "localhost"
+  port: 5432
+  database: "facial_emulator"
+  username: "postgres"
+  password: "postgres"
+  schema: "emulator"
+
+# Configuração do banco de dados WXS (sistema externo)
+wxsDB:
+  driver: "mssql"
+  host: "127.0.0.1"
+  port: 1433
+  database: "W_Access"
+  username: "W-Access"
+  password: "password"

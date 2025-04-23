@@ -1,0 +1,11 @@
+Tenho um projeto que atualmente roda em Python. Este projeto emula dois equipamentos de controle de acesso, como se fossem equipamentos 
+fisicos de controle de acesso mas de forma virtual, isso serve para testar a comunicação de um sistema de controle de acesso com estes equipamentos.
+
+Hoje este projeto inicia um processo para cada equipamento, então inicia um processo para cada classe de equipamento.
+
+Tenho um serviço que faz o gerenciamento desse processo, iniciando a comunicação e passando um objeto que é instanciado a partir de 
+uma classe de interface com um banco de dados. Este mesmo serviço cria uma interface grafica para gerenciamento dos emuladores ativos.
+
+TUdo isso faz parte de um só projeto e quero replica-lo completamente. Vou colocar a estrutura de pastas e os arquivos, então quero que você 
+reproduza a aplicação mas com um detalhe. QUero que a linguagem utilizada seja Golang então não preciso iniciar multiplos processos, 
+quero fazer isso em um unico processo ou da melhor maneira possível do ponto de vista de performance

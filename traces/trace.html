@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<meta content="text/html;charset=utf-8" http-equiv="Content-Type">
+<script>
+var original_html = null;
+var filter = '';
+function filter_log()
+{
+    document.body.style.cursor = 'wait';
+    if (original_html == null) {
+        original_html = document.body.innerHTML;
+    }
+    if (filter == '') {
+        document.body.innerHTML = original_html;
+    } else {
+        l = original_html.split("<br>");
+        var pattern = new RegExp(".*" + filter.replace('"', '\\"') + ".*", "i");
+        final_html = '';
+        for(var i=0; i<l.length; i++){
+            if (pattern.test(l[i]))
+                final_html += l[i] + '<br>';
+        }
+        document.body.innerHTML = final_html;
+    }
+    document.body.style.cursor = 'default';
+}
+
+document.onkeydown = function(event) {
+    if (event.keyCode == 76) {
+        var ret = prompt("Enter the filter regular expression. Examples:\\n\\n\\
+CheckFirmwareUpdate'\\n\\n'ID=1 |ID=2 \\n\\nID=2 .*Got message\\n\\n2012-08-31 16:.*(ID=1 |ID=2 )\\n\\n", filter);
+        if (ret != null) {
+            filter = ret;
+            filter_log();
+        }
+        return false;
+    }
+}
+</script>
+<STYLE TYPE="text/css">
+<!--
+BODY
+{
+  color:white;
+  background-color:black;
+  font-family:monospace, sans-serif;
+}
+-->
+</STYLE>
+<body bgcolor="black" text="white">
+<font color="white">
