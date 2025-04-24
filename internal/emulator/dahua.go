@@ -21,6 +21,7 @@ import (
 // DahuaEmulator representa o emulador para dispositivos Dahua
 type DahuaEmulator struct {
 	*BaseEmulator
+	repo                  *database.DahuaRepository
 	GeneratedEventCounter time.Time
 }
 
@@ -29,9 +30,11 @@ func NewDahuaEmulator(db *database.EmulatorDB, device models.Device, tracer *tra
 	tracer.Info("Initializing Dahua emulator model: %s", device.Name)
 
 	baseEmulator := NewBaseEmulator(db, device, tracer)
+	repo := database.NewDahuaRepository(db, device.ID)
 
 	emulator := &DahuaEmulator{
 		BaseEmulator:          baseEmulator,
+		repo:                  repo,
 		GeneratedEventCounter: time.Now(),
 	}
 
@@ -76,7 +79,7 @@ func (e *DahuaEmulator) Start() error {
 // GenerateEvent gera e envia um evento
 func (e *DahuaEmulator) GenerateEvent() error {
 	// Verifica se a autenticação local está ativada
-	localAuth, err := e.DB.GetDeviceSettings("LocalAuthentication")
+	localAuth, err := e.BaseEmulator.GetDeviceSetting("LocalAuthentication")
 	if err != nil {
 		return fmt.Errorf("failed to get LocalAuthentication setting: %w", err)
 	}
@@ -104,7 +107,7 @@ func (e *DahuaEmulator) generateOnlineEvent() error {
 	}
 
 	query := "SELECT UserID, CardName, CardNo FROM DahuaCard ORDER BY RANDOM() LIMIT 1"
-	err := e.DB.QueryRow(query).Scan(&cardInfo.UserID, &cardInfo.CardName, &cardInfo.CardNo)
+	err := e.BaseEmulator.QueryRow(query, nil, &cardInfo.UserID, &cardInfo.CardName, &cardInfo.CardNo)
 	if err != nil {
 		return fmt.Errorf("failed to get random card: %w", err)
 	}
@@ -148,12 +151,12 @@ func (e *DahuaEmulator) generateOnlineEvent() error {
 	body := fmt.Sprintf("\r\n--"+boundary+"\r\nContent-Type: text/plain\r\nContent-Disposition: form-data; name=\"info\"\r\n\r\n%s\r\n--"+boundary+"--\r\n\r\n", string(eventJSON))
 
 	// Obtém o servidor remoto
-	remoteServer, err := e.DB.GetDeviceSettings("RemoteServer")
+	remoteServer, err := e.BaseEmulator.GetDeviceSetting("RemoteServer")
 	if err != nil {
 		return fmt.Errorf("failed to get RemoteServer setting: %w", err)
 	}
 
-	remotePort, err := e.DB.GetDeviceSettings("RemotePort")
+	remotePort, err := e.BaseEmulator.GetDeviceSetting("RemotePort")
 	if err != nil {
 		return fmt.Errorf("failed to get RemotePort setting: %w", err)
 	}
@@ -182,7 +185,9 @@ func (e *DahuaEmulator) generateOnlineEvent() error {
 
 	// Envia evento com foto
 	e.Tracer.Info("Sending event with photo")
-	event["Events"][0]["Data"].(map[string]interface{})["ImageInfo"] = []map[string]interface{}{
+	events := event["Events"].([]map[string]interface{})
+	data := events[0]["Data"].(map[string]interface{})
+	data["ImageInfo"] = []map[string]interface{}{
 		{
 			"Height": 640,
 			"Length": 14088,
@@ -191,6 +196,7 @@ func (e *DahuaEmulator) generateOnlineEvent() error {
 			"Width":  360,
 		},
 	}
+	data["Method"] = 4
 	event["Channel"] = 0
 	event["Events"].([]map[string]interface{})[0]["Data"].(map[string]interface{})["Method"] = 4
 	event["FilePath"] = "\\/mnt\\/appdata1\\/userpic\\/SnapShot\\/" + currentTime.Format("2006-01-02") + "\\/" + currentTime.Format("15") + "\\/" + currentTime.Format("04") + "\\/" + currentTime.Format("20060102150405") + ".jpg"
@@ -261,12 +267,12 @@ func (e *DahuaEmulator) sendDoorEvent(status string) error {
 	}
 
 	// Obtém o servidor remoto
-	remoteServer, err := e.DB.GetDeviceSettings("RemoteServer")
+	remoteServer, err := e.BaseEmulator.GetDeviceSetting("RemoteServer")
 	if err != nil {
 		return fmt.Errorf("failed to get RemoteServer setting: %w", err)
 	}
 
-	remotePort, err := e.DB.GetDeviceSettings("RemotePort")
+	remotePort, err := e.BaseEmulator.GetDeviceSetting("RemotePort")
 	if err != nil {
 		return fmt.Errorf("failed to get RemotePort setting: %w", err)
 	}
@@ -310,7 +316,7 @@ func (e *DahuaEmulator) GenerateRandomEvent() ([]byte, error) {
 	}
 
 	query := "SELECT CardName, CardNo FROM DahuaCard ORDER BY RANDOM() LIMIT 1"
-	err := e.DB.QueryRow(query).Scan(&cardInfo.CardName, &cardInfo.CardNo)
+	err := e.BaseEmulator.QueryRow(query, nil, &cardInfo.CardName, &cardInfo.CardNo)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get random card: %w", err)
 	}
@@ -428,12 +434,12 @@ table.Network.eth0.SubnetMask=255.255.248.0`, e.MacAddress)
 
 			remoteServer := c.Query("PictureHttpUpload.UploadServerList[0].Address")
 			if remoteServer != "" {
-				e.DB.SetDeviceSettings("RemoteServer", remoteServer)
+				e.SetDeviceSetting("RemoteServer", remoteServer)
 			}
 
 			remotePort := c.Query("PictureHttpUpload.UploadServerList[0].Port")
 			if remotePort != "" {
-				e.DB.SetDeviceSettings("RemotePort", remotePort)
+				e.SetDeviceSetting("RemotePort", remotePort)
 			}
 
 			enableUpload := c.Query("PictureHttpUpload.Enable")
@@ -443,7 +449,7 @@ table.Network.eth0.SubnetMask=255.255.248.0`, e.MacAddress)
 					localAuthValue = "1"
 				}
 				e.Tracer.Info("Set LocalAuthentication: %s", localAuthValue)
-				e.DB.SetDeviceSettings("LocalAuthentication", localAuthValue)
+				e.SetDeviceSetting("LocalAuthentication", localAuthValue)
 			}
 
 			c.String(http.StatusOK, "OK")
@@ -477,7 +483,7 @@ table.Network.eth0.SubnetMask=255.255.248.0`, e.MacAddress)
 		switch action {
 		case "startFind":
 			// Obter contagem de faces
-			count, err := e.DB.FindDahuaFaces()
+			count, err := e.repo.FindFaces()
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 				return
@@ -493,7 +499,7 @@ table.Network.eth0.SubnetMask=255.255.248.0`, e.MacAddress)
 			count, _ := strconv.Atoi(c.Query("Count"))
 			offset, _ := strconv.Atoi(c.Query("Offset"))
 
-			faces, err := e.DB.GetDahuaFaces(count, offset)
+			faces, err := e.repo.GetFaces(count, offset)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 				return
@@ -514,7 +520,7 @@ table.Network.eth0.SubnetMask=255.255.248.0`, e.MacAddress)
 
 		case "remove":
 			userID, _ := strconv.Atoi(c.Query("UserID"))
-			if err := e.DB.RemoveDahuaFace(userID); err != nil {
+			if err := e.repo.RemoveFace(userID); err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 				return
 			}
@@ -560,13 +566,13 @@ table.Network.eth0.SubnetMask=255.255.248.0`, e.MacAddress)
 			md5Hash := CalculateMD5(photoBytes)
 
 			if action == "update" {
-				if err := e.DB.RemoveDahuaFace(request.UserID); err != nil {
+				if err := e.repo.RemoveFace(request.UserID); err != nil {
 					c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 					return
 				}
 			}
 
-			if err := e.DB.AddDahuaFace(request.UserID, md5Hash); err != nil {
+			if err := e.repo.AddFace(request.UserID, md5Hash); err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 				return
 			}
@@ -590,7 +596,7 @@ table.Network.eth0.SubnetMask=255.255.248.0`, e.MacAddress)
 
 		switch action {
 		case "find":
-			found, cards, err := e.DB.FindDahuaCard(userID)
+			found, cards, err := e.repo.FindCard(userID)
 			if err != nil {
 				c.String(http.StatusInternalServerError, "Error: "+err.Error())
 				return
@@ -629,7 +635,7 @@ table.Network.eth0.SubnetMask=255.255.248.0`, e.MacAddress)
 
 		case "doSeekFind":
 			offsetInt, _ := strconv.Atoi(offset)
-			found, cards, err := e.DB.GetDahuaCards(count, offsetInt)
+			found, cards, err := e.repo.GetCards(count, offsetInt)
 			if err != nil {
 				c.String(http.StatusInternalServerError, "Error: "+err.Error())
 				return
@@ -681,7 +687,7 @@ table.Network.eth0.SubnetMask=255.255.248.0`, e.MacAddress)
 		switch action {
 		case "remove":
 			recNo, _ := strconv.Atoi(c.Query("recno"))
-			if err := e.DB.RemoveDahuaCard(recNo); err != nil {
+			if err := e.repo.RemoveCard(recNo); err != nil {
 				c.String(http.StatusInternalServerError, "Error: "+err.Error())
 				return
 			}
@@ -698,7 +704,7 @@ table.Network.eth0.SubnetMask=255.255.248.0`, e.MacAddress)
 
 			e.Tracer.Info("Insert card: CardName=%s, UserID=%d, CardNo=%s", cardName, userID, cardNo)
 
-			recNo, err := e.DB.AddDahuaCard(cardName, userID, cardNo, validStart, validEnd)
+			recNo, err := e.repo.AddCard(cardName, userID, cardNo, validStart, validEnd)
 			if err != nil {
 				c.String(http.StatusBadRequest, "Error\nBad Request!")
 				return
@@ -727,7 +733,7 @@ table.Network.eth0.SubnetMask=255.255.248.0`, e.MacAddress)
 
 			e.Tracer.Info("Insert card: CardName=%s, UserID=%d, CardNo=%s", cardName, userID, cardNo)
 
-			recNo, err := e.DB.AddDahuaCard(cardName, userID, cardNo, validStart, validEnd)
+			recNo, err := e.repo.AddCard(cardName, userID, cardNo, validStart, validEnd)
 			if err != nil {
 				c.String(http.StatusBadRequest, "Error\nBad Request!")
 				return
@@ -775,7 +781,7 @@ table.Network.eth0.SubnetMask=255.255.248.0`, e.MacAddress)
 					generatedEventCounter = now
 
 					// Verificar se a autenticação local está ativada
-					localAuth, err := e.DB.GetDeviceSettings("LocalAuthentication")
+					localAuth, err := e.BaseEmulator.GetDeviceSetting("LocalAuthentication")
 					if err != nil {
 						e.Tracer.Error("Failed to get LocalAuthentication setting: %v", err)
 						continue
@@ -814,7 +820,7 @@ table.Network.eth0.SubnetMask=255.255.248.0`, e.MacAddress)
 				}
 
 				// Verificar se a autenticação local está desativada
-				localAuth, err := e.DB.GetDeviceSettings("LocalAuthentication")
+				localAuth, err := e.BaseEmulator.GetDeviceSetting("LocalAuthentication")
 				if err == nil && localAuth == "0" {
 					e.Tracer.Info("Local authentication disabled, stopping event stream")
 					return

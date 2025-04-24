@@ -1,0 +1,12 @@
+{
+    "go.toolsEnvVars": {
+        "CGO_ENABLED": "1"
+    },
+    "go.buildFlags": ["-tags=go1.23"],
+    "go.lintTool": "golangci-lint",
+    "go.lintFlags": ["--fast"],
+    "go.coverOnSave": false,
+    "go.useCodeSnippetsOnFunctionSuggest": true,
+    "go.formatTool": "goimports",
+    "editor.formatOnSave": true
+}

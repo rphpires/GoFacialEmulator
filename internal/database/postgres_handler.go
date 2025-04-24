@@ -73,6 +73,12 @@ func (dp *PostgresDBPool) GetConn(ctx context.Context) (*pgxpool.Conn, error) {
 	return dp.pool.Acquire(ctx)
 }
 
+func (dp *PostgresDBPool) BeginTx(ctx context.Context) (pgx.Tx, error) {
+	dp.mu.RLock()
+	defer dp.mu.RUnlock()
+	return dp.pool.Begin(ctx)
+}
+
 // Query executa uma consulta SQL que retorna linhas
 func (dp *PostgresDBPool) Query(ctx context.Context, query string, args ...interface{}) (pgx.Rows, error) {
 	conn, err := dp.pool.Acquire(ctx)

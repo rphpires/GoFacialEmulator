@@ -89,7 +89,7 @@ func (e *HikvisionEmulator) Start() error {
 // GenerateEvent gera e envia um evento
 func (e *HikvisionEmulator) GenerateEvent() error {
 	// Verifica se a autenticação local está ativada
-	localAuth, err := e.DB.GetDeviceSettings("LocalAuthentication")
+	localAuth, err := e.GetDeviceSetting("LocalAuthentication")
 	if err != nil {
 		return fmt.Errorf("failed to get LocalAuthentication setting: %w", err)
 	}
@@ -126,10 +126,9 @@ ORDER BY
     RANDOM() 
 LIMIT 1
 `
-	row := e.DB.QueryRow(query)
-	err := row.Scan(&userInfo.Name, &userInfo.CardNo, &userInfo.EmployeeNo)
-	if err != nil {
-		return fmt.Errorf("failed to get random user info: %w", err)
+	row := e.BaseEmulator.QueryRow(query, nil, &userInfo.Name, &userInfo.CardNo, &userInfo.EmployeeNo)
+	if row != nil {
+		return fmt.Errorf("failed to get random user info: %w", row)
 	}
 
 	// Obtém o fuso horário local
@@ -205,12 +204,12 @@ LIMIT 1
 		boundary, len(imageData))
 
 	// Obtém o servidor remoto
-	remoteServer, err := e.DB.GetDeviceSettings("RemoteServer")
+	remoteServer, err := e.GetDeviceSetting("RemoteServer")
 	if err != nil {
 		return fmt.Errorf("failed to get RemoteServer setting: %w", err)
 	}
 
-	remotePort, err := e.DB.GetDeviceSettings("RemotePort")
+	remotePort, err := e.GetDeviceSetting("RemotePort")
 	if err != nil {
 		return fmt.Errorf("failed to get RemotePort setting: %w", err)
 	}
@@ -261,12 +260,12 @@ LIMIT 1
 // sendDoorEvent envia um evento de estado da porta
 func (e *HikvisionEmulator) sendDoorEvent(status string) error {
 	// Obtém o servidor remoto
-	remoteServer, err := e.DB.GetDeviceSettings("RemoteServer")
+	remoteServer, err := e.GetDeviceSetting("RemoteServer")
 	if err != nil {
 		return fmt.Errorf("failed to get RemoteServer setting: %w", err)
 	}
 
-	remotePort, err := e.DB.GetDeviceSettings("RemotePort")
+	remotePort, err := e.GetDeviceSetting("RemotePort")
 	if err != nil {
 		return fmt.Errorf("failed to get RemotePort setting: %w", err)
 	}
@@ -342,8 +341,7 @@ ORDER BY
     RANDOM() 
 LIMIT 1
 `
-	row := e.DB.QueryRow(query)
-	err := row.Scan(&userInfo.Name, &userInfo.CardNo, &userInfo.EmployeeNo)
+	err := e.BaseEmulator.QueryRow(query, nil, &userInfo.Name, &userInfo.CardNo, &userInfo.EmployeeNo)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get random user info: %w", err)
 	}
@@ -455,22 +453,22 @@ func (e *HikvisionEmulator) getHeartbeatMessage() []byte {
 func (e *HikvisionEmulator) countItems() (int, int, int, int, error) {
 	var usersCount, cardsCount, facesCount, fingerprintsCount int
 
-	err := e.DB.QueryRow("SELECT COUNT(*) FROM HikvisionUser").Scan(&usersCount)
+	err := e.BaseEmulator.QueryRow("SELECT COUNT(*) FROM HikvisionUser", nil, &usersCount)
 	if err != nil {
 		return 0, 0, 0, 0, err
 	}
 
-	err = e.DB.QueryRow("SELECT COUNT(*) FROM HikvisionCard").Scan(&cardsCount)
+	err = e.BaseEmulator.QueryRow("SELECT COUNT(*) FROM HikvisionCard", nil, &cardsCount)
 	if err != nil {
 		return 0, 0, 0, 0, err
 	}
 
-	err = e.DB.QueryRow("SELECT COUNT(*) FROM HikvisionFace").Scan(&facesCount)
+	err = e.BaseEmulator.QueryRow("SELECT COUNT(*) FROM HikvisionFace", nil, &facesCount)
 	if err != nil {
 		return 0, 0, 0, 0, err
 	}
 
-	err = e.DB.QueryRow("SELECT COUNT(*) FROM HikvisionFinger").Scan(&fingerprintsCount)
+	err = e.BaseEmulator.QueryRow("SELECT COUNT(*) FROM HikvisionFinger", nil, &fingerprintsCount)
 	if err != nil {
 		return 0, 0, 0, 0, err
 	}
@@ -490,7 +488,7 @@ func (e *HikvisionEmulator) setupRoutes(router *gin.Engine) {
 
 	// AcsCfg
 	router.GET(acURL+"/AcsCfg", func(c *gin.Context) {
-		localAuth, _ := e.DB.GetDeviceSettings("LocalAuthentication")
+		localAuth, _ := e.GetDeviceSetting("LocalAuthentication")
 		remoteCheckDoorEnabled := localAuth == "1"
 
 		c.JSON(http.StatusOK, gin.H{
@@ -536,7 +534,7 @@ func (e *HikvisionEmulator) setupRoutes(router *gin.Engine) {
 			localAuthValue = "1"
 		}
 
-		if err := e.DB.SetDeviceSettings("LocalAuthentication", localAuthValue); err != nil {
+		if err := e.SetDeviceSetting("LocalAuthentication", localAuthValue); err != nil {
 			c.XML(http.StatusInternalServerError, errorXMLResponse(err.Error()))
 			return
 		}
@@ -595,7 +593,7 @@ func (e *HikvisionEmulator) setupRoutes(router *gin.Engine) {
 		}
 
 		// Obter usuários do banco de dados
-		rows, err := e.DB.Query("SELECT * FROM HikvisionUser LIMIT ? OFFSET ?",
+		rows, err := e.Query("SELECT * FROM HikvisionUser LIMIT ? OFFSET ?",
 			payload.UserInfoSearchCond.MaxResults,
 			payload.UserInfoSearchCond.SearchResultPosition)
 		if err != nil {
@@ -663,7 +661,7 @@ func (e *HikvisionEmulator) setupRoutes(router *gin.Engine) {
 
 		// Obter contagem total de usuários
 		var totalUsers int
-		err = e.DB.QueryRow("SELECT COUNT(*) FROM HikvisionUser").Scan(&totalUsers)
+		err = e.BaseEmulator.QueryRow("SELECT COUNT(*) FROM HikvisionUser", nil, &totalUsers)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -701,8 +699,9 @@ func (e *HikvisionEmulator) setupRoutes(router *gin.Engine) {
 
 		// Verificar se o usuário já existe
 		var exists int
-		err := e.DB.QueryRow("SELECT COUNT(*) FROM HikvisionUser WHERE employeeNo = ?",
-			payload.UserInfo.EmployeeNo).Scan(&exists)
+		err := e.BaseEmulator.QueryRow("SELECT COUNT(*) FROM HikvisionUser WHERE employeeNo = ?",
+			[]interface{}{payload.UserInfo.EmployeeNo},
+			&exists)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -726,7 +725,7 @@ func (e *HikvisionEmulator) setupRoutes(router *gin.Engine) {
 		}
 
 		// Inserir o usuário
-		_, err = e.DB.Exec(
+		_, err = e.BaseEmulator.Exec(
 			"INSERT INTO HikvisionUser VALUES (?, ?, ?, ?, ?, ?)",
 			payload.UserInfo.EmployeeNo,
 			payload.UserInfo.Name,
@@ -773,7 +772,7 @@ func (e *HikvisionEmulator) setupRoutes(router *gin.Engine) {
 		}
 
 		// Atualizar o usuário
-		_, err := e.DB.Exec(
+		_, err := e.BaseEmulator.Exec(
 			"UPDATE HikvisionUser SET name = ?, password = ?, localUIRight = ?, beginTime = ?, endTime = ? WHERE employeeNo = ?",
 			payload.UserInfo.Name,
 			payload.UserInfo.Password,
@@ -841,7 +840,7 @@ func (e *HikvisionEmulator) setupRoutes(router *gin.Engine) {
 			e.Tracer.Info("Deleting user with EmployeeNo= %s", emp.EmployeeNo)
 
 			// Iniciar transação
-			tx, err := e.DB.Begin()
+			tx, err := e.BaseEmulator.Begin()
 			if err != nil {
 				e.Tracer.Error("Failed to begin transaction: %v", err)
 				continue
@@ -893,7 +892,7 @@ func (e *HikvisionEmulator) setupRoutes(router *gin.Engine) {
 	// CardInfo
 	router.GET(acURL+"/CardInfo/Count", func(c *gin.Context) {
 		var cardCount int
-		err := e.DB.QueryRow("SELECT COUNT(*) FROM HikvisionCard").Scan(&cardCount)
+		err := e.BaseEmulator.QueryRow("SELECT COUNT(*) FROM HikvisionCard", nil, &cardCount)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -920,7 +919,7 @@ func (e *HikvisionEmulator) setupRoutes(router *gin.Engine) {
 		}
 
 		// Obter cartões do banco de dados
-		rows, err := e.DB.Query("SELECT * FROM HikvisionCard LIMIT ? OFFSET ?",
+		rows, err := e.BaseEmulator.Query("SELECT * FROM HikvisionCard LIMIT ? OFFSET ?",
 			payload.CardInfoSearchCond.MaxResults,
 			payload.CardInfoSearchCond.SearchResultPosition)
 		if err != nil {
@@ -957,7 +956,7 @@ func (e *HikvisionEmulator) setupRoutes(router *gin.Engine) {
 
 		// Obter contagem total de cartões
 		var totalCards int
-		err = e.DB.QueryRow("SELECT COUNT(*) FROM HikvisionCard").Scan(&totalCards)
+		err = e.BaseEmulator.QueryRow("SELECT COUNT(*) FROM HikvisionCard", nil, &totalCards)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -991,8 +990,9 @@ func (e *HikvisionEmulator) setupRoutes(router *gin.Engine) {
 
 		// Verificar se o cartão ou empregado já existe
 		var exists int
-		err := e.DB.QueryRow("SELECT COUNT(*) FROM HikvisionCard WHERE employeeNo = ? OR cardNo = ?",
-			payload.CardInfo.EmployeeNo, payload.CardInfo.CardNo).Scan(&exists)
+		err := e.BaseEmulator.QueryRow("SELECT COUNT(*) FROM HikvisionCard WHERE employeeNo = ? OR cardNo = ?",
+			[]interface{}{payload.CardInfo.EmployeeNo, payload.CardInfo.CardNo},
+			&exists)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -1010,7 +1010,7 @@ func (e *HikvisionEmulator) setupRoutes(router *gin.Engine) {
 		}
 
 		// Inserir o cartão
-		_, err = e.DB.Exec(
+		_, err = e.BaseEmulator.Exec(
 			"INSERT INTO HikvisionCard VALUES (?, ?)",
 			payload.CardInfo.EmployeeNo,
 			payload.CardInfo.CardNo,
@@ -1034,7 +1034,7 @@ func (e *HikvisionEmulator) setupRoutes(router *gin.Engine) {
 
 	router.POST(acURL+"/FingerPrintUploadAll", func(c *gin.Context) {
 		var fpCount int
-		err := e.DB.QueryRow("SELECT COUNT(*) FROM HikvisionFinger").Scan(&fpCount)
+		err := e.BaseEmulator.QueryRow("SELECT COUNT(*) FROM HikvisionFinger", nil, &fpCount)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -1066,7 +1066,7 @@ func (e *HikvisionEmulator) setupRoutes(router *gin.Engine) {
 
 	router.GET(intelliURL+"/Count", func(c *gin.Context) {
 		var faceCount int
-		err := e.DB.QueryRow("SELECT COUNT(*) FROM HikvisionFace").Scan(&faceCount)
+		err := e.BaseEmulator.QueryRow("SELECT COUNT(*) FROM HikvisionFace", nil, &faceCount)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -1105,7 +1105,7 @@ func (e *HikvisionEmulator) setupRoutes(router *gin.Engine) {
 		}
 
 		// Obter faces do banco de dados
-		rows, err := e.DB.Query("SELECT * FROM HikvisionFace LIMIT ? OFFSET ?",
+		rows, err := e.BaseEmulator.Query("SELECT * FROM HikvisionFace LIMIT ? OFFSET ?",
 			payload.MaxResults, payload.SearchResultPosition)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -1141,7 +1141,7 @@ func (e *HikvisionEmulator) setupRoutes(router *gin.Engine) {
 
 		// Obter contagem total de faces
 		var totalFaces int
-		err = e.DB.QueryRow("SELECT COUNT(*) FROM HikvisionFace").Scan(&totalFaces)
+		err = e.BaseEmulator.QueryRow("SELECT COUNT(*) FROM HikvisionFace", nil, &totalFaces)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -1161,7 +1161,7 @@ func (e *HikvisionEmulator) setupRoutes(router *gin.Engine) {
 
 		// Obter a imagem do banco de dados
 		var photoData string
-		err := e.DB.QueryRow("SELECT PhotoData FROM HikvisionFace WHERE UserID = ?", userID).Scan(&photoData)
+		err := e.BaseEmulator.QueryRow("SELECT PhotoData FROM HikvisionFace WHERE UserID = ?", []interface{}{userID}, &photoData)
 		if err != nil {
 			c.String(http.StatusNotFound, "Face not found")
 			return
@@ -1196,7 +1196,7 @@ func (e *HikvisionEmulator) setupRoutes(router *gin.Engine) {
 		}
 
 		// Excluir a face
-		_, err := e.DB.Exec("DELETE FROM HikvisionFace WHERE UserID = ?", payload.FPID[0].Value)
+		_, err := e.BaseEmulator.Exec("DELETE FROM HikvisionFace WHERE UserID = ?", payload.FPID[0].Value)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -1249,7 +1249,7 @@ func (e *HikvisionEmulator) setupRoutes(router *gin.Engine) {
 
 		// Verificar se o usuário já tem uma face registrada
 		var exists int
-		err = e.DB.QueryRow("SELECT COUNT(*) FROM HikvisionFace WHERE UserID = ?", faceData.FPID).Scan(&exists)
+		err = e.BaseEmulator.QueryRow("SELECT COUNT(*) FROM HikvisionFace WHERE UserID = ?", []interface{}{faceData.FPID}, &exists)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -1267,7 +1267,7 @@ func (e *HikvisionEmulator) setupRoutes(router *gin.Engine) {
 		}
 
 		// Inserir a face
-		_, err = e.DB.Exec(
+		_, err = e.BaseEmulator.Exec(
 			"INSERT INTO HikvisionFace VALUES (?, ?)",
 			faceData.FPID,
 			base64Image,
@@ -1327,7 +1327,7 @@ func (e *HikvisionEmulator) setupRoutes(router *gin.Engine) {
 		base64Image := base64.StdEncoding.EncodeToString(imageData)
 
 		// Atualizar a face
-		_, err = e.DB.Exec(
+		_, err = e.BaseEmulator.Exec(
 			"UPDATE HikvisionFace SET PhotoData = ? WHERE UserID = ?",
 			base64Image,
 			faceData.FPID,
@@ -1474,7 +1474,7 @@ func (e *HikvisionEmulator) setupRoutes(router *gin.Engine) {
 					generatedEventCounter = now
 
 					// Verificar se a autenticação local está ativada
-					localAuth, err := e.DB.GetDeviceSettings("LocalAuthentication")
+					localAuth, err := e.GetDeviceSetting("LocalAuthentication")
 					if err != nil {
 						e.Tracer.Error("Failed to get LocalAuthentication setting: %v", err)
 						continue
@@ -1512,7 +1512,7 @@ func (e *HikvisionEmulator) setupRoutes(router *gin.Engine) {
 				}
 
 				// Verificar se a autenticação local está desativada
-				localAuth, err := e.DB.GetDeviceSettings("LocalAuthentication")
+				localAuth, err := e.GetDeviceSetting("LocalAuthentication")
 				if err == nil && localAuth == "0" {
 					e.Tracer.Info("Local authentication disabled, stopping event stream")
 					return
