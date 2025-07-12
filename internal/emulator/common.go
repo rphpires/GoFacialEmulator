@@ -23,19 +23,10 @@ import (
 
 // Emulator is the interface implemented by all emulators
 type Emulator interface {
-	// Start starts the emulator
 	Start() error
-
-	// Stop stops the emulator
 	Stop() error
-
-	// IsRunning returns true if the emulator is running
 	IsRunning() bool
-
-	// GetInfo returns information about the emulator
 	GetInfo() models.Device
-
-	// GenerateEvent generates and sends an event
 	GenerateEvent() error
 }
 
