@@ -75,6 +75,28 @@ func main() {
 		}
 	}()
 
+	func gracefulShutdown(server *http.Server, manager *emulator.Manager, tracer *trace.Tracer) {
+    stop := make(chan os.Signal, 1)
+    signal.Notify(stop, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
+
+    <-stop
+    tracer.Info("Shutdown signal received")
+
+    // Create shutdown context with timeout
+    shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
+    defer shutdownCancel()
+
+    // Shutdown HTTP server
+    if err := server.Shutdown(shutdownCtx); err != nil {
+        tracer.Error("HTTP server shutdown failed: %v", err)
+    }
+
+    // Stop all emulators
+    manager.StopAll()
+    
+    tracer.Info("Application stopped gracefully")
+}
+
 	// Set up signal handling for graceful shutdown
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)

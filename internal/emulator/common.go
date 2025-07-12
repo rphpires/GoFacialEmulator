@@ -2,13 +2,9 @@ package emulator
 
 import (
 	"context"
-	"crypto/md5"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 
@@ -16,23 +12,33 @@ import (
 	"GoFacialEmulator/internal/models"
 	"GoFacialEmulator/internal/trace"
 	"GoFacialEmulator/internal/utils"
-
-	"github.com/jackc/pgconn"
-	"github.com/jackc/pgx"
 )
 
-// Emulator is the interface implemented by all emulators
+// Emulator define a interface que todos os emuladores devem implementar
 type Emulator interface {
 	Start() error
 	Stop() error
 	IsRunning() bool
 	GetInfo() models.Device
 	GenerateEvent() error
+	GetType() string
 }
 
-// BaseEmulator contains common functionality for all emulators
+// EventGenerator define a interface para geradores de eventos
+type EventGenerator interface {
+	GenerateEvent() error
+	SendEventToRemoteServer(event interface{}, contentType string) error
+}
+
+// ConfigManager define a interface para gerenciamento de configurações
+type ConfigManager interface {
+	GetSetting(key string) (string, error)
+	SetSetting(key, value string) error
+}
+
+// BaseEmulator contém funcionalidade comum para todos os emuladores
 type BaseEmulator struct {
-	sync.Mutex
+	mu         sync.RWMutex
 	Device     models.Device
 	DB         *database.EmulatorDB
 	Tracer     *trace.Tracer
@@ -41,9 +47,13 @@ type BaseEmulator struct {
 	stopChan   chan struct{}
 	MacAddress string
 	RemoteURL  string
+
+	// Canais para controle de lifecycle
+	eventTicker *time.Ticker
+	eventDone   chan struct{}
 }
 
-// NewBaseEmulator creates a new base emulator
+// NewBaseEmulator cria um novo emulador base
 func NewBaseEmulator(db *database.EmulatorDB, device models.Device, tracer *trace.Tracer) *BaseEmulator {
 	macAddress := utils.GenerateMacAddress()
 
@@ -52,16 +62,16 @@ func NewBaseEmulator(db *database.EmulatorDB, device models.Device, tracer *trac
 		DB:         db,
 		Tracer:     tracer,
 		running:    false,
-		stopChan:   make(chan struct{}),
 		MacAddress: macAddress,
-		RemoteURL:  fmt.Sprintf("http://%s:%d/notification", device.IPAddress, device.EventInterval),
+		RemoteURL:  fmt.Sprintf("http://%s:%d/notification", device.IPAddress, device.Port),
+		eventDone:  make(chan struct{}),
 	}
 }
 
-// Start starts the emulator
+// Start inicia o emulador
 func (e *BaseEmulator) Start() error {
-	e.Lock()
-	defer e.Unlock()
+	e.mu.Lock()
+	defer e.mu.Unlock()
 
 	if e.running {
 		return fmt.Errorf("emulator already running")
@@ -74,134 +84,155 @@ func (e *BaseEmulator) Start() error {
 	return nil
 }
 
-// Stop stops the emulator
+// Stop para o emulador
 func (e *BaseEmulator) Stop() error {
-	e.Lock()
-	defer e.Unlock()
+	e.mu.Lock()
+	defer e.mu.Unlock()
 
 	if !e.running {
 		return fmt.Errorf("emulator not running")
 	}
 
 	e.Tracer.Info("Stopping emulator: %s", e.Device.Name)
+
+	// Parar o gerador de eventos
+	e.stopEventGenerator()
+
+	// Fechar canal de parada
 	close(e.stopChan)
 	e.running = false
 
+	// Parar servidor HTTP se estiver rodando
 	if e.Server != nil {
-		return e.Server.Close()
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		return e.Server.Shutdown(ctx)
 	}
 
 	return nil
 }
 
-// IsRunning returns true if the emulator is running
+// IsRunning retorna true se o emulador estiver rodando
 func (e *BaseEmulator) IsRunning() bool {
-	e.Lock()
-	defer e.Unlock()
+	e.mu.RLock()
+	defer e.mu.RUnlock()
 	return e.running
 }
 
-// GetInfo returns information about the emulator
+// GetInfo retorna informações sobre o emulador
 func (e *BaseEmulator) GetInfo() models.Device {
-	e.Lock()
-	defer e.Unlock()
+	e.mu.RLock()
+	defer e.mu.RUnlock()
 
-	// Update status
+	device := e.Device
 	if e.running {
-		e.Device.Status = "running"
+		device.Status = "running"
 	} else {
-		e.Device.Status = "stopped"
+		device.Status = "stopped"
 	}
 
-	return e.Device
+	// Atualizar contagem de usuários
+	if count, err := e.GetTotalUsers(); err == nil {
+		device.TotalUsers = count
+	}
+
+	return device
 }
 
-// GetTotalUsers é um método auxiliar que encapsula a chamada para DB.GetTotalUsers com o contexto adequado
-func (e *BaseEmulator) GetTotalUsers() (int, error) {
-	ctx := context.Background()
-	return e.DB.GetTotalUsers(ctx, e.Device.Model, e.Device.ID)
+// GetType retorna o tipo do emulador (deve ser sobrescrito pelos emuladores específicos)
+func (e *BaseEmulator) GetType() string {
+	return "base"
 }
 
-// GetDeviceSetting é um método auxiliar que encapsula a chamada para DB.GetDeviceSettings
-func (e *BaseEmulator) GetDeviceSetting(key string) (string, error) {
-	ctx := context.Background()
-	return e.DB.GetDeviceSettings(ctx, e.Device.ID, key)
-}
-
-// SetDeviceSetting é um método auxiliar que encapsula a chamada para DB.SetDeviceSettings
-func (e *BaseEmulator) SetDeviceSetting(key string, value string) error {
-	ctx := context.Background()
-	return e.DB.SetDeviceSettings(ctx, e.Device.ID, key, value)
-}
-
-func (e *BaseEmulator) Begin() (pgx.Tx, error) {
-	ctx := context.Background()
-	return e.DB.BeginTx(ctx)
-}
-
-func (e *BaseEmulator) QueryRow(query string, args []interface{}, dest ...interface{}) error {
-	ctx := context.Background()
-	return e.DB.QueryRow(ctx, query, args...).Scan(dest...)
-}
-
-func (e *BaseEmulator) Query(query string, args ...interface{}) (pgx.Rows, error) {
-	ctx := context.Background()
-	return e.DB.Query(ctx, query, args...)
-}
-
-func (e *BaseEmulator) Exec(query string, args ...interface{}) (pgconn.CommandTag, error) {
-	ctx := context.Background()
-	return e.DB.Exec(ctx, query, args...)
-}
-
-// StartEventGenerator starts a goroutine that periodically generates events
+// StartEventGenerator inicia o gerador de eventos
 func (e *BaseEmulator) StartEventGenerator(generator func() error) {
+	if e.Device.EventInterval <= 0 {
+		e.Tracer.Info("Event generation disabled (interval <= 0)")
+		return
+	}
+
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	// Parar gerador anterior se existir
+	e.stopEventGenerator()
+
+	// Criar novo ticker
+	e.eventTicker = time.NewTicker(time.Duration(e.Device.EventInterval) * time.Second)
+	e.eventDone = make(chan struct{})
+
 	go func() {
-		ticker := time.NewTicker(time.Duration(e.Device.EventInterval) * time.Second)
-		defer ticker.Stop()
+		defer e.eventTicker.Stop()
 
 		for {
 			select {
-			case <-ticker.C:
+			case <-e.eventTicker.C:
 				if e.IsRunning() {
 					if err := generator(); err != nil {
 						e.Tracer.Error("Failed to generate event: %v", err)
 					}
 				}
+			case <-e.eventDone:
+				return
 			case <-e.stopChan:
 				return
 			}
 		}
 	}()
+
+	e.Tracer.Info("Event generator started with interval: %ds", e.Device.EventInterval)
 }
 
-// CalculateMD5 calculates the MD5 hash of the given data
-func CalculateMD5(data []byte) string {
-	hash := md5.New()
-	hash.Write(data)
-	return fmt.Sprintf("%X", hash.Sum(nil))
+// stopEventGenerator para o gerador de eventos
+func (e *BaseEmulator) stopEventGenerator() {
+	if e.eventTicker != nil {
+		e.eventTicker.Stop()
+		e.eventTicker = nil
+	}
+
+	if e.eventDone != nil {
+		close(e.eventDone)
+		e.eventDone = nil
+	}
 }
 
-// DecodeFaceImage decodes a base64-encoded image
-func DecodeFaceImage() ([]byte, error) {
-	return base64.StdEncoding.DecodeString(PhotoImg)
+// Métodos de conveniência para acesso ao banco de dados
+
+// GetTotalUsers retorna o número total de usuários
+func (e *BaseEmulator) GetTotalUsers() (int, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	return e.DB.GetTotalUsers(ctx, e.Device.Model, e.Device.ID)
 }
 
-// HandleStatus is a common handler for status requests
+// GetSetting obtém uma configuração do dispositivo
+func (e *BaseEmulator) GetSetting(key string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	return e.DB.GetDeviceSettings(ctx, e.Device.ID, key)
+}
+
+// SetSetting define uma configuração do dispositivo
+func (e *BaseEmulator) SetSetting(key, value string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	return e.DB.SetDeviceSettings(ctx, e.Device.ID, key, value)
+}
+
+// HandleStatus é um handler comum para requisições de status
 func (e *BaseEmulator) HandleStatus(w http.ResponseWriter, r *http.Request) {
 	info := e.GetInfo()
-
-	// Get total user count
-	count, err := e.GetTotalUsers()
-	if err == nil {
-		info.TotalUsers = count
-	}
 
 	response := map[string]interface{}{
 		"CurrentDatetime": time.Now().Format("2006-01-02 15:04:05"),
 		"TotalUsers":      info.TotalUsers,
 		"Status":          info.Status,
 		"Model":           info.Model,
+		"MacAddress":      e.MacAddress,
+		"Version":         "1.0.0",
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -211,47 +242,58 @@ func (e *BaseEmulator) HandleStatus(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// SendEventToRemoteServer sends an event to the remote server
+// SendEventToRemoteServer envia um evento para o servidor remoto
 func (e *BaseEmulator) SendEventToRemoteServer(event interface{}, contentType string) error {
-	// Check if remote authentication is enabled
-	localAuth, err := e.GetDeviceSetting("LocalAuthentication")
+	// Verificar se autenticação local está ativada
+	localAuth, err := e.GetSetting("LocalAuthentication")
 	if err != nil {
 		return fmt.Errorf("failed to get LocalAuthentication setting: %w", err)
 	}
 
 	if localAuth == "1" {
-		// Local authentication is enabled, don't send event to remote server
+		e.Tracer.Debug("Local authentication enabled, not sending to remote server")
 		return nil
 	}
 
-	// Get remote server URL
-	remoteServer, err := e.GetDeviceSetting("RemoteServer")
+	// Obter configurações do servidor remoto
+	remoteServer, err := e.GetSetting("RemoteServer")
 	if err != nil {
 		return fmt.Errorf("failed to get RemoteServer setting: %w", err)
 	}
 
-	remotePort, err := e.GetDeviceSetting("RemotePort")
+	remotePort, err := e.GetSetting("RemotePort")
 	if err != nil {
 		return fmt.Errorf("failed to get RemotePort setting: %w", err)
 	}
 
+	if remoteServer == "" || remotePort == "" {
+		return fmt.Errorf("remote server configuration incomplete")
+	}
+
 	remoteURL := fmt.Sprintf("http://%s:%s/notification", remoteServer, remotePort)
 
-	// Marshal event to JSON
+	// Serializar evento
 	payload, err := json.Marshal(event)
 	if err != nil {
 		return fmt.Errorf("failed to marshal event: %w", err)
 	}
 
-	// Send event to remote server
-	req, err := http.NewRequest("POST", remoteURL, strings.NewReader(string(payload)))
+	// Criar requisição HTTP
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, "POST", remoteURL,
+		http.NoBody)
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
-	req.Header.Set("Content-Type", contentType)
 
+	req.Header.Set("Content-Type", contentType)
+	req.Body = http.NoBody // Será definido pelos emuladores específicos
+
+	// Executar requisição
 	client := &http.Client{
-		Timeout: 5 * time.Second,
+		Timeout: 10 * time.Second,
 	}
 
 	resp, err := client.Do(req)
@@ -260,32 +302,50 @@ func (e *BaseEmulator) SendEventToRemoteServer(event interface{}, contentType st
 	}
 	defer resp.Body.Close()
 
-	// Read response
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("failed to read response: %w", err)
+	if resp.StatusCode >= 400 {
+		return fmt.Errorf("remote server returned error: %s", resp.Status)
 	}
 
-	e.Tracer.Info("Remote server response: %s", string(body))
+	e.Tracer.Info("Event sent successfully to %s", remoteURL)
 
-	// If the access was successful, simulate door opening/closing
+	// Simular eventos de porta se necessário
 	if utils.RandomAccessNotDone() {
-		time.Sleep(2 * time.Second)
-		if err := e.SendDoorEvent("Open"); err != nil {
-			e.Tracer.Error("Failed to send door open event: %v", err)
-		}
-
-		time.Sleep(3 * time.Second)
-		if err := e.SendDoorEvent("Close"); err != nil {
-			e.Tracer.Error("Failed to send door close event: %v", err)
-		}
+		e.simulateDoorEvents()
 	}
 
 	return nil
 }
 
-// SendDoorEvent sends a door status event to the remote server
-func (e *BaseEmulator) SendDoorEvent(status string) error {
-	// Implementation will vary based on emulator type
+// simulateDoorEvents simula eventos de abertura/fechamento de porta
+func (e *BaseEmulator) simulateDoorEvents() {
+	go func() {
+		time.Sleep(2 * time.Second)
+		if err := e.sendDoorEvent("Open"); err != nil {
+			e.Tracer.Error("Failed to send door open event: %v", err)
+		}
+
+		time.Sleep(3 * time.Second)
+		if err := e.sendDoorEvent("Close"); err != nil {
+			e.Tracer.Error("Failed to send door close event: %v", err)
+		}
+	}()
+}
+
+// sendDoorEvent envia evento de porta (deve ser implementado pelos emuladores específicos)
+func (e *BaseEmulator) sendDoorEvent(status string) error {
+	e.Tracer.Info("Door event: %s (base implementation)", status)
 	return nil
+}
+
+// Cleanup realiza limpeza de recursos
+func (e *BaseEmulator) Cleanup() {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	e.stopEventGenerator()
+
+	if e.stopChan != nil {
+		close(e.stopChan)
+		e.stopChan = nil
+	}
 }

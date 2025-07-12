@@ -1,0 +1,26 @@
+linters-settings:
+  golint:
+    min-confidence: 0.8
+  gocyclo:
+    min-complexity: 10
+
+linters:
+  enable:
+    - golint
+    - gocyclo
+    - govet
+    - errcheck
+    - staticcheck
+    - unused
+    - gosimple
+    - structcheck
+    - varcheck
+    - ineffassign
+    - deadcode
+    - typecheck
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - golint

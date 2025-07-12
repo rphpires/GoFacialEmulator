@@ -1,6 +1,7 @@
 package emulator
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -21,8 +22,10 @@ import (
 // DahuaEmulator representa o emulador para dispositivos Dahua
 type DahuaEmulator struct {
 	*BaseEmulator
-	repo                  *database.DahuaRepository
-	GeneratedEventCounter time.Time
+	repo            *database.DahuaRepository
+	remoteServer    string
+	remotePort      string
+	remoteServerURL string
 }
 
 // NewDahuaEmulator cria uma nova instância do emulador Dahua
@@ -33,12 +36,32 @@ func NewDahuaEmulator(db *database.EmulatorDB, device models.Device, tracer *tra
 	repo := database.NewDahuaRepository(db, device.ID)
 
 	emulator := &DahuaEmulator{
-		BaseEmulator:          baseEmulator,
-		repo:                  repo,
-		GeneratedEventCounter: time.Now(),
+		BaseEmulator: baseEmulator,
+		repo:         repo,
 	}
 
+	// Inicializar configurações do servidor remoto
+	emulator.initializeRemoteSettings()
+
 	return emulator
+}
+
+// initializeRemoteSettings inicializa as configurações do servidor remoto
+func (e *DahuaEmulator) initializeRemoteSettings() {
+	if server, err := e.GetSetting("RemoteServer"); err == nil && server != "" {
+		e.remoteServer = server
+	} else {
+		e.remoteServer = "localhost"
+	}
+
+	if port, err := e.GetSetting("RemotePort"); err == nil && port != "" {
+		e.remotePort = port
+	} else {
+		e.remotePort = "15501"
+	}
+
+	e.remoteServerURL = fmt.Sprintf("http://%s:%s", e.remoteServer, e.remotePort)
+	e.Tracer.Info("Remote server URL: %s", e.remoteServerURL)
 }
 
 // Start inicia o servidor do emulador
@@ -64,11 +87,11 @@ func (e *DahuaEmulator) Start() error {
 	// Inicia o servidor em uma goroutine
 	go func() {
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			e.Tracer.Error("Failed to start server: %v", err)
+			e.Tracer.Error("Failed to start Dahua server: %v", err)
 		}
 	}()
 
-	// Inicia o gerador de eventos
+	// Inicia o gerador de eventos se configurado
 	if e.Device.EventInterval > 0 {
 		e.StartEventGenerator(e.GenerateEvent)
 	}
@@ -76,43 +99,48 @@ func (e *DahuaEmulator) Start() error {
 	return nil
 }
 
-// GenerateEvent gera e envia um evento
+// GetType retorna o tipo do emulador
+func (e *DahuaEmulator) GetType() string {
+	return "Dahua"
+}
+
+// GenerateEvent gera e envia um evento - baseado no generate_online_event() do Python
 func (e *DahuaEmulator) GenerateEvent() error {
-	// Verifica se a autenticação local está ativada
-	localAuth, err := e.BaseEmulator.GetDeviceSetting("LocalAuthentication")
+	// Verificar modo de autenticação
+	localAuth, err := e.GetSetting("LocalAuthentication")
 	if err != nil {
 		return fmt.Errorf("failed to get LocalAuthentication setting: %w", err)
 	}
 
 	if localAuth == "0" {
-		// Modo de autenticação remota, enviar para o servidor remoto
+		// Modo online - enviar para servidor remoto
 		return e.generateOnlineEvent()
-	} else {
-		// Modo de autenticação local, não precisa enviar eventos
-		e.Tracer.Info("Local authentication mode, not generating events")
 	}
 
+	// Modo local - eventos são gerados via streaming
+	e.Tracer.Debug("Local authentication mode, events generated via streaming")
 	return nil
 }
 
-// generateOnlineEvent gera um evento online e o envia para o servidor remoto
+// generateOnlineEvent gera um evento online - replicação do método Python
 func (e *DahuaEmulator) generateOnlineEvent() error {
 	e.Tracer.Info("Generating online event")
 
-	// Busca um cartão aleatório no banco de dados
-	var cardInfo struct {
-		UserID   int
-		CardName string
-		CardNo   string
-	}
+	// Buscar cartão aleatório
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
-	query := "SELECT UserID, CardName, CardNo FROM DahuaCard ORDER BY RANDOM() LIMIT 1"
-	err := e.BaseEmulator.QueryRow(query, nil, &cardInfo.UserID, &cardInfo.CardName, &cardInfo.CardNo)
+	var userID int
+	var cardName, cardNo string
+
+	query := "SELECT user_id, card_name, card_no FROM emulator.dahua_cards dc JOIN emulator.dahua_card_devices dcd ON dc.id = dcd.card_id WHERE dcd.device_id = $1 ORDER BY RANDOM() LIMIT 1"
+	err := e.DB.QueryRow(ctx, query, e.Device.ID).Scan(&userID, &cardName, &cardNo)
 	if err != nil {
-		return fmt.Errorf("failed to get random card: %w", err)
+		e.Tracer.Warning("No cards found for event generation: %v", err)
+		return nil
 	}
 
-	// Cria o evento
+	// Criar evento básico
 	currentTime := time.Now()
 	event := map[string]interface{}{
 		"Events": []map[string]interface{}{
@@ -130,7 +158,7 @@ func (e *DahuaEmulator) generateOnlineEvent() error {
 					"Status":       0,
 					"Type":         "Entry",
 					"UTC":          currentTime.Unix(),
-					"UserID":       cardInfo.UserID,
+					"UserID":       userID,
 					"UserType":     0,
 				},
 				"Index":           0,
@@ -140,53 +168,37 @@ func (e *DahuaEmulator) generateOnlineEvent() error {
 		"Time": currentTime.Format("02-01-2006 15:04:05"),
 	}
 
-	// Formata o evento como multipart
-	boundary := "myboundary"
-	eventJSON, err := json.Marshal(event)
-	if err != nil {
-		return fmt.Errorf("failed to marshal event: %w", err)
+	// Enviar evento básico
+	if err := e.sendEventToRemote(event, "multipart/form-data"); err != nil {
+		return fmt.Errorf("failed to send basic event: %w", err)
 	}
 
-	// Cria o pacote de evento
-	body := fmt.Sprintf("\r\n--"+boundary+"\r\nContent-Type: text/plain\r\nContent-Disposition: form-data; name=\"info\"\r\n\r\n%s\r\n--"+boundary+"--\r\n\r\n", string(eventJSON))
-
-	// Obtém o servidor remoto
-	remoteServer, err := e.BaseEmulator.GetDeviceSetting("RemoteServer")
-	if err != nil {
-		return fmt.Errorf("failed to get RemoteServer setting: %w", err)
+	// Criar evento com imagem
+	eventWithImage := e.createEventWithImage(event, currentTime)
+	if err := e.sendEventWithImageToRemote(eventWithImage); err != nil {
+		return fmt.Errorf("failed to send event with image: %w", err)
 	}
 
-	remotePort, err := e.BaseEmulator.GetDeviceSetting("RemotePort")
-	if err != nil {
-		return fmt.Errorf("failed to get RemotePort setting: %w", err)
+	// Simular eventos de porta
+	if utils.RandomAccessNotDone() {
+		e.simulateDoorEvents()
 	}
 
-	// Envia o evento para o servidor remoto
-	remoteURL := fmt.Sprintf("http://%s:%s/notification", remoteServer, remotePort)
-	e.Tracer.Info("Sending event to server: %s", remoteURL)
+	return nil
+}
 
-	req, err := http.NewRequest("POST", remoteURL, strings.NewReader(body))
-	if err != nil {
-		return fmt.Errorf("failed to create request: %w", err)
-	}
-	req.Header.Set("Content-Type", "multipart/form-data; boundary="+boundary)
-
-	client := &http.Client{Timeout: 5 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("failed to send event: %w", err)
-	}
-	defer resp.Body.Close()
-
-	// Verifica a resposta
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("unexpected response: %s", resp.Status)
+// createEventWithImage adiciona informações de imagem ao evento
+func (e *DahuaEmulator) createEventWithImage(baseEvent map[string]interface{}, currentTime time.Time) map[string]interface{} {
+	// Copiar evento base
+	event := make(map[string]interface{})
+	for k, v := range baseEvent {
+		event[k] = v
 	}
 
-	// Envia evento com foto
-	e.Tracer.Info("Sending event with photo")
+	// Adicionar informações de imagem
 	events := event["Events"].([]map[string]interface{})
 	data := events[0]["Data"].(map[string]interface{})
+
 	data["ImageInfo"] = []map[string]interface{}{
 		{
 			"Height": 640,
@@ -197,42 +209,87 @@ func (e *DahuaEmulator) generateOnlineEvent() error {
 		},
 	}
 	data["Method"] = 4
-	event["Channel"] = 0
-	event["Events"].([]map[string]interface{})[0]["Data"].(map[string]interface{})["Method"] = 4
-	event["FilePath"] = "\\/mnt\\/appdata1\\/userpic\\/SnapShot\\/" + currentTime.Format("2006-01-02") + "\\/" + currentTime.Format("15") + "\\/" + currentTime.Format("04") + "\\/" + currentTime.Format("20060102150405") + ".jpg"
 
-	// Codificar a imagem
+	event["Channel"] = 0
+	event["FilePath"] = fmt.Sprintf("\\/mnt\\/appdata1\\/userpic\\/SnapShot\\/%s\\/%s\\/%s\\/%s.jpg",
+		currentTime.Format("2006-01-02"),
+		currentTime.Format("15"),
+		currentTime.Format("04"),
+		currentTime.Format("20060102150405"))
+
+	return event
+}
+
+// sendEventToRemote envia evento básico para servidor remoto
+func (e *DahuaEmulator) sendEventToRemote(event map[string]interface{}, contentType string) error {
+	boundary := "myboundary"
+
+	eventJSON, err := json.Marshal(event)
+	if err != nil {
+		return fmt.Errorf("failed to marshal event: %w", err)
+	}
+
+	body := fmt.Sprintf("\r\n--%s\r\nContent-Type: text/plain\r\nContent-Disposition: form-data; name=\"info\"\r\n\r\n%s\r\n--%s--\r\n\r\n",
+		boundary, string(eventJSON), boundary)
+
+	return e.sendHTTPRequest(body, fmt.Sprintf("multipart/form-data; boundary=%s", boundary))
+}
+
+// sendEventWithImageToRemote envia evento com imagem
+func (e *DahuaEmulator) sendEventWithImageToRemote(event map[string]interface{}) error {
+	boundary := "myboundary"
+
+	eventJSON, err := json.Marshal(event)
+	if err != nil {
+		return fmt.Errorf("failed to marshal event with image: %w", err)
+	}
+
+	// Decodificar imagem
 	imageData, err := base64.StdEncoding.DecodeString(PhotoImg)
 	if err != nil {
 		return fmt.Errorf("failed to decode image: %w", err)
 	}
 
-	// Construir o multipart com a imagem
-	eventJSON, err = json.Marshal(event)
-	if err != nil {
-		return fmt.Errorf("failed to marshal event with image: %w", err)
-	}
+	// Construir multipart
+	photoHeader := fmt.Sprintf("\r\n--%s\r\nContent-Type: text/plain\r\nContent-Disposition: form-data; name=\"info\"\r\n\r\n%s\r\n--%s\r\nContent-Type: image/jpeg\r\nContent-Disposition: form-data; name=\"file\"\r\n\r\n",
+		boundary, string(eventJSON), boundary)
 
-	// Cria o pacote de evento com imagem
-	photoHeader := fmt.Sprintf("\r\n--"+boundary+"\r\nContent-Type: text/plain\r\nContent-Disposition: form-data; name=\"info\"\r\n\r\n%s\r\n--"+boundary+"\r\nContent-Type: image/jpeg\r\nContent-Disposition: form-data; name=\"file\"\r\n\r\n", string(eventJSON))
 	photoFooter := fmt.Sprintf("\r\n--%s--\r\n\r\n", boundary)
 
-	// Enviar o evento com a foto
-	req, err = http.NewRequest("POST", remoteURL, strings.NewReader(photoHeader+string(imageData)+photoFooter))
-	if err != nil {
-		return fmt.Errorf("failed to create image request: %w", err)
-	}
-	req.Header.Set("Content-Type", "multipart/form-data; boundary="+boundary)
+	body := photoHeader + string(imageData) + photoFooter
 
-	resp, err = client.Do(req)
+	return e.sendHTTPRequest(body, fmt.Sprintf("multipart/form-data; boundary=%s", boundary))
+}
+
+// sendHTTPRequest envia requisição HTTP para o servidor remoto
+func (e *DahuaEmulator) sendHTTPRequest(body, contentType string) error {
+	url := e.remoteServerURL + "/notification"
+
+	req, err := http.NewRequest("POST", url, strings.NewReader(body))
 	if err != nil {
-		return fmt.Errorf("failed to send image event: %w", err)
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", contentType)
+
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to send request: %w", err)
 	}
 	defer resp.Body.Close()
 
-	// Simula eventos de porta se necessário
-	if utils.RandomAccessNotDone() {
-		e.Tracer.Info("Simulating door open/close events")
+	if resp.StatusCode >= 400 {
+		return fmt.Errorf("server returned error: %s", resp.Status)
+	}
+
+	e.Tracer.Info("Event sent successfully to %s", url)
+	return nil
+}
+
+// simulateDoorEvents simula eventos de porta
+func (e *DahuaEmulator) simulateDoorEvents() {
+	go func() {
 		time.Sleep(2 * time.Second)
 		if err := e.sendDoorEvent("Open"); err != nil {
 			e.Tracer.Error("Failed to send door open event: %v", err)
@@ -242,12 +299,10 @@ func (e *DahuaEmulator) generateOnlineEvent() error {
 		if err := e.sendDoorEvent("Close"); err != nil {
 			e.Tracer.Error("Failed to send door close event: %v", err)
 		}
-	}
-
-	return nil
+	}()
 }
 
-// sendDoorEvent envia um evento de estado da porta
+// sendDoorEvent envia evento de porta
 func (e *DahuaEmulator) sendDoorEvent(status string) error {
 	currentTime := time.Now()
 	event := map[string]interface{}{
@@ -266,62 +321,25 @@ func (e *DahuaEmulator) sendDoorEvent(status string) error {
 		"Time": currentTime.Format("02-01-2006 15:04:05"),
 	}
 
-	// Obtém o servidor remoto
-	remoteServer, err := e.BaseEmulator.GetDeviceSetting("RemoteServer")
-	if err != nil {
-		return fmt.Errorf("failed to get RemoteServer setting: %w", err)
-	}
-
-	remotePort, err := e.BaseEmulator.GetDeviceSetting("RemotePort")
-	if err != nil {
-		return fmt.Errorf("failed to get RemotePort setting: %w", err)
-	}
-
-	// Formata o evento como multipart
-	boundary := "myboundary"
-	eventJSON, err := json.Marshal(event)
-	if err != nil {
-		return fmt.Errorf("failed to marshal door event: %w", err)
-	}
-
-	// Cria o pacote de evento
-	body := fmt.Sprintf("\r\n--"+boundary+"\r\nContent-Type: text/plain\r\nContent-Disposition: form-data; name=\"info\"\r\n\r\n%s\r\n--"+boundary+"--\r\n\r\n", string(eventJSON))
-
-	// Envia o evento para o servidor remoto
-	remoteURL := fmt.Sprintf("http://%s:%s/notification", remoteServer, remotePort)
-	req, err := http.NewRequest("POST", remoteURL, strings.NewReader(body))
-	if err != nil {
-		return fmt.Errorf("failed to create door event request: %w", err)
-	}
-	req.Header.Set("Content-Type", "multipart/form-data; boundary="+boundary)
-
-	client := &http.Client{Timeout: 5 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("failed to send door event: %w", err)
-	}
-	defer resp.Body.Close()
-
-	return nil
+	return e.sendEventToRemote(event, "multipart/form-data")
 }
 
-// GenerateRandomEvent gera um evento aleatório para streaming
-func (e *DahuaEmulator) GenerateRandomEvent() ([]byte, error) {
+// generateRandomEvent gera evento aleatório para streaming - baseado no método Python
+func (e *DahuaEmulator) generateRandomEvent() ([]byte, error) {
 	e.Tracer.Info("Generating random event for streaming")
 
-	// Busca um cartão aleatório no banco de dados
-	var cardInfo struct {
-		CardName string
-		CardNo   string
-	}
+	// Buscar cartão aleatório
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
-	query := "SELECT CardName, CardNo FROM DahuaCard ORDER BY RANDOM() LIMIT 1"
-	err := e.BaseEmulator.QueryRow(query, nil, &cardInfo.CardName, &cardInfo.CardNo)
+	var cardName, cardNo string
+	query := "SELECT card_name, card_no FROM emulator.dahua_cards dc JOIN emulator.dahua_card_devices dcd ON dc.id = dcd.card_id WHERE dcd.device_id = $1 ORDER BY RANDOM() LIMIT 1"
+	err := e.DB.QueryRow(ctx, query, e.Device.ID).Scan(&cardName, &cardNo)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get random card: %w", err)
+		return nil, fmt.Errorf("no cards found: %w", err)
 	}
 
-	// Cria o evento
+	// Gerar evento no formato Dahua
 	genEvt := fmt.Sprintf(`Events[0].Alive=100
 Events[0].CardName=%s
 Events[0].CardNo=%s
@@ -357,37 +375,44 @@ Events[0].Status=1
 Events[0].Type=Entry
 Events[0].UTC=1711203293
 Events[0].UserID=29559
-Events[0].UserType=0`, cardInfo.CardName, cardInfo.CardNo)
+Events[0].UserType=0`, cardName, cardNo)
 
-	// Cria o pacote de evento
-	evtPackage := fmt.Sprintf(`
+	// Criar pacote de evento
+	evtPackage := fmt.Sprintf("\r\n\r\n\r\n--myboundary\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s", len(genEvt), genEvt)
 
---myboundary
-Content-Type: text/plain
-Content-Length: %d
-
-%s`, len(genEvt), genEvt)
-
-	// Decodifica a imagem
+	// Adicionar imagem
 	imageData, err := base64.StdEncoding.DecodeString(PhotoImg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode image: %w", err)
 	}
 
-	// Adiciona a imagem ao pacote
 	dataPhoto := fmt.Sprintf("\r\n--myboundary\r\nContent-Type: image/jpeg\r\nContent-Length: %d\r\n\r\n", len(imageData))
 
-	return []byte(evtPackage + dataPhoto + string(imageData)), nil
+	result := []byte(evtPackage + dataPhoto)
+	result = append(result, imageData...)
+
+	return result, nil
 }
 
-// setupRoutes configura as rotas do emulador Dahua
+// setupRoutes configura todas as rotas do emulador Dahua - baseado no código Python
 func (e *DahuaEmulator) setupRoutes(router *gin.Engine) {
-	// Endpoint para verificar o status do emulador
+	// Configurar handlers de resposta com latência
+	handleResponse := func(content string, statusCode int, latencySleep int) gin.HandlerFunc {
+		return func(c *gin.Context) {
+			if latencySleep > 0 {
+				time.Sleep(time.Duration(latencySleep) * time.Millisecond)
+			}
+			c.Header("Content-Type", "text/plain; charset=utf-8")
+			c.String(statusCode, content)
+		}
+	}
+
+	// Status do emulador
 	router.GET("/emulator/get-status", func(c *gin.Context) {
 		e.HandleStatus(c.Writer, c.Request)
 	})
 
-	// Configurar rotas para global.cgi
+	// global.cgi - Configurações globais
 	router.GET("/cgi-bin/global.cgi", func(c *gin.Context) {
 		action := c.Query("action")
 		timeParam := c.Query("time")
@@ -397,51 +422,52 @@ func (e *DahuaEmulator) setupRoutes(router *gin.Engine) {
 		switch action {
 		case "getCurrentTime":
 			currentTime := time.Now().Format("2006-01-02 15:04:05")
-			c.String(http.StatusOK, fmt.Sprintf("result=%s", currentTime))
+			handleResponse(fmt.Sprintf("result=%s", currentTime), 200, 0)(c)
 		case "setCurrentTime", "setConfig":
-			c.String(http.StatusOK, "OK")
+			handleResponse("OK", 200, 0)(c)
 		default:
 			c.String(http.StatusBadRequest, "Invalid action")
 		}
 	})
 
-	// Configurar rotas para magicBox.cgi
+	// magicBox.cgi - Informações do software
 	router.GET("/cgi-bin/magicBox.cgi", func(c *gin.Context) {
 		action := c.Query("action")
 		if action == "getSoftwareVersion" {
 			e.Tracer.Info("Get Software Version: emulator v1.0")
-			time.Sleep(80 * time.Millisecond)
-			c.String(http.StatusOK, "version=Emulator v1.0")
+			handleResponse("version=Emulator v1.0", 200, 80)(c)
 		} else {
 			c.String(http.StatusBadRequest, "Invalid action")
 		}
 	})
 
-	// Configurar rotas para configManager.cgi
+	// configManager.cgi - Gerenciamento de configurações
 	router.GET("/cgi-bin/configManager.cgi", func(c *gin.Context) {
 		action := c.Query("action")
 		switch action {
 		case "getConfig":
 			name := c.Query("name")
 			if strings.ToUpper(name) == "NETWORK" {
-				response := fmt.Sprintf(`
-table.Network.eth0.PhysicalAddress=%s
-table.Network.eth0.SubnetMask=255.255.248.0`, e.MacAddress)
-				c.String(http.StatusOK, response)
+				response := fmt.Sprintf("table.Network.eth0.PhysicalAddress=%s\rtable.Network.eth0.SubnetMask=255.255.248.0", e.MacAddress)
+				handleResponse(response, 200, 450)(c)
 			}
 		case "setConfig":
 			e.Tracer.Info("SetConfig: %v", c.Request.URL.Query())
 
-			remoteServer := c.Query("PictureHttpUpload.UploadServerList[0].Address")
-			if remoteServer != "" {
-				e.SetDeviceSetting("RemoteServer", remoteServer)
+			// Configurar servidor remoto
+			if remoteServer := c.Query("PictureHttpUpload.UploadServerList[0].Address"); remoteServer != "" {
+				e.remoteServer = remoteServer
+				e.SetSetting("RemoteServer", remoteServer)
 			}
 
-			remotePort := c.Query("PictureHttpUpload.UploadServerList[0].Port")
-			if remotePort != "" {
-				e.SetDeviceSetting("RemotePort", remotePort)
+			if remotePort := c.Query("PictureHttpUpload.UploadServerList[0].Port"); remotePort != "" {
+				e.remotePort = remotePort
+				e.SetSetting("RemotePort", remotePort)
 			}
 
+			e.remoteServerURL = fmt.Sprintf("http://%s:%s", e.remoteServer, e.remotePort)
+
+			// Configurar autenticação local
 			enableUpload := c.Query("PictureHttpUpload.Enable")
 			if enableUpload != "" {
 				localAuthValue := "0"
@@ -449,16 +475,16 @@ table.Network.eth0.SubnetMask=255.255.248.0`, e.MacAddress)
 					localAuthValue = "1"
 				}
 				e.Tracer.Info("Set LocalAuthentication: %s", localAuthValue)
-				e.SetDeviceSetting("LocalAuthentication", localAuthValue)
+				e.SetSetting("LocalAuthentication", localAuthValue)
 			}
 
-			c.String(http.StatusOK, "OK")
+			handleResponse("OK", 200, 0)(c)
 		default:
 			c.String(http.StatusBadRequest, "Invalid action")
 		}
 	})
 
-	// Configurar rotas para accessControl.cgi
+	// accessControl.cgi - Controle de acesso
 	router.GET("/cgi-bin/accessControl.cgi", func(c *gin.Context) {
 		action := c.Query("action")
 		channel := c.Query("channel")
@@ -467,14 +493,27 @@ table.Network.eth0.SubnetMask=255.255.248.0`, e.MacAddress)
 
 		switch action {
 		case "openDoor", "closeDoor":
-			time.Sleep(80 * time.Millisecond)
-			c.String(http.StatusOK, "OK")
+			handleResponse("OK", 200, 80)(c)
 		default:
 			c.String(http.StatusBadRequest, "Invalid action")
 		}
 	})
 
-	// Configurar rotas para FaceInfoManager.cgi
+	// FaceInfoManager.cgi - Gerenciamento de faces
+	e.setupFaceRoutes(router)
+
+	// recordFinder.cgi - Busca de registros
+	e.setupRecordFinderRoutes(router)
+
+	// recordUpdater.cgi - Atualização de registros
+	e.setupRecordUpdaterRoutes(router)
+
+	// snapManager.cgi - Streaming de eventos
+	e.setupStreamingRoutes(router)
+}
+
+// setupFaceRoutes configura rotas de gerenciamento de faces
+func (e *DahuaEmulator) setupFaceRoutes(router *gin.Engine) {
 	router.GET("/cgi-bin/FaceInfoManager.cgi", func(c *gin.Context) {
 		action := c.Query("action")
 
@@ -482,7 +521,6 @@ table.Network.eth0.SubnetMask=255.255.248.0`, e.MacAddress)
 
 		switch action {
 		case "startFind":
-			// Obter contagem de faces
 			count, err := e.repo.FindFaces()
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -490,6 +528,7 @@ table.Network.eth0.SubnetMask=255.255.248.0`, e.MacAddress)
 			}
 
 			token := rand.Intn(30) + 1
+			time.Sleep(500 * time.Millisecond)
 			c.JSON(http.StatusOK, gin.H{
 				"Token": token,
 				"Total": count,
@@ -513,6 +552,7 @@ table.Network.eth0.SubnetMask=255.255.248.0`, e.MacAddress)
 				})
 			}
 
+			time.Sleep(50 * time.Millisecond)
 			c.JSON(http.StatusOK, gin.H{"Info": info})
 
 		case "stopFind":
@@ -525,6 +565,7 @@ table.Network.eth0.SubnetMask=255.255.248.0`, e.MacAddress)
 				return
 			}
 
+			time.Sleep(50 * time.Millisecond)
 			c.String(http.StatusOK, "OK")
 
 		default:
@@ -532,7 +573,6 @@ table.Network.eth0.SubnetMask=255.255.248.0`, e.MacAddress)
 		}
 	})
 
-	// POST para FaceInfoManager.cgi
 	router.POST("/cgi-bin/FaceInfoManager.cgi", func(c *gin.Context) {
 		var request struct {
 			UserID int `json:"UserID"`
@@ -577,14 +617,21 @@ table.Network.eth0.SubnetMask=255.255.248.0`, e.MacAddress)
 				return
 			}
 
+			latency := 550
+			if action == "update" {
+				latency = 600
+			}
+			time.Sleep(time.Duration(latency) * time.Millisecond)
 			c.String(http.StatusOK, "OK")
 
 		default:
 			c.String(http.StatusBadRequest, "Invalid action")
 		}
 	})
+}
 
-	// Configurar rotas para recordFinder.cgi
+// setupRecordFinderRoutes configura rotas de busca de registros
+func (e *DahuaEmulator) setupRecordFinderRoutes(router *gin.Engine) {
 	router.GET("/cgi-bin/recordFinder.cgi", func(c *gin.Context) {
 		action := c.Query("action")
 		name := c.Query("name")
@@ -609,28 +656,10 @@ table.Network.eth0.SubnetMask=255.255.248.0`, e.MacAddress)
 
 			response := found + "\n"
 			for i, card := range cards {
-				response += fmt.Sprintf("records[%d].CardName=%s\n", i, card["CardName"])
-				response += fmt.Sprintf("records[%d].CardNo=%s\n", i, card["CardNo"])
-				response += fmt.Sprintf("records[%d].CardStatus=0\n", i)
-				response += fmt.Sprintf("records[%d].CardType=0\n", i)
-				response += fmt.Sprintf("records[%d].CitizenIDNo=\n", i)
-				response += fmt.Sprintf("records[%d].Doors[0]=0\n", i)
-				response += fmt.Sprintf("records[%d].DynamicCheckCode=\n", i)
-				response += fmt.Sprintf("records[%d].FirstEnter=false\n", i)
-				response += fmt.Sprintf("records[%d].Handicap=false\n", i)
-				response += fmt.Sprintf("records[%d].IsValid=false\n", i)
-				response += fmt.Sprintf("records[%d].Password=\n", i)
-				response += fmt.Sprintf("records[%d].RecNo=%d\n", i, card["RecNo"])
-				response += fmt.Sprintf("records[%d].RepeatEnterRouteTimeout=4294967295\n", i)
-				response += fmt.Sprintf("records[%d].TimeSections[0]=1\n", i)
-				response += fmt.Sprintf("records[%d].UseTime=200\n", i)
-				response += fmt.Sprintf("records[%d].UserID=%d\n", i, card["UserID"])
-				response += fmt.Sprintf("records[%d].UserType=0\n", i)
-				response += fmt.Sprintf("records[%d].VTOPosition=\n", i)
-				response += fmt.Sprintf("records[%d].ValidDateEnd=%s\n", i, card["ValidDateEnd"])
-				response += fmt.Sprintf("records[%d].ValidDateStart=%s\n", i, card["ValidDateStart"])
+				response += e.formatCardRecord(i, card)
 			}
 
+			time.Sleep(60 * time.Millisecond)
 			c.String(http.StatusOK, response)
 
 		case "doSeekFind":
@@ -648,26 +677,7 @@ table.Network.eth0.SubnetMask=255.255.248.0`, e.MacAddress)
 
 			response := found + "\n"
 			for i, card := range cards {
-				response += fmt.Sprintf("records[%d].CardName=%s\n", i, card["CardName"])
-				response += fmt.Sprintf("records[%d].CardNo=%s\n", i, card["CardNo"])
-				response += fmt.Sprintf("records[%d].CardStatus=0\n", i)
-				response += fmt.Sprintf("records[%d].CardType=0\n", i)
-				response += fmt.Sprintf("records[%d].CitizenIDNo=\n", i)
-				response += fmt.Sprintf("records[%d].Doors[0]=0\n", i)
-				response += fmt.Sprintf("records[%d].DynamicCheckCode=\n", i)
-				response += fmt.Sprintf("records[%d].FirstEnter=false\n", i)
-				response += fmt.Sprintf("records[%d].Handicap=false\n", i)
-				response += fmt.Sprintf("records[%d].IsValid=false\n", i)
-				response += fmt.Sprintf("records[%d].Password=\n", i)
-				response += fmt.Sprintf("records[%d].RecNo=%d\n", i, card["RecNo"])
-				response += fmt.Sprintf("records[%d].RepeatEnterRouteTimeout=4294967295\n", i)
-				response += fmt.Sprintf("records[%d].TimeSections[0]=1\n", i)
-				response += fmt.Sprintf("records[%d].UseTime=200\n", i)
-				response += fmt.Sprintf("records[%d].UserID=%d\n", i, card["UserID"])
-				response += fmt.Sprintf("records[%d].UserType=0\n", i)
-				response += fmt.Sprintf("records[%d].VTOPosition=\n", i)
-				response += fmt.Sprintf("records[%d].ValidDateEnd=%s\n", i, card["ValidDateEnd"])
-				response += fmt.Sprintf("records[%d].ValidDateStart=%s\n", i, card["ValidDateStart"])
+				response += e.formatCardRecord(i, card)
 			}
 
 			time.Sleep(350 * time.Millisecond)
@@ -677,8 +687,10 @@ table.Network.eth0.SubnetMask=255.255.248.0`, e.MacAddress)
 			c.String(http.StatusBadRequest, "Invalid action")
 		}
 	})
+}
 
-	// Configurar rotas para recordUpdater.cgi
+// setupRecordUpdaterRoutes configura rotas de atualização de registros
+func (e *DahuaEmulator) setupRecordUpdaterRoutes(router *gin.Engine) {
 	router.GET("/cgi-bin/recordUpdater.cgi", func(c *gin.Context) {
 		action := c.Query("action")
 
@@ -718,7 +730,6 @@ table.Network.eth0.SubnetMask=255.255.248.0`, e.MacAddress)
 		}
 	})
 
-	// POST para recordUpdater.cgi
 	router.POST("/cgi-bin/recordUpdater.cgi", func(c *gin.Context) {
 		action := c.Query("action")
 
@@ -745,90 +756,117 @@ table.Network.eth0.SubnetMask=255.255.248.0`, e.MacAddress)
 			c.String(http.StatusBadRequest, "Invalid action")
 		}
 	})
+}
 
-	// Configurar rota para snapManager.cgi (streaming de eventos)
+// setupStreamingRoutes configura rotas de streaming de eventos
+func (e *DahuaEmulator) setupStreamingRoutes(router *gin.Engine) {
 	router.GET("/cgi-bin/snapManager.cgi", func(c *gin.Context) {
 		e.Tracer.Info("[GET] /cgi-bin/snapManager.cgi")
 
 		// Configurar headers para streaming
-		c.Writer.Header().Set("Content-Type", "text/event-stream")
-		c.Writer.Header().Set("Cache-Control", "no-cache")
-		c.Writer.Header().Set("Connection", "keep-alive")
-		c.Writer.Flush()
+		c.Header("Content-Type", "text/event-stream")
+		c.Header("Cache-Control", "no-cache")
+		c.Header("Connection", "keep-alive")
 
-		// Inicializar contadores
-		heartbeatCounter := time.Now()
-		generatedEventCounter := time.Now()
+		c.Stream(func(w gin.ResponseWriter) bool {
+			return e.handleEventStream(w)
+		})
+	})
+}
 
-		// Verificar se o cliente desconectou
-		clientGone := c.Request.Context().Done()
+// handleEventStream gerencia o streaming de eventos
+func (e *DahuaEmulator) handleEventStream(w gin.ResponseWriter) bool {
+	heartbeatCounter := time.Now()
+	generatedEventCounter := time.Now()
 
-		// Loop principal de streaming
-		for {
-			select {
-			case <-clientGone:
-				e.Tracer.Info("Client disconnected from event stream")
-				return
-			case <-e.stopChan:
-				e.Tracer.Info("Event stream stopped due to emulator shutdown")
-				return
-			default:
-				// Verificar se é hora de gerar um evento
-				now := time.Now()
+	for {
+		select {
+		case <-e.stopChan:
+			return false
+		default:
+			now := time.Now()
 
-				if e.Device.EventInterval > 0 && now.Sub(generatedEventCounter) >= time.Duration(e.Device.EventInterval)*time.Second {
-					e.Tracer.Info(">> Sending Generated Fake Event <<")
-					generatedEventCounter = now
+			// Verificar se é hora de gerar evento
+			if e.Device.EventInterval > 0 && now.Sub(generatedEventCounter) >= time.Duration(e.Device.EventInterval)*time.Second {
+				e.Tracer.Info(">> Sending Generated Fake Event <<")
+				generatedEventCounter = now
 
-					// Verificar se a autenticação local está ativada
-					localAuth, err := e.BaseEmulator.GetDeviceSetting("LocalAuthentication")
+				localAuth, err := e.GetSetting("LocalAuthentication")
+				if err == nil && localAuth == "1" {
+					eventData, err := e.generateRandomEvent()
 					if err != nil {
-						e.Tracer.Error("Failed to get LocalAuthentication setting: %v", err)
+						e.Tracer.Error("Failed to generate random event: %v", err)
 						continue
 					}
 
-					if localAuth == "1" {
-						// Gerar evento
-						eventData, err := e.GenerateRandomEvent()
-						if err != nil {
-							e.Tracer.Error("Failed to generate random event: %v", err)
-							continue
-						}
-
-						e.Tracer.Info("## yield event")
-						_, err = c.Writer.Write(eventData)
-						if err != nil {
-							e.Tracer.Error("Failed to write event data: %v", err)
-							return
-						}
-						c.Writer.Flush()
-					}
+					e.Tracer.Info("## yield event")
+					w.Write(eventData)
+					w.Flush()
 				}
-
-				// Verificar se é hora de enviar um heartbeat
-				if now.Sub(heartbeatCounter) >= 10*time.Second {
-					e.Tracer.Info(">> Sending Heartbeat <<")
-					heartbeatCounter = now
-
-					heartbeat := "\r\n\r\n\r\n--myboundary\r\nContent-Type: text/plain\r\nContent-Length:9\r\n\r\nHeartbeat"
-					_, err := c.Writer.WriteString(heartbeat)
-					if err != nil {
-						e.Tracer.Error("Failed to write heartbeat: %v", err)
-						return
-					}
-					c.Writer.Flush()
-				}
-
-				// Verificar se a autenticação local está desativada
-				localAuth, err := e.BaseEmulator.GetDeviceSetting("LocalAuthentication")
-				if err == nil && localAuth == "0" {
-					e.Tracer.Info("Local authentication disabled, stopping event stream")
-					return
-				}
-
-				// Pequena pausa para evitar consumo excessivo de CPU
-				time.Sleep(2 * time.Second)
 			}
+
+			// Verificar se é hora de enviar heartbeat
+			if now.Sub(heartbeatCounter) >= 10*time.Second {
+				e.Tracer.Info(">> Sending Heartbeat <<")
+				heartbeatCounter = now
+
+				heartbeat := "\r\n\r\n\r\n--myboundary\r\nContent-Type: text/plain\r\nContent-Length:9\r\n\r\nHeartbeat"
+				w.WriteString(heartbeat)
+				w.Flush()
+			}
+
+			// Verificar se autenticação local está desativada
+			localAuth, err := e.GetSetting("LocalAuthentication")
+			if err == nil && localAuth == "0" {
+				e.Tracer.Info("Local authentication disabled, stopping event stream")
+				return false
+			}
+
+			time.Sleep(2 * time.Second)
 		}
-	})
+	}
+}
+
+// formatCardRecord formata um registro de cartão para resposta
+func (e *DahuaEmulator) formatCardRecord(index int, card map[string]interface{}) string {
+	return fmt.Sprintf(`records[%d].CardName=%s
+records[%d].CardNo=%s
+records[%d].CardStatus=0
+records[%d].CardType=0
+records[%d].CitizenIDNo=
+records[%d].Doors[0]=0
+records[%d].DynamicCheckCode=
+records[%d].FirstEnter=false
+records[%d].Handicap=false
+records[%d].IsValid=false
+records[%d].Password=
+records[%d].RecNo=%v
+records[%d].RepeatEnterRouteTimeout=4294967295
+records[%d].TimeSections[0]=1
+records[%d].UseTime=200
+records[%d].UserID=%v
+records[%d].UserType=0
+records[%d].VTOPosition=
+records[%d].ValidDateEnd=%s
+records[%d].ValidDateStart=%s
+`,
+		index, card["CardName"],
+		index, card["CardNo"],
+		index,
+		index,
+		index,
+		index,
+		index,
+		index,
+		index,
+		index,
+		index, card["RecNo"],
+		index,
+		index,
+		index,
+		index, card["UserID"],
+		index,
+		index,
+		index, card["ValidDateEnd"],
+		index, card["ValidDateStart"])
 }

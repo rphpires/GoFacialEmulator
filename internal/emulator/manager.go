@@ -1,140 +1,240 @@
 package emulator
 
 import (
+	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"GoFacialEmulator/internal/database"
 	"GoFacialEmulator/internal/models"
 	"GoFacialEmulator/internal/trace"
 )
 
-// Manager gerencia todos os emuladores
+// Manager gerencia todos os emuladores - baseado no EmulatorService.py
 type Manager struct {
 	ServiceDB  *database.ServiceDB
 	EmulatorDB *database.EmulatorDB
 	WxsDB      *database.WxsDB
 	Tracer     *trace.Tracer
-	emulators  map[int]Emulator
-	mutex      sync.RWMutex
+
+	// Mapa de emuladores ativos (equivalente ao devices_watchdog do Python)
+	emulators map[int]Emulator
+	watchdog  map[int]*WatchdogInfo
+	mutex     sync.RWMutex
+
+	// Canais para controle
+	shutdownChan   chan struct{}
+	watchdogTicker *time.Ticker
+}
+
+// WatchdogInfo armazena informações de monitoramento
+type WatchdogInfo struct {
+	FailureCount int
+	LastCheck    time.Time
+	LastStatus   string
 }
 
 // NewManager cria um novo gerenciador de emuladores
 func NewManager(serviceDB *database.ServiceDB, emulatorDB *database.EmulatorDB, wxsDB *database.WxsDB, tracer *trace.Tracer) *Manager {
 	return &Manager{
-		ServiceDB:  serviceDB,
-		EmulatorDB: emulatorDB,
-		WxsDB:      wxsDB,
-		Tracer:     tracer,
-		emulators:  make(map[int]Emulator),
+		ServiceDB:      serviceDB,
+		EmulatorDB:     emulatorDB,
+		WxsDB:          wxsDB,
+		Tracer:         tracer,
+		emulators:      make(map[int]Emulator),
+		watchdog:       make(map[int]*WatchdogInfo),
+		shutdownChan:   make(chan struct{}),
+		watchdogTicker: time.NewTicker(10 * time.Second), // Equivalente ao schedule.every(10).seconds
 	}
 }
 
-// RefreshDevices atualiza a lista de dispositivos do banco de dados do WXS
+// Initialize inicializa o sistema - equivalente ao init_devices() do Python
+func (m *Manager) Initialize() error {
+	m.Tracer.Info("Initializing emulator manager")
+
+	// Marcar todos como parados na inicialização
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	_, err := m.ServiceDB.Exec(ctx, "UPDATE emulator.devices SET status = 'stopped'")
+	if err != nil {
+		return fmt.Errorf("failed to reset device status: %w", err)
+	}
+
+	// Inicializar watchdog para dispositivos existentes
+	devices, err := m.ListDevices()
+	if err != nil {
+		return fmt.Errorf("failed to list devices for initialization: %w", err)
+	}
+
+	for _, device := range devices {
+		m.watchdog[device.ID] = &WatchdogInfo{
+			FailureCount: 0,
+			LastCheck:    time.Now(),
+			LastStatus:   "stopped",
+		}
+	}
+
+	// Iniciar watchdog em background
+	go m.startWatchdog()
+
+	return nil
+}
+
+// RefreshDevices atualiza a lista de dispositivos do WXS - equivalente ao refresh_configured_devices()
 func (m *Manager) RefreshDevices() error {
 	m.Tracer.Info("Refreshing device list from WXS database")
 
-	// Obter controladores configurados do WXS
+	// Obter controladores do WXS
 	controllers, err := m.WxsDB.GetLocalControllers()
 	if err != nil {
 		return fmt.Errorf("failed to get controllers from WXS: %w", err)
 	}
 
-	// Atualizar banco de dados de serviço
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	// Processar cada controlador
+	for _, controller := range controllers {
+		device := m.mapControllerToDevice(controller)
+
+		if err := m.upsertDevice(ctx, device); err != nil {
+			m.Tracer.Error("Failed to upsert device %d: %v", device.ID, err)
+			continue
+		}
+
+		// Inicializar watchdog se não existir
+		if _, exists := m.watchdog[device.ID]; !exists {
+			m.watchdog[device.ID] = &WatchdogInfo{
+				FailureCount: 0,
+				LastCheck:    time.Now(),
+				LastStatus:   "stopped",
+			}
+		}
+	}
+
+	// Remover dispositivos que não existem mais no WXS
+	if err := m.cleanupOrphanedDevices(ctx, controllers); err != nil {
+		m.Tracer.Error("Failed to cleanup orphaned devices: %v", err)
+	}
+
+	return nil
+}
+
+// mapControllerToDevice converte dados do WXS para modelo de dispositivo
+func (m *Manager) mapControllerToDevice(controller map[string]interface{}) models.Device {
+	id := controller["LocalControllerID"].(int)
+	name := controller["Name"].(string)
+	ip := controller["IPAddress"].(string)
+	port := controller["Port"].(int)
+	model := controller["Model"].(string)
+	enabled := controller["Enabled"].(int)
+	eventInterval := controller["EventInterval"].(int)
+
+	return models.Device{
+		ID:            id,
+		Name:          name,
+		IPAddress:     ip,
+		Port:          port,
+		Model:         model,
+		Enabled:       enabled,
+		Type:          m.getDeviceType(model),
+		Status:        "stopped",
+		EventInterval: eventInterval,
+		TotalUsers:    0,
+		LogEnabled:    0,
+	}
+}
+
+// getDeviceType determina o tipo do dispositivo baseado no modelo
+func (m *Manager) getDeviceType(model string) int {
+	switch model {
+	case "Dahua":
+		return 1
+	case "Hikvision":
+		return 2
+	default:
+		return 0
+	}
+}
+
+// upsertDevice insere ou atualiza um dispositivo
+func (m *Manager) upsertDevice(ctx context.Context, device models.Device) error {
+	query := `
+		INSERT INTO emulator.devices (
+			local_controller_id, name, ip_address, port, model, enabled, type, 
+			status, event_interval, total_users, log_enabled
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		ON CONFLICT (local_controller_id) DO UPDATE SET
+			name = EXCLUDED.name,
+			ip_address = EXCLUDED.ip_address,
+			port = EXCLUDED.port,
+			model = EXCLUDED.model,
+			enabled = EXCLUDED.enabled,
+			type = EXCLUDED.type,
+			event_interval = EXCLUDED.event_interval,
+			updated_at = NOW()
+	`
+
+	_, err := m.ServiceDB.Exec(ctx, query,
+		device.ID, device.Name, device.IPAddress, device.Port, device.Model,
+		device.Enabled, device.Type, device.Status, device.EventInterval,
+		device.TotalUsers, device.LogEnabled)
+
+	return err
+}
+
+// cleanupOrphanedDevices remove dispositivos órfãos
+func (m *Manager) cleanupOrphanedDevices(ctx context.Context, controllers []map[string]interface{}) error {
+	// Criar mapa de IDs válidos
+	validIDs := make(map[int]bool)
 	for _, controller := range controllers {
 		id := controller["LocalControllerID"].(int)
-		name := controller["Name"].(string)
-		ip := controller["IPAddress"].(string)
-		port := controller["Port"].(int)
-		model := controller["Model"].(string)
-		enabled := controller["Enabled"].(int)
-		eventInterval := controller["EventInterval"].(int)
-
-		// Verificar se o controlador já existe
-		var count int
-		err := m.ServiceDB.QueryRow("SELECT COUNT(*) FROM Main WHERE LocalControllerID = ?", id).Scan(&count)
-		if err != nil {
-			m.Tracer.Error("Failed to check if controller exists: %v", err)
-			continue
-		}
-
-		if count > 0 {
-			// Atualizar controlador existente
-			_, err = m.ServiceDB.Exec(
-				"UPDATE Main SET Name = ?, IPAddress = ?, Port = ?, Model = ?, Enabled = ?, EventInterval = ? WHERE LocalControllerID = ?",
-				name, ip, port, model, enabled, eventInterval, id,
-			)
-			if err != nil {
-				m.Tracer.Error("Failed to update controller: %v", err)
-				continue
-			}
-		} else {
-			// Inserir novo controlador
-			_, err = m.ServiceDB.Exec(
-				"INSERT INTO Main (LocalControllerID, Name, IPAddress, Port, Model, Enabled, Type, Status, EventInterval, TotalUsers, LogEnabled) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0)",
-				id, name, ip, port, model, enabled, 0, "stopped", eventInterval,
-			)
-			if err != nil {
-				m.Tracer.Error("Failed to insert controller: %v", err)
-				continue
-			}
-		}
+		validIDs[id] = true
 	}
 
-	// Remover controladores que não existem mais
-	rows, err := m.ServiceDB.Query("SELECT LocalControllerID FROM Main")
+	// Obter todos os dispositivos locais
+	devices, err := m.ListDevices()
 	if err != nil {
-		return fmt.Errorf("failed to get controllers from service database: %w", err)
-	}
-	defer rows.Close()
-
-	var ids []int
-	for rows.Next() {
-		var id int
-		if err := rows.Scan(&id); err != nil {
-			m.Tracer.Error("Failed to scan controller ID: %v", err)
-			continue
-		}
-		ids = append(ids, id)
+		return err
 	}
 
-	if err := rows.Err(); err != nil {
-		return fmt.Errorf("error iterating controller IDs: %w", err)
-	}
-
-	for _, id := range ids {
-		found := false
-		for _, controller := range controllers {
-			if controller["LocalControllerID"].(int) == id {
-				found = true
-				break
+	// Remover dispositivos órfãos
+	for _, device := range devices {
+		if !validIDs[device.ID] {
+			// Parar emulador se estiver rodando
+			if emulator, exists := m.emulators[device.ID]; exists && emulator.IsRunning() {
+				m.Stop(device.ID)
 			}
-		}
 
-		if !found {
-			// Parar o emulador se estiver em execução
-			m.Stop(id)
-
-			// Remover do banco de dados
-			_, err := m.ServiceDB.Exec("DELETE FROM Main WHERE LocalControllerID = ?", id)
+			// Remover do banco
+			_, err := m.ServiceDB.Exec(ctx, "DELETE FROM emulator.devices WHERE local_controller_id = $1", device.ID)
 			if err != nil {
-				m.Tracer.Error("Failed to delete controller: %v", err)
-				continue
+				m.Tracer.Error("Failed to delete orphaned device %d: %v", device.ID, err)
 			}
+
+			// Remover do watchdog
+			delete(m.watchdog, device.ID)
 		}
 	}
 
 	return nil
 }
 
-// ListDevices retorna uma lista de todos os dispositivos
+// ListDevices retorna todos os dispositivos
 func (m *Manager) ListDevices() ([]models.Device, error) {
-	rows, err := m.ServiceDB.Query(`
-		SELECT 
-			LocalControllerID, Name, IPAddress, Port, Model, 
-			Enabled, Type, Status, EventInterval, TotalUsers, LogEnabled 
-		FROM Main
-	`)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	query := `
+		SELECT local_controller_id, name, ip_address, port, model, enabled, type, 
+		       status, event_interval, total_users, log_enabled
+		FROM emulator.devices
+		ORDER BY local_controller_id
+	`
+
+	rows, err := m.ServiceDB.Query(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query devices: %w", err)
 	}
@@ -143,56 +243,54 @@ func (m *Manager) ListDevices() ([]models.Device, error) {
 	var devices []models.Device
 	for rows.Next() {
 		var device models.Device
-		err := rows.Scan(
-			&device.ID, &device.Name, &device.IPAddress, &device.Port, &device.Model,
-			&device.Enabled, &device.Type, &device.Status, &device.EventInterval, &device.TotalUsers, &device.LogEnabled,
-		)
+		err := rows.Scan(&device.ID, &device.Name, &device.IPAddress, &device.Port,
+			&device.Model, &device.Enabled, &device.Type, &device.Status,
+			&device.EventInterval, &device.TotalUsers, &device.LogEnabled)
 		if err != nil {
-			m.Tracer.Error("Failed to scan device row: %v", err)
+			m.Tracer.Error("Failed to scan device: %v", err)
 			continue
 		}
 
-		// Verificar se o emulador está em execução
+		// Atualizar status baseado no emulador real
 		m.mutex.RLock()
-		emulator, exists := m.emulators[device.ID]
-		if exists {
+		if emulator, exists := m.emulators[device.ID]; exists && emulator.IsRunning() {
 			device.Status = "running"
+		} else {
+			device.Status = "stopped"
 		}
 		m.mutex.RUnlock()
 
 		devices = append(devices, device)
 	}
 
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating device rows: %w", err)
-	}
-
 	return devices, nil
 }
 
-// GetDevice retorna as informações de um dispositivo específico
+// GetDevice retorna um dispositivo específico
 func (m *Manager) GetDevice(id int) (models.Device, error) {
-	var device models.Device
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
-	err := m.ServiceDB.QueryRow(`
-		SELECT 
-			LocalControllerID, Name, IPAddress, Port, Model, 
-			Enabled, Type, Status, EventInterval, TotalUsers, LogEnabled 
-		FROM Main
-		WHERE LocalControllerID = ?
-	`, id).Scan(
-		&device.ID, &device.Name, &device.IPAddress, &device.Port, &device.Model,
-		&device.Enabled, &device.Type, &device.Status, &device.EventInterval, &device.TotalUsers, &device.LogEnabled,
-	)
+	query := `
+		SELECT local_controller_id, name, ip_address, port, model, enabled, type, 
+		       status, event_interval, total_users, log_enabled
+		FROM emulator.devices
+		WHERE local_controller_id = $1
+	`
+
+	var device models.Device
+	err := m.ServiceDB.QueryRow(ctx, query, id).Scan(
+		&device.ID, &device.Name, &device.IPAddress, &device.Port,
+		&device.Model, &device.Enabled, &device.Type, &device.Status,
+		&device.EventInterval, &device.TotalUsers, &device.LogEnabled)
 
 	if err != nil {
-		return device, fmt.Errorf("failed to get device: %w", err)
+		return device, fmt.Errorf("device not found: %w", err)
 	}
 
-	// Verificar se o emulador está em execução
+	// Atualizar status baseado no emulador real
 	m.mutex.RLock()
-	emulator, exists := m.emulators[device.ID]
-	if exists && emulator.IsRunning() {
+	if emulator, exists := m.emulators[device.ID]; exists && emulator.IsRunning() {
 		device.Status = "running"
 	} else {
 		device.Status = "stopped"
@@ -202,14 +300,14 @@ func (m *Manager) GetDevice(id int) (models.Device, error) {
 	return device, nil
 }
 
-// Start inicia um emulador específico
+// Start inicia um emulador específico - equivalente ao start_emulators() do Python
 func (m *Manager) Start(id int) error {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
-	// Verificar se o emulador já está em execução
+	// Verificar se já está rodando
 	if emulator, exists := m.emulators[id]; exists && emulator.IsRunning() {
-		return fmt.Errorf("emulator already running")
+		return fmt.Errorf("emulator %d already running", id)
 	}
 
 	// Obter informações do dispositivo
@@ -218,40 +316,53 @@ func (m *Manager) Start(id int) error {
 		return fmt.Errorf("failed to get device info: %w", err)
 	}
 
-	// Verificar se o dispositivo está habilitado
 	if device.Enabled != 1 {
-		return fmt.Errorf("device is disabled")
+		return fmt.Errorf("device %d is disabled", id)
 	}
 
-	// Criar emulador apropriado com base no modelo
-	var emulator Emulator
-	switch device.Model {
-	case "Dahua":
-		emulator = NewDahuaEmulator(m.EmulatorDB, device, m.Tracer)
-	case "Hikvision":
-		// TODO: Implementar emulador Hikvision
-		return fmt.Errorf("hikvision emulator not implemented yet")
-	default:
-		return fmt.Errorf("unknown device model: %s", device.Model)
+	// Criar emulador baseado no modelo
+	emulator, err := m.createEmulator(device)
+	if err != nil {
+		return fmt.Errorf("failed to create emulator: %w", err)
 	}
 
-	// Iniciar o emulador
+	// Iniciar emulador
 	if err := emulator.Start(); err != nil {
 		return fmt.Errorf("failed to start emulator: %w", err)
 	}
 
-	// Atualizar o status no banco de dados
-	_, err = m.ServiceDB.Exec("UPDATE Main SET Status = 'running' WHERE LocalControllerID = ?", id)
+	// Atualizar status no banco
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_, err = m.ServiceDB.Exec(ctx, "UPDATE emulator.devices SET status = 'running' WHERE local_controller_id = $1", id)
 	if err != nil {
 		m.Tracer.Error("Failed to update device status: %v", err)
 	}
 
-	// Armazenar o emulador
+	// Armazenar emulador
 	m.emulators[id] = emulator
 
-	m.Tracer.Info("Started emulator for device %d (%s)", id, device.Name)
+	// Resetar contador de falhas do watchdog
+	if info, exists := m.watchdog[id]; exists {
+		info.FailureCount = 0
+		info.LastStatus = "running"
+	}
 
+	m.Tracer.Info("Started emulator for device %d (%s)", id, device.Name)
 	return nil
+}
+
+// createEmulator cria um emulador baseado no tipo de dispositivo
+func (m *Manager) createEmulator(device models.Device) (Emulator, error) {
+	switch device.Model {
+	case "Dahua":
+		return NewDahuaEmulator(m.EmulatorDB, device, m.Tracer), nil
+	case "Hikvision":
+		return NewHikvisionEmulator(m.EmulatorDB, device, m.Tracer), nil
+	default:
+		return nil, fmt.Errorf("unsupported device model: %s", device.Model)
+	}
 }
 
 // Stop para um emulador específico
@@ -259,28 +370,35 @@ func (m *Manager) Stop(id int) error {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
-	// Verificar se o emulador está em execução
 	emulator, exists := m.emulators[id]
 	if !exists || !emulator.IsRunning() {
-		return fmt.Errorf("emulator not running")
+		return fmt.Errorf("emulator %d not running", id)
 	}
 
-	// Parar o emulador
+	// Parar emulador
 	if err := emulator.Stop(); err != nil {
 		return fmt.Errorf("failed to stop emulator: %w", err)
 	}
 
-	// Atualizar o status no banco de dados
-	_, err := m.ServiceDB.Exec("UPDATE Main SET Status = 'stopped' WHERE LocalControllerID = ?", id)
+	// Atualizar status no banco
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_, err := m.ServiceDB.Exec(ctx, "UPDATE emulator.devices SET status = 'stopped' WHERE local_controller_id = $1", id)
 	if err != nil {
 		m.Tracer.Error("Failed to update device status: %v", err)
 	}
 
-	// Remover o emulador
+	// Remover do mapa
 	delete(m.emulators, id)
 
-	m.Tracer.Info("Stopped emulator for device %d", id)
+	// Atualizar watchdog
+	if info, exists := m.watchdog[id]; exists {
+		info.LastStatus = "stopped"
+		info.FailureCount = 0
+	}
 
+	m.Tracer.Info("Stopped emulator for device %d", id)
 	return nil
 }
 
@@ -291,18 +409,25 @@ func (m *Manager) StartAll() error {
 		return fmt.Errorf("failed to list devices: %w", err)
 	}
 
+	var errors []string
 	for _, device := range devices {
 		if device.Enabled == 1 && device.Status == "stopped" {
 			if err := m.Start(device.ID); err != nil {
-				m.Tracer.Error("Failed to start emulator %d (%s): %v", device.ID, device.Name, err)
+				errorMsg := fmt.Sprintf("device %d: %v", device.ID, err)
+				errors = append(errors, errorMsg)
+				m.Tracer.Error("Failed to start emulator %d: %v", device.ID, err)
 			}
 		}
+	}
+
+	if len(errors) > 0 {
+		return fmt.Errorf("failed to start some emulators: %s", errors)
 	}
 
 	return nil
 }
 
-// StopAll para todos os emuladores em execução
+// StopAll para todos os emuladores
 func (m *Manager) StopAll() {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
@@ -313,121 +438,118 @@ func (m *Manager) StopAll() {
 				m.Tracer.Error("Failed to stop emulator %d: %v", id, err)
 			}
 
-			// Atualizar o status no banco de dados
-			_, err := m.ServiceDB.Exec("UPDATE Main SET Status = 'stopped' WHERE LocalControllerID = ?", id)
+			// Atualizar status no banco
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			_, err := m.ServiceDB.Exec(ctx, "UPDATE emulator.devices SET status = 'stopped' WHERE local_controller_id = $1", id)
+			cancel()
+
 			if err != nil {
 				m.Tracer.Error("Failed to update device status: %v", err)
 			}
 		}
 	}
 
-	// Limpar o mapa de emuladores
+	// Limpar mapa
 	m.emulators = make(map[int]Emulator)
-
 	m.Tracer.Info("Stopped all emulators")
 }
 
-// RefreshUsersComparison atualiza as contagens de usuários para comparação
-func (m *Manager) RefreshUsersComparison() error {
-	// Obter contagens de CHIDs do WXS
-	counts, err := m.WxsDB.CountCHIDsByLocalController()
+// startWatchdog inicia o sistema de monitoramento - equivalente ao scheduler() do Python
+func (m *Manager) startWatchdog() {
+	m.Tracer.Info("Starting watchdog system")
+
+	for {
+		select {
+		case <-m.watchdogTicker.C:
+			m.performHealthChecks()
+		case <-m.shutdownChan:
+			m.Tracer.Info("Watchdog system shutting down")
+			return
+		}
+	}
+}
+
+// performHealthChecks realiza verificações de saúde - equivalente ao refresh_device_status()
+func (m *Manager) performHealthChecks() {
+	devices, err := m.ListDevices()
 	if err != nil {
-		return fmt.Errorf("failed to count CHIDs: %w", err)
+		m.Tracer.Error("Failed to list devices for health check: %v", err)
+		return
 	}
 
-	// Atualizar a tabela UsersCount
-	for siteControllerID, lcCounts := range counts {
-		for lcID, info := range lcCounts {
-			port := info[0].(int)
-			count := info[1].(int)
+	for _, device := range devices {
+		m.checkDeviceHealth(device)
+	}
+}
 
-			// Verificar se já existe um registro
-			var exists int
-			err := m.ServiceDB.QueryRow("SELECT COUNT(*) FROM UsersCount WHERE LocalControllerID = ?", lcID).Scan(&exists)
-			if err != nil {
-				m.Tracer.Error("Failed to check if user count exists: %v", err)
-				continue
-			}
+// checkDeviceHealth verifica a saúde de um dispositivo - equivalente ao check_connection() e emulator_watchdog()
+func (m *Manager) checkDeviceHealth(device models.Device) {
+	m.mutex.RLock()
+	emulator, exists := m.emulators[device.ID]
+	isRunning := exists && emulator.IsRunning()
+	m.mutex.RUnlock()
 
-			if exists > 0 {
-				// Atualizar registro existente
-				_, err = m.ServiceDB.Exec(
-					"UPDATE UsersCount SET WxsCount = ?, SiteControllerID = ?, BaseCommPort = ? WHERE LocalControllerID = ?",
-					count, siteControllerID, port, lcID,
-				)
+	watchdogInfo, exists := m.watchdog[device.ID]
+	if !exists {
+		watchdogInfo = &WatchdogInfo{FailureCount: 0, LastCheck: time.Now(), LastStatus: "unknown"}
+		m.watchdog[device.ID] = watchdogInfo
+	}
+
+	// Verificar se está rodando quando deveria
+	if device.Status == "running" && !isRunning {
+		watchdogInfo.FailureCount++
+		m.Tracer.Warning("Device %d (%s) should be running but isn't (failures: %d)",
+			device.ID, device.Name, watchdogInfo.FailureCount)
+
+		// Tentar reiniciar após 3 falhas
+		if watchdogInfo.FailureCount >= 3 {
+			m.Tracer.Info("Attempting to restart device %d after %d failures", device.ID, watchdogInfo.FailureCount)
+			if err := m.Start(device.ID); err != nil {
+				m.Tracer.Error("Failed to restart device %d: %v", device.ID, err)
 			} else {
-				// Inserir novo registro
-				_, err = m.ServiceDB.Exec(
-					"INSERT INTO UsersCount (SiteControllerID, LocalControllerID, BaseCommPort, WxsCount, SiteControllerCount) VALUES (?, ?, ?, ?, 0)",
-					siteControllerID, lcID, port, count,
-				)
-			}
-
-			if err != nil {
-				m.Tracer.Error("Failed to update user count: %v", err)
+				watchdogInfo.FailureCount = 0
 			}
 		}
+	} else if device.Status == "stopped" && isRunning {
+		// Parar se não deveria estar rodando
+		m.Tracer.Info("Device %d is running but should be stopped", device.ID)
+		m.Stop(device.ID)
+	} else {
+		// Tudo OK, resetar contador
+		watchdogInfo.FailureCount = 0
 	}
 
-	// TODO: Atualizar contagens do controlador de site
-
-	return nil
+	watchdogInfo.LastCheck = time.Now()
 }
 
-// GetUserComparisons retorna as comparações de usuários
-func (m *Manager) GetUserComparisons() ([]models.UserComparison, error) {
-	rows, err := m.ServiceDB.Query(`
-		SELECT 
-			uc.SiteControllerID, 
-			uc.LocalControllerID,
-			m.Name, 
-			uc.BaseCommPort,
-			uc.WxsCount, 
-			uc.SiteControllerCount, 
-			m.TotalUsers 
-		FROM UsersCount uc
-		JOIN Main m ON m.LocalControllerID = uc.LocalControllerID
-	`)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query user comparisons: %w", err)
-	}
-	defer rows.Close()
+// Shutdown fecha o manager gracefully
+func (m *Manager) Shutdown() {
+	m.Tracer.Info("Shutting down emulator manager")
 
-	var comparisons []models.UserComparison
-	for rows.Next() {
-		var comp models.UserComparison
-		err := rows.Scan(
-			&comp.SiteControllerID,
-			&comp.LocalControllerID,
-			&comp.Name,
-			&comp.Port,
-			&comp.WxsCount,
-			&comp.SiteControllerCount,
-			&comp.EmulatorCount,
-		)
-		if err != nil {
-			m.Tracer.Error("Failed to scan user comparison row: %v", err)
-			continue
-		}
+	// Sinalizar parada do watchdog
+	close(m.shutdownChan)
 
-		comparisons = append(comparisons, comp)
-	}
+	// Parar ticker
+	m.watchdogTicker.Stop()
 
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating user comparison rows: %w", err)
-	}
-
-	return comparisons, nil
+	// Parar todos os emuladores
+	m.StopAll()
 }
 
-// UpdateDeviceSettings atualiza as configurações de um dispositivo
+// UpdateDeviceSettings atualiza configurações de um dispositivo
 func (m *Manager) UpdateDeviceSettings(id int, logEnabled bool) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
 	logEnabledInt := 0
 	if logEnabled {
 		logEnabledInt = 1
 	}
 
-	_, err := m.ServiceDB.Exec("UPDATE Main SET LogEnabled = ? WHERE LocalControllerID = ?", logEnabledInt, id)
+	_, err := m.ServiceDB.Exec(ctx,
+		"UPDATE emulator.devices SET log_enabled = $1, updated_at = NOW() WHERE local_controller_id = $2",
+		logEnabledInt, id)
+
 	if err != nil {
 		return fmt.Errorf("failed to update device settings: %w", err)
 	}

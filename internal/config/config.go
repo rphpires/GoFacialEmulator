@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strconv"
 
 	"gopkg.in/yaml.v3"
 )
@@ -10,13 +11,14 @@ import (
 // Config representa a configuração da aplicação
 type Config struct {
 	Server     ServerConfig   `yaml:"server"`
-	PostgreSQL DatabaseConfig `yaml:"postgres"`
-	WxsDB      DatabaseConfig `yaml:"wxsDB"`
+	ServiceDB  DatabaseConfig `yaml:"postgres"` // Banco principal do serviço
+	EmulatorDB DatabaseConfig `yaml:"postgres"` // Mesmo banco, mas conceptualmente separado
+	WxsDB      DatabaseConfig `yaml:"wxsDB"`    // Banco externo WXS
 }
 
 // ServerConfig contém as configurações do servidor HTTP
 type ServerConfig struct {
-	Address string `yaml:"address"`
+	Address string `yaml:"address" env:"SERVER_ADDR"`
 }
 
 // DatabaseConfig contém as configurações de conexão com o banco de dados
@@ -27,7 +29,7 @@ type DatabaseConfig struct {
 	Database string `yaml:"database"`
 	Username string `yaml:"username"`
 	Password string `yaml:"password"`
-	Schema   string `yaml:"schema"`
+	Schema   string `yaml:"schema,omitempty"`
 }
 
 // DSN retorna a string de conexão para o banco de dados
@@ -57,72 +59,76 @@ func Load(path string) (*Config, error) {
 		return nil, fmt.Errorf("erro ao fazer parse do arquivo de configuração: %w", err)
 	}
 
-	// Carregar de variáveis de ambiente se fornecidas
-	if os.Getenv("SERVER_ADDR") != "" {
-		config.Server.Address = os.Getenv("SERVER_ADDR")
-	}
+	// Copiar configuração PostgreSQL para EmulatorDB (mesmo banco)
+	config.EmulatorDB = config.ServiceDB
 
-	// PostgreSQL config from env
-	if os.Getenv("PG_HOST") != "" {
-		config.PostgreSQL.Host = os.Getenv("PG_HOST")
-	}
-	if os.Getenv("PG_PORT") != "" {
-		var port int
-		if _, err := fmt.Sscanf(os.Getenv("PG_PORT"), "%d", &port); err == nil {
-			config.PostgreSQL.Port = port
-		}
-	}
-	if os.Getenv("PG_DB") != "" {
-		config.PostgreSQL.Database = os.Getenv("PG_DB")
-	}
-	if os.Getenv("PG_USER") != "" {
-		config.PostgreSQL.Username = os.Getenv("PG_USER")
-	}
-	if os.Getenv("PG_PASSWORD") != "" {
-		config.PostgreSQL.Password = os.Getenv("PG_PASSWORD")
-	}
-	if os.Getenv("PG_SCHEMA") != "" {
-		config.PostgreSQL.Schema = os.Getenv("PG_SCHEMA")
-	}
-
-	// WXS DB config from env
-	if os.Getenv("WXS_DB_HOST") != "" {
-		config.WxsDB.Host = os.Getenv("WXS_DB_HOST")
-	}
-	if os.Getenv("WXS_DB_PORT") != "" {
-		var port int
-		if _, err := fmt.Sscanf(os.Getenv("WXS_DB_PORT"), "%d", &port); err == nil {
-			config.WxsDB.Port = port
-		}
-	}
-	if os.Getenv("WXS_DB_NAME") != "" {
-		config.WxsDB.Database = os.Getenv("WXS_DB_NAME")
-	}
-	if os.Getenv("WXS_DB_USER") != "" {
-		config.WxsDB.Username = os.Getenv("WXS_DB_USER")
-	}
-	if os.Getenv("WXS_DB_PASSWORD") != "" {
-		config.WxsDB.Password = os.Getenv("WXS_DB_PASSWORD")
+	// Aplicar variáveis de ambiente
+	if err := applyEnvOverrides(config); err != nil {
+		return nil, fmt.Errorf("erro ao aplicar overrides de ambiente: %w", err)
 	}
 
 	return config, nil
 }
 
+// applyEnvOverrides aplica overrides das variáveis de ambiente
+func applyEnvOverrides(config *Config) error {
+	// Server overrides
+	if addr := os.Getenv("SERVER_ADDR"); addr != "" {
+		config.Server.Address = addr
+	}
+
+	// PostgreSQL overrides
+	applyDBEnvOverrides(&config.ServiceDB, "PG")
+	config.EmulatorDB = config.ServiceDB // Manter sincronizado
+
+	// WXS DB overrides
+	applyDBEnvOverrides(&config.WxsDB, "WXS_DB")
+
+	return nil
+}
+
+// applyDBEnvOverrides aplica overrides de ambiente para configuração de banco
+func applyDBEnvOverrides(db *DatabaseConfig, prefix string) {
+	if host := os.Getenv(prefix + "_HOST"); host != "" {
+		db.Host = host
+	}
+	if portStr := os.Getenv(prefix + "_PORT"); portStr != "" {
+		if port, err := strconv.Atoi(portStr); err == nil {
+			db.Port = port
+		}
+	}
+	if database := os.Getenv(prefix + "_DB"); database != "" {
+		db.Database = database
+	}
+	if username := os.Getenv(prefix + "_USER"); username != "" {
+		db.Username = username
+	}
+	if password := os.Getenv(prefix + "_PASSWORD"); password != "" {
+		db.Password = password
+	}
+	if schema := os.Getenv(prefix + "_SCHEMA"); schema != "" {
+		db.Schema = schema
+	}
+}
+
 // DefaultConfig retorna uma configuração padrão
 func DefaultConfig() *Config {
+	postgresConfig := DatabaseConfig{
+		Driver:   "postgres",
+		Host:     "localhost",
+		Port:     5432,
+		Database: "facial_emulator",
+		Username: "postgres",
+		Password: "testpassword123",
+		Schema:   "emulator",
+	}
+
 	return &Config{
 		Server: ServerConfig{
 			Address: ":8080",
 		},
-		PostgreSQL: DatabaseConfig{
-			Driver:   "postgres",
-			Host:     "localhost",
-			Port:     5432,
-			Database: "facial_emulator",
-			Username: "postgres",
-			Password: "testpassword123",
-			Schema:   "emulator",
-		},
+		ServiceDB:  postgresConfig,
+		EmulatorDB: postgresConfig, // Mesmo banco
 		WxsDB: DatabaseConfig{
 			Driver:   "mssql",
 			Host:     "127.0.0.1",
