@@ -89,7 +89,7 @@ func (e *HikvisionEmulator) Start() error {
 // GenerateEvent gera e envia um evento
 func (e *HikvisionEmulator) GenerateEvent() error {
 	// Verifica se a autenticação local está ativada
-	localAuth, err := e.GetDeviceSetting("LocalAuthentication")
+	localAuth, err := e.GetSetting("LocalAuthentication")
 	if err != nil {
 		return fmt.Errorf("failed to get LocalAuthentication setting: %w", err)
 	}
@@ -204,12 +204,12 @@ LIMIT 1
 		boundary, len(imageData))
 
 	// Obtém o servidor remoto
-	remoteServer, err := e.GetDeviceSetting("RemoteServer")
+	remoteServer, err := e.GetSetting("RemoteServer")
 	if err != nil {
 		return fmt.Errorf("failed to get RemoteServer setting: %w", err)
 	}
 
-	remotePort, err := e.GetDeviceSetting("RemotePort")
+	remotePort, err := e.GetSetting("RemotePort")
 	if err != nil {
 		return fmt.Errorf("failed to get RemotePort setting: %w", err)
 	}
@@ -260,12 +260,12 @@ LIMIT 1
 // sendDoorEvent envia um evento de estado da porta
 func (e *HikvisionEmulator) sendDoorEvent(status string) error {
 	// Obtém o servidor remoto
-	remoteServer, err := e.GetDeviceSetting("RemoteServer")
+	remoteServer, err := e.GetSetting("RemoteServer")
 	if err != nil {
 		return fmt.Errorf("failed to get RemoteServer setting: %w", err)
 	}
 
-	remotePort, err := e.GetDeviceSetting("RemotePort")
+	remotePort, err := e.GetSetting("RemotePort")
 	if err != nil {
 		return fmt.Errorf("failed to get RemotePort setting: %w", err)
 	}
@@ -488,7 +488,7 @@ func (e *HikvisionEmulator) setupRoutes(router *gin.Engine) {
 
 	// AcsCfg
 	router.GET(acURL+"/AcsCfg", func(c *gin.Context) {
-		localAuth, _ := e.GetDeviceSetting("LocalAuthentication")
+		localAuth, _ := e.GetSetting("LocalAuthentication")
 		remoteCheckDoorEnabled := localAuth == "1"
 
 		c.JSON(http.StatusOK, gin.H{
@@ -1474,7 +1474,7 @@ func (e *HikvisionEmulator) setupRoutes(router *gin.Engine) {
 					generatedEventCounter = now
 
 					// Verificar se a autenticação local está ativada
-					localAuth, err := e.GetDeviceSetting("LocalAuthentication")
+					localAuth, err := e.GetSetting("LocalAuthentication")
 					if err != nil {
 						e.Tracer.Error("Failed to get LocalAuthentication setting: %v", err)
 						continue
@@ -1512,7 +1512,7 @@ func (e *HikvisionEmulator) setupRoutes(router *gin.Engine) {
 				}
 
 				// Verificar se a autenticação local está desativada
-				localAuth, err := e.GetDeviceSetting("LocalAuthentication")
+				localAuth, err := e.GetSetting("LocalAuthentication")
 				if err == nil && localAuth == "0" {
 					e.Tracer.Info("Local authentication disabled, stopping event stream")
 					return
