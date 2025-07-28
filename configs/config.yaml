@@ -21,7 +21,7 @@ postgres:
 # Configuração do banco de dados WXS (sistema externo)
 wxsDB:
   driver: "mssql"
-  host: "127.0.0.1"
+  host: "RPH-SRV"
   port: 1433
   database: "W_Access"
   username: "W-Access"

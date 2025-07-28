@@ -1425,7 +1425,7 @@ func (e *HikvisionEmulator) setupRoutes(router *gin.Engine) {
         <protocolType>EHome</protocolType>
         <parameterFormatType>XML</parameterFormatType>
         <addressingFormatType>ipaddress</addressingFormatType>
-        <ipAddress>0.0.0.0</ipAddress>
+		<ipAddress>0.0.0.0</ipAddress>
         <portNo>0</portNo>
         <httpAuthenticationMethod>none</httpAuthenticationMethod>
     </HttpHostNotification>
