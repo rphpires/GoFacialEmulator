@@ -49,10 +49,13 @@ func (m *MigrationManager) Close() {
 
 // CreateMigrationsTable cria a tabela de migrações se não existir
 func (m *MigrationManager) CreateMigrationsTable(ctx context.Context) error {
-	// Certificar que o schema existe
-	_, err := m.pool.Exec(ctx, fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s", m.schema))
-	if err != nil {
-		return fmt.Errorf("erro ao criar schema: %w", err)
+	// Certificar que os schemas existem
+	schemas := []string{m.schema, "service", "emulator"}
+	for _, schema := range schemas {
+		_, err := m.pool.Exec(ctx, fmt.Sprintf("CREATE SCHEMA IF NOT EXISTS %s", schema))
+		if err != nil {
+			return fmt.Errorf("erro ao criar schema %s: %w", schema, err)
+		}
 	}
 
 	// Criar tabela de migrações
@@ -64,7 +67,7 @@ func (m *MigrationManager) CreateMigrationsTable(ctx context.Context) error {
 		)
 	`, m.schema)
 
-	_, err = m.pool.Exec(ctx, query)
+	_, err := m.pool.Exec(ctx, query)
 	if err != nil {
 		return fmt.Errorf("erro ao criar tabela de migrações: %w", err)
 	}
@@ -99,18 +102,6 @@ func (m *MigrationManager) GetAppliedMigrations(ctx context.Context) (map[string
 	}
 
 	return migrations, nil
-}
-
-// MarkMigrationAsApplied marca uma migração como aplicada
-func (m *MigrationManager) MarkMigrationAsApplied(ctx context.Context, version string) error {
-	query := fmt.Sprintf("INSERT INTO %s.migrations (version) VALUES ($1)", m.schema)
-
-	_, err := m.pool.Exec(ctx, query, version)
-	if err != nil {
-		return fmt.Errorf("erro ao marcar migração %s como aplicada: %w", version, err)
-	}
-
-	return nil
 }
 
 // RunMigrations executa as migrações pendentes

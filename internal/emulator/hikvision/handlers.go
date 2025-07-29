@@ -6,6 +6,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"strconv"
 	"time"
@@ -90,7 +91,7 @@ func (e *Emulator) handleGetStatus(c *gin.Context) {
 	e.tracer.Info("/emulator/get-status: connect")
 
 	currentTime := time.Now().Format("2006-01-02 15:04:05")
-	count := e.repo.GetTotalUsers()
+	count, err := e.repo.GetTotalUsers()
 
 	c.JSON(http.StatusOK, gin.H{
 		"CurrentDatetime": currentTime,
@@ -748,14 +749,14 @@ func (e *Emulator) handlePostFaceDataRecord(c *gin.Context) {
 	}
 
 	// Obter o arquivo de imagem
-	file, err := c.FormFile("FaceImage")
+	fileHeader, err := c.FormFile("FaceImage")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	// Processar a imagem
-	base64Image, err := e.processUploadedImage(file)
+	base64Image, err := e.processUploadedImage(fileHeader)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -809,14 +810,14 @@ func (e *Emulator) handlePutFaceSetup(c *gin.Context) {
 	}
 
 	// Obter o arquivo de imagem
-	file, err := c.FormFile("FaceImage")
+	fileHeader, err := c.FormFile("FaceImage")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	// Processar a imagem
-	base64Image, err := e.processUploadedImage(file)
+	base64Image, err := e.processUploadedImage(fileHeader)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -891,6 +892,12 @@ func (e *Emulator) handleCommandOutput(c *gin.Context) {
 
 func (e *Emulator) handleGetHttpHosts(c *gin.Context) {
 	e.tracer.Info("Getting Info httpHosts")
+
+	remoteServer, err := e.repo.GetSetting("RemoteServer")
+	if err != nil || remoteServer == "" {
+		remoteServer = "172.16.17.20" // valor padrão
+	}
+
 	xmlContent := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <HttpHostNotificationList version="2.0" xmlns="http://www.isapi.org/ver20/XMLSchema">
     <HttpHostNotification>
@@ -917,12 +924,11 @@ func (e *Emulator) handleGetHttpHosts(c *gin.Context) {
         <portNo>0</portNo>
         <httpAuthenticationMethod>none</httpAuthenticationMethod>
     </HttpHostNotification>
-</HttpHostNotificationList>`, e.repo.GetSetting("RemoteServer"))
+</HttpHostNotificationList>`, remoteServer)
 
 	c.Header("Content-Type", "application/xml")
 	c.String(http.StatusOK, xmlContent)
 }
-
 func (e *Emulator) handlePutHttpHosts(c *gin.Context) {
 	e.tracer.Info("Receiving configuration from server")
 	c.String(http.StatusOK, "OK")
@@ -942,7 +948,14 @@ func (e *Emulator) handleGetAlertStream(c *gin.Context) {
 
 // ====================== HELPER FUNCTIONS ======================
 
-func (e *Emulator) processUploadedImage(file io.Reader) (string, error) {
+func (e *Emulator) processUploadedImage(fileHeader *multipart.FileHeader) (string, error) {
+	// Abrir o arquivo
+	file, err := fileHeader.Open()
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
 	// Ler o conteúdo do arquivo
 	imageData, err := io.ReadAll(file)
 	if err != nil {

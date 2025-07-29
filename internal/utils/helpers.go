@@ -120,3 +120,13 @@ func Contains[T comparable](slice []T, val T) bool {
 	}
 	return false
 }
+
+// ValidateIPAddress valida se um endereço IP é válido
+func ValidateIPAddress(ip string) bool {
+	return net.ParseIP(ip) != nil
+}
+
+// ValidatePort valida se uma porta é válida
+func ValidatePort(port int) bool {
+	return port > 0 && port <= 65535
+}

@@ -1,14 +1,11 @@
 package database
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"sync"
 
 	"GoFacialEmulator/internal/config"
-
-	"github.com/jackc/pgx/v4"
 )
 
 var (
@@ -23,8 +20,8 @@ var (
 
 // Initialize inicializa as conexões com o banco de dados
 func Initialize(cfg *config.Config) error {
-	// Inicializar o banco de dados principal
-	if err := InitializeDatabase(cfg.PostgreSQL); err != nil {
+	// Inicializar migrações do banco de dados principal
+	if err := InitializeDatabase(cfg.ServiceDB); err != nil {
 		return fmt.Errorf("erro ao inicializar banco de dados: %w", err)
 	}
 
@@ -113,13 +110,4 @@ func CloseAll() {
 	if wxsDB != nil {
 		wxsDB.Close()
 	}
-}
-
-// WithTransaction executa uma função dentro de uma transação
-func WithTransaction(ctx context.Context, db *PostgresDBPool, txFunc func(ctx context.Context) error) error {
-	return db.Transaction(ctx, func(tx pgx.Tx) error {
-		// Criar um contexto com a transação
-		txCtx := context.WithValue(ctx, "tx", tx)
-		return txFunc(txCtx)
-	})
 }

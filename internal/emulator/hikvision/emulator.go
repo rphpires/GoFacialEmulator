@@ -35,7 +35,7 @@ type Emulator struct {
 }
 
 // NewEmulator cria uma nova instância do emulador Hikvision
-func NewEmulator(db database.DBInterface, device models.Device, tracer *trace.Tracer) *Emulator {
+func NewEmulator(db *database.EmulatorDB, device models.Device, tracer *trace.Tracer) *Emulator {
 	tracer.Info("Initializing Hikvision emulator model: %s", device.Name)
 
 	repo := NewRepository(db, device.ID)
@@ -212,7 +212,7 @@ func (e *Emulator) startEventGenerator() {
 func (e *Emulator) generateOnlineEvent() error {
 	e.tracer.Info("Generating online event")
 
-	// Busca uma linha aleatória de usuário + cartão
+	// Buscar uma linha aleatória de usuário + cartão
 	name, cardNo, employeeNo, err := e.repo.GetRandomUserAndCard()
 	if err != nil {
 		e.tracer.Warning("No user/card found for event generation: %v", err)
@@ -223,7 +223,7 @@ func (e *Emulator) generateOnlineEvent() error {
 	loc, _ := time.LoadLocation("America/Sao_Paulo")
 	currentTime := time.Now().In(loc)
 
-	// Cria o evento
+	// Criar o evento
 	event := &Event{
 		IPAddress:        e.device.IPAddress,
 		IPv6Address:      "fe80::be5e:33ff:fe57:a5cb",
@@ -238,6 +238,7 @@ func (e *Emulator) generateOnlineEvent() error {
 		EventDescription: "Access Controller Event",
 	}
 
+	// Preencher dados do evento
 	event.AccessControllerEvent.DeviceName = "subdoorOne"
 	event.AccessControllerEvent.MajorEventType = 5
 	event.AccessControllerEvent.SubEventType = 75
@@ -400,7 +401,13 @@ func (e *Emulator) sendDoorEvent(status string) error {
 func (e *Emulator) generateRandomEvent() ([]byte, error) {
 	e.tracer.Info("Generating random event for streaming")
 
-	// Busca uma linha aleatória de usuário + cartão
+	// Verificar se autenticação local está ativada
+	localAuth, err := e.repo.GetSetting("LocalAuthentication")
+	if err != nil || localAuth != "1" {
+		return nil, nil // Não gerar evento se não for modo local
+	}
+
+	// Buscar uma linha aleatória de usuário + cartão
 	name, cardNo, employeeNo, err := e.repo.GetRandomUserAndCard()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get random user info: %w", err)
@@ -410,7 +417,7 @@ func (e *Emulator) generateRandomEvent() ([]byte, error) {
 	loc, _ := time.LoadLocation("America/Sao_Paulo")
 	currentTime := time.Now().In(loc)
 
-	// Cria o evento
+	// Criar evento
 	event := &Event{
 		IPAddress:        e.device.IPAddress,
 		IPv6Address:      "fe80::be5e:33ff:fe57:a5cb",
@@ -425,6 +432,7 @@ func (e *Emulator) generateRandomEvent() ([]byte, error) {
 		EventDescription: "Access Controller Event",
 	}
 
+	// Preencher dados do evento de controle de acesso
 	event.AccessControllerEvent.DeviceName = "subdoorOne"
 	event.AccessControllerEvent.MajorEventType = 5
 	event.AccessControllerEvent.SubEventType = 75
@@ -453,25 +461,25 @@ func (e *Emulator) generateRandomEvent() ([]byte, error) {
 	event.AccessControllerEvent.FaceRect.Y = 0.354
 	event.AccessControllerEvent.UnlockRoomNo = "3723243075"
 
-	// Codifica o evento em JSON
+	// Codificar o evento em JSON
 	eventJSON, err := json.MarshalIndent(event, "", "  ")
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal event: %w", err)
 	}
 
-	// Formata o evento como multipart
+	// Formatar o evento como multipart
 	boundary := "MIME_boundary"
 	contentLength := len(eventJSON)
 	evtPackage := fmt.Sprintf("\r\n--%s\r\nContent-Type: application/json; charset=\"UTF-8\"\r\nContent-Length: %d\r\n\r\n%s",
 		boundary, contentLength, string(eventJSON))
 
-	// Decodifica a imagem
+	// Decodificar a imagem
 	imageData, err := base64.StdEncoding.DecodeString(PhotoImg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode image: %w", err)
 	}
 
-	// Adiciona a imagem ao pacote
+	// Adicionar a imagem ao pacote
 	dataPhoto := fmt.Sprintf("\r\n--%s\r\nContent-Disposition: form-data; name=\"Picture\"; filename=\"Picture.jpg\"\r\nContent-Type: image/jpeg\r\nContent-Length: %d\r\nContent-ID: pictureImage\r\n\r\n",
 		boundary, len(imageData))
 
@@ -508,6 +516,15 @@ func (e *Emulator) getHeartbeatMessage() []byte {
 
 // handleEventStream gerencia o streaming de eventos
 func (e *Emulator) handleEventStream(c *gin.Context) {
+	e.tracer.Info("[GET] /alertStream - Starting event stream")
+
+	// Configurar headers para streaming
+	c.Writer.Header().Set("Content-Type", "multipart/x-mixed-replace; boundary=MIME_boundary")
+	c.Writer.Header().Set("Cache-Control", "no-cache")
+	c.Writer.Header().Set("Connection", "keep-alive")
+	c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+	c.Writer.Flush()
+
 	// Inicializar contadores
 	heartbeatCounter := time.Now()
 	generatedEventCounter := time.Now()
@@ -515,7 +532,7 @@ func (e *Emulator) handleEventStream(c *gin.Context) {
 	// Verificar se o cliente desconectou
 	clientGone := c.Request.Context().Done()
 
-	// Loop principal de streaming
+	// Loop principal de streaming - equivalente ao generate_heartbeat() do Python
 	for {
 		select {
 		case <-clientGone:
@@ -525,30 +542,19 @@ func (e *Emulator) handleEventStream(c *gin.Context) {
 			e.tracer.Info("Event stream stopped due to emulator shutdown")
 			return
 		default:
-			// Verificar se é hora de gerar um evento
 			now := time.Now()
 
+			// Verificar se é hora de gerar um evento
 			if e.device.EventInterval > 0 && now.Sub(generatedEventCounter) >= time.Duration(e.device.EventInterval)*time.Second {
 				e.tracer.Info(">> Sending Generated Fake Event <<")
 				generatedEventCounter = now
 
-				// Verificar se a autenticação local está ativada
-				localAuth, err := e.repo.GetSetting("LocalAuthentication")
+				// Gerar evento
+				eventData, err := e.generateRandomEvent()
 				if err != nil {
-					e.tracer.Error("Failed to get LocalAuthentication setting: %v", err)
-					continue
-				}
-
-				if localAuth == "1" {
-					// Gerar evento
-					eventData, err := e.generateRandomEvent()
-					if err != nil {
-						e.tracer.Error("Failed to generate random event: %v", err)
-						continue
-					}
-
-					_, err = c.Writer.Write(eventData)
-					if err != nil {
+					e.tracer.Error("Failed to generate random event: %v", err)
+				} else if eventData != nil {
+					if _, err := c.Writer.Write(eventData); err != nil {
 						e.tracer.Error("Failed to write event data: %v", err)
 						return
 					}
@@ -562,19 +568,11 @@ func (e *Emulator) handleEventStream(c *gin.Context) {
 				heartbeatCounter = now
 
 				heartbeat := e.getHeartbeatMessage()
-				_, err := c.Writer.Write(heartbeat)
-				if err != nil {
+				if _, err := c.Writer.Write(heartbeat); err != nil {
 					e.tracer.Error("Failed to write heartbeat: %v", err)
 					return
 				}
 				c.Writer.Flush()
-			}
-
-			// Verificar se a autenticação local está desativada
-			localAuth, err := e.repo.GetSetting("LocalAuthentication")
-			if err == nil && localAuth == "0" {
-				e.tracer.Info("Local authentication disabled, stopping event stream")
-				return
 			}
 
 			// Pequena pausa para evitar consumo excessivo de CPU

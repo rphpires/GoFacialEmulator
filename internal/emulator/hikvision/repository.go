@@ -3,6 +3,7 @@ package hikvision
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	"GoFacialEmulator/internal/database"
@@ -24,17 +25,7 @@ func NewRepository(db database.DBInterface, deviceID int) *Repository {
 	}
 }
 
-// GetTotalUsers retorna total de usuários para este dispositivo
-func (r *Repository) GetTotalUsers() (int, error) {
-	var count int
-	ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
-	defer cancel()
-
-	err := r.db.QueryRow(ctx,
-		`SELECT COUNT(*) FROM emulator.hikvision_card_devices WHERE device_id = $1`,
-		r.deviceID).Scan(&count)
-	return count, err
-}
+// ====================== SETTINGS ======================
 
 // GetSetting obtém uma configuração do dispositivo
 func (r *Repository) GetSetting(key string) (string, error) {
@@ -45,6 +36,19 @@ func (r *Repository) GetSetting(key string) (string, error) {
 	err := r.db.QueryRow(ctx,
 		"SELECT value FROM emulator.device_settings WHERE device_id = $1 AND cfg_id = $2",
 		r.deviceID, key).Scan(&value)
+	if err != nil {
+		// Retornar valores padrão para algumas configurações
+		switch key {
+		case "RemoteServer":
+			return "localhost", nil
+		case "RemotePort":
+			return "15501", nil
+		case "LocalAuthentication":
+			return "1", nil
+		default:
+			return "", err
+		}
+	}
 	return value, err
 }
 
@@ -56,21 +60,23 @@ func (r *Repository) SetSetting(key, value string) error {
 	_, err := r.db.Exec(ctx,
 		`INSERT INTO emulator.device_settings (device_id, cfg_id, value) 
 		 VALUES ($1, $2, $3) 
-		 ON CONFLICT (device_id, cfg_id) DO UPDATE SET value = $3`,
+		 ON CONFLICT (device_id, cfg_id) DO UPDATE SET value = $3, updated_at = NOW()`,
 		r.deviceID, key, value)
 	return err
 }
 
-// GetSetting obtém uma configuração do dispositivo
-func (r *Repository) GetIPServer(key string) (string, error) {
+// ====================== COUNT OPERATIONS ======================
+
+// GetTotalUsers retorna total de usuários para este dispositivo
+func (r *Repository) GetTotalUsers() (int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
 	defer cancel()
 
-	var value string
+	var count int
 	err := r.db.QueryRow(ctx,
-		"SELECT value FROM emulator.device_settings WHERE device_id = $1 AND cfg_id = $2",
-		r.deviceID, key).Scan(&value)
-	return value, err
+		"SELECT COUNT(*) FROM emulator.hikvision_users WHERE device_id = $1",
+		r.deviceID).Scan(&count)
+	return count, err
 }
 
 // CountItems retorna contadores de todos os tipos de itens
@@ -81,25 +87,33 @@ func (r *Repository) CountItems() (*CountItems, error) {
 	counts := &CountItems{}
 
 	// Contar usuários
-	err := r.db.QueryRow(ctx, "SELECT COUNT(*) FROM emulator.hikvision_users").Scan(&counts.Users)
+	err := r.db.QueryRow(ctx,
+		"SELECT COUNT(*) FROM emulator.hikvision_users WHERE device_id = $1",
+		r.deviceID).Scan(&counts.Users)
 	if err != nil {
 		return nil, fmt.Errorf("failed to count users: %w", err)
 	}
 
 	// Contar cartões
-	err = r.db.QueryRow(ctx, "SELECT COUNT(*) FROM emulator.hikvision_cards").Scan(&counts.Cards)
+	err = r.db.QueryRow(ctx,
+		"SELECT COUNT(*) FROM emulator.hikvision_cards WHERE device_id = $1",
+		r.deviceID).Scan(&counts.Cards)
 	if err != nil {
 		return nil, fmt.Errorf("failed to count cards: %w", err)
 	}
 
 	// Contar faces
-	err = r.db.QueryRow(ctx, "SELECT COUNT(*) FROM emulator.hikvision_faces").Scan(&counts.Faces)
+	err = r.db.QueryRow(ctx,
+		"SELECT COUNT(*) FROM emulator.hikvision_faces WHERE device_id = $1",
+		r.deviceID).Scan(&counts.Faces)
 	if err != nil {
 		return nil, fmt.Errorf("failed to count faces: %w", err)
 	}
 
 	// Contar impressões digitais
-	err = r.db.QueryRow(ctx, "SELECT COUNT(*) FROM emulator.hikvision_fingers").Scan(&counts.Fingerprints)
+	err = r.db.QueryRow(ctx,
+		"SELECT COUNT(*) FROM emulator.hikvision_fingers WHERE device_id = $1",
+		r.deviceID).Scan(&counts.Fingerprints)
 	if err != nil {
 		return nil, fmt.Errorf("failed to count fingerprints: %w", err)
 	}
@@ -116,8 +130,8 @@ func (r *Repository) CheckIfUserExists(employeeNo string) (bool, error) {
 
 	var count int
 	err := r.db.QueryRow(ctx,
-		"SELECT COUNT(*) FROM emulator.hikvision_users WHERE employee_no = $1",
-		employeeNo).Scan(&count)
+		"SELECT COUNT(*) FROM emulator.hikvision_users WHERE device_id = $1 AND employee_no = $2",
+		r.deviceID, employeeNo).Scan(&count)
 	if err != nil {
 		return false, err
 	}
@@ -139,9 +153,9 @@ func (r *Repository) AddUser(user *User) error {
 	}
 
 	_, err = r.db.Exec(ctx,
-		`INSERT INTO emulator.hikvision_users (employee_no, name, password, local_ui_right, begin_time, end_time)
-		 VALUES ($1, $2, $3, $4, $5, $6)`,
-		user.EmployeeNo, user.Name, user.Password, user.LocalUIRight, user.BeginTime, user.EndTime)
+		`INSERT INTO emulator.hikvision_users (device_id, employee_no, name, password, local_ui_right, begin_time, end_time)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+		r.deviceID, user.EmployeeNo, user.Name, user.Password, user.LocalUIRight, user.BeginTime, user.EndTime)
 
 	return err
 }
@@ -153,9 +167,9 @@ func (r *Repository) UpdateUser(user *User) error {
 
 	_, err := r.db.Exec(ctx,
 		`UPDATE emulator.hikvision_users 
-		 SET name = $2, password = $3, local_ui_right = $4, begin_time = $5, end_time = $6
-		 WHERE employee_no = $1`,
-		user.EmployeeNo, user.Name, user.Password, user.LocalUIRight, user.BeginTime, user.EndTime)
+		 SET name = $3, password = $4, local_ui_right = $5, begin_time = $6, end_time = $7, updated_at = NOW()
+		 WHERE device_id = $1 AND employee_no = $2`,
+		r.deviceID, user.EmployeeNo, user.Name, user.Password, user.LocalUIRight, user.BeginTime, user.EndTime)
 
 	return err
 }
@@ -173,25 +187,33 @@ func (r *Repository) DeleteUser(employeeNo string) error {
 	defer tx.Rollback(ctx)
 
 	// Deletar usuário
-	_, err = tx.Exec(ctx, "DELETE FROM emulator.hikvision_users WHERE employee_no = $1", employeeNo)
+	_, err = tx.Exec(ctx,
+		"DELETE FROM emulator.hikvision_users WHERE device_id = $1 AND employee_no = $2",
+		r.deviceID, employeeNo)
 	if err != nil {
 		return err
 	}
 
 	// Deletar cartão associado
-	_, err = tx.Exec(ctx, "DELETE FROM emulator.hikvision_cards WHERE employee_no = $1", employeeNo)
+	_, err = tx.Exec(ctx,
+		"DELETE FROM emulator.hikvision_cards WHERE device_id = $1 AND employee_no = $2",
+		r.deviceID, employeeNo)
 	if err != nil {
 		return err
 	}
 
-	// Deletar face associada
-	_, err = tx.Exec(ctx, "DELETE FROM emulator.hikvision_faces WHERE user_id = $1", employeeNo)
+	// Deletar face associada (usando employee_no como user_id)
+	_, err = tx.Exec(ctx,
+		"DELETE FROM emulator.hikvision_faces WHERE device_id = $1 AND user_id = $2",
+		r.deviceID, employeeNo)
 	if err != nil {
 		return err
 	}
 
-	// Deletar impressões digitais associadas
-	_, err = tx.Exec(ctx, "DELETE FROM emulator.hikvision_fingers WHERE chid = $1", employeeNo)
+	// Deletar impressões digitais associadas (usando employee_no como chid)
+	_, err = tx.Exec(ctx,
+		"DELETE FROM emulator.hikvision_fingers WHERE device_id = $1 AND chid = $2",
+		r.deviceID, employeeNo)
 	if err != nil {
 		return err
 	}
@@ -207,8 +229,10 @@ func (r *Repository) GetUsers(limit, offset int) ([]*User, error) {
 	rows, err := r.db.Query(ctx,
 		`SELECT employee_no, name, password, local_ui_right, begin_time, end_time 
 		 FROM emulator.hikvision_users 
-		 LIMIT $1 OFFSET $2`,
-		limit, offset)
+		 WHERE device_id = $1
+		 ORDER BY employee_no
+		 LIMIT $2 OFFSET $3`,
+		r.deviceID, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -237,8 +261,9 @@ func (r *Repository) CheckIfCardExists(employeeNo, cardNo string) (bool, error) 
 
 	var count int
 	err := r.db.QueryRow(ctx,
-		"SELECT COUNT(*) FROM emulator.hikvision_cards WHERE employee_no = $1 OR card_no = $2",
-		employeeNo, cardNo).Scan(&count)
+		`SELECT COUNT(*) FROM emulator.hikvision_cards 
+		 WHERE device_id = $1 AND (employee_no = $2 OR card_no = $3)`,
+		r.deviceID, employeeNo, cardNo).Scan(&count)
 	if err != nil {
 		return false, err
 	}
@@ -260,8 +285,9 @@ func (r *Repository) AddCard(card *Card) error {
 	}
 
 	_, err = r.db.Exec(ctx,
-		`INSERT INTO emulator.hikvision_cards (employee_no, card_no) VALUES ($1, $2)`,
-		card.EmployeeNo, card.CardNo)
+		`INSERT INTO emulator.hikvision_cards (device_id, employee_no, card_no) 
+		 VALUES ($1, $2, $3)`,
+		r.deviceID, card.EmployeeNo, card.CardNo)
 
 	return err
 }
@@ -272,8 +298,12 @@ func (r *Repository) GetCards(limit, offset int) ([]*Card, error) {
 	defer cancel()
 
 	rows, err := r.db.Query(ctx,
-		`SELECT employee_no, card_no FROM emulator.hikvision_cards LIMIT $1 OFFSET $2`,
-		limit, offset)
+		`SELECT employee_no, card_no 
+		 FROM emulator.hikvision_cards 
+		 WHERE device_id = $1
+		 ORDER BY employee_no
+		 LIMIT $2 OFFSET $3`,
+		r.deviceID, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -301,8 +331,8 @@ func (r *Repository) CheckIfFaceExists(userID string) (bool, error) {
 
 	var count int
 	err := r.db.QueryRow(ctx,
-		"SELECT COUNT(*) FROM emulator.hikvision_faces WHERE user_id = $1",
-		userID).Scan(&count)
+		"SELECT COUNT(*) FROM emulator.hikvision_faces WHERE device_id = $1 AND user_id = $2",
+		r.deviceID, userID).Scan(&count)
 	if err != nil {
 		return false, err
 	}
@@ -324,8 +354,9 @@ func (r *Repository) AddFace(userID, photoData string) error {
 	}
 
 	_, err = r.db.Exec(ctx,
-		`INSERT INTO emulator.hikvision_faces (user_id, photo_data) VALUES ($1, $2)`,
-		userID, photoData)
+		`INSERT INTO emulator.hikvision_faces (device_id, user_id, photo_data) 
+		 VALUES ($1, $2, $3)`,
+		r.deviceID, userID, photoData)
 
 	return err
 }
@@ -336,8 +367,10 @@ func (r *Repository) UpdateFace(userID, photoData string) error {
 	defer cancel()
 
 	_, err := r.db.Exec(ctx,
-		`UPDATE emulator.hikvision_faces SET photo_data = $2 WHERE user_id = $1`,
-		userID, photoData)
+		`UPDATE emulator.hikvision_faces 
+		 SET photo_data = $3, updated_at = NOW() 
+		 WHERE device_id = $1 AND user_id = $2`,
+		r.deviceID, userID, photoData)
 
 	return err
 }
@@ -348,7 +381,8 @@ func (r *Repository) DeleteFace(userID string) error {
 	defer cancel()
 
 	_, err := r.db.Exec(ctx,
-		"DELETE FROM emulator.hikvision_faces WHERE user_id = $1", userID)
+		"DELETE FROM emulator.hikvision_faces WHERE device_id = $1 AND user_id = $2",
+		r.deviceID, userID)
 
 	return err
 }
@@ -360,8 +394,8 @@ func (r *Repository) GetFace(userID string) (string, error) {
 
 	var photoData string
 	err := r.db.QueryRow(ctx,
-		"SELECT photo_data FROM emulator.hikvision_faces WHERE user_id = $1",
-		userID).Scan(&photoData)
+		"SELECT photo_data FROM emulator.hikvision_faces WHERE device_id = $1 AND user_id = $2",
+		r.deviceID, userID).Scan(&photoData)
 
 	return photoData, err
 }
@@ -372,8 +406,12 @@ func (r *Repository) GetFaces(limit, offset int) ([]*Face, error) {
 	defer cancel()
 
 	rows, err := r.db.Query(ctx,
-		`SELECT user_id, photo_data FROM emulator.hikvision_faces LIMIT $1 OFFSET $2`,
-		limit, offset)
+		`SELECT user_id, photo_data 
+		 FROM emulator.hikvision_faces 
+		 WHERE device_id = $1
+		 ORDER BY user_id
+		 LIMIT $2 OFFSET $3`,
+		r.deviceID, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -382,9 +420,14 @@ func (r *Repository) GetFaces(limit, offset int) ([]*Face, error) {
 	var faces []*Face
 	for rows.Next() {
 		face := &Face{}
-		err := rows.Scan(&face.UserID, &face.PhotoData)
+		var userIDStr string
+		err := rows.Scan(&userIDStr, &face.PhotoData)
 		if err != nil {
 			return nil, err
+		}
+		// Converter string para int
+		if userID, err := strconv.Atoi(userIDStr); err == nil {
+			face.UserID = userID
 		}
 		faces = append(faces, face)
 	}
@@ -402,9 +445,10 @@ func (r *Repository) GetRandomUserAndCard() (name, cardNo, employeeNo string, er
 	err = r.db.QueryRow(ctx,
 		`SELECT u.name, c.card_no, u.employee_no 
 		 FROM emulator.hikvision_users u
-		 JOIN emulator.hikvision_cards c ON c.employee_no = u.employee_no
+		 JOIN emulator.hikvision_cards c ON c.employee_no = u.employee_no AND c.device_id = u.device_id
+		 WHERE u.device_id = $1
 		 ORDER BY RANDOM() 
-		 LIMIT 1`).Scan(&name, &cardNo, &employeeNo)
+		 LIMIT 1`, r.deviceID).Scan(&name, &cardNo, &employeeNo)
 
 	return
 }

@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"GoFacialEmulator/internal/database"
+	"GoFacialEmulator/internal/emulator/dahua"
+	"GoFacialEmulator/internal/emulator/hikvision"
 	"GoFacialEmulator/internal/models"
 	"GoFacialEmulator/internal/trace"
 )
@@ -357,9 +359,9 @@ func (m *Manager) Start(id int) error {
 func (m *Manager) createEmulator(device models.Device) (Emulator, error) {
 	switch device.Model {
 	case "Dahua":
-		return NewDahuaEmulator(m.EmulatorDB, device, m.Tracer), nil
+		return dahua.NewEmulator(m.EmulatorDB, device, m.Tracer), nil
 	case "Hikvision":
-		return NewHikvisionEmulator(m.EmulatorDB, device, m.Tracer), nil
+		return hikvision.NewEmulator(m.EmulatorDB, device, m.Tracer), nil
 	default:
 		return nil, fmt.Errorf("unsupported device model: %s", device.Model)
 	}

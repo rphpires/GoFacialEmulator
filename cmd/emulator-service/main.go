@@ -2,7 +2,8 @@ package main
 
 import (
 	"context"
-	"flag"
+	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -17,106 +18,89 @@ import (
 )
 
 func main() {
-	// Parse command line flags
-	configFile := flag.String("config", "config.yml", "Path to configuration file")
-	flag.Parse()
+	// Inicializar tracer
+	tracer := trace.NewTracer("FacialEmulator", trace.INFO)
+	tracer.Info("Starting Facial Emulator Service")
 
-	// Initialize tracer
-	tracer := trace.NewTracer()
-	defer tracer.Close()
-
-	// Load configuration
-	cfg, err := config.Load(*configFile)
+	// Carregar configuração
+	cfg, err := config.LoadConfig()
 	if err != nil {
-		tracer.Error("Failed to load configuration: %v", err)
-		os.Exit(1)
+		log.Fatalf("Failed to load config: %v", err)
 	}
 
-	// Initialize database connections
-	serviceDB, err := database.NewServiceDB(cfg.ServiceDB)
-	if err != nil {
-		tracer.Error("Failed to connect to service database: %v", err)
-		os.Exit(1)
+	// Inicializar bancos de dados
+	if err := database.Initialize(cfg); err != nil {
+		log.Fatalf("Failed to initialize database: %v", err)
 	}
-	defer serviceDB.Close()
 
-	emulatorDB, err := database.NewEmulatorDB(cfg.EmulatorDB)
+	// Obter instâncias dos bancos
+	serviceDB, err := database.GetServiceDB(cfg.PostgreSQL)
 	if err != nil {
-		tracer.Error("Failed to connect to emulator database: %v", err)
-		os.Exit(1)
+		log.Fatalf("Failed to get ServiceDB: %v", err)
 	}
-	defer emulatorDB.Close()
 
-	wxsDB, err := database.NewWxsDB(cfg.WxsDB)
+	emulatorDB, err := database.GetEmulatorDB(cfg.PostgreSQL)
 	if err != nil {
-		tracer.Error("Failed to connect to WXS database: %v", err)
-		os.Exit(1)
+		log.Fatalf("Failed to get EmulatorDB: %v", err)
 	}
-	defer wxsDB.Close()
 
-	// Create emulator manager
+	wxsDB, err := database.GetWxsDB(cfg.WXS)
+	if err != nil {
+		log.Fatalf("Failed to get WxsDB: %v", err)
+	}
+
+	// Inicializar manager de emuladores
 	manager := emulator.NewManager(serviceDB, emulatorDB, wxsDB, tracer)
+	if err := manager.Initialize(); err != nil {
+		log.Fatalf("Failed to initialize emulator manager: %v", err)
+	}
 
-	// Create HTTP handlers
+	// Atualizar dispositivos do WXS
+	if err := manager.RefreshDevices(); err != nil {
+		tracer.Error("Failed to refresh devices: %v", err)
+	}
+
+	// Inicializar handlers HTTP
 	handler := handlers.NewHandler(manager, serviceDB, wxsDB, tracer)
 
-	// Set up HTTP server
+	// Configurar servidor HTTP
 	server := &http.Server{
-		Addr:    cfg.Server.Address,
-		Handler: handler.Router(),
+		Addr:         fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port),
+		Handler:      handler.Router(),
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 30 * time.Second,
+		IdleTimeout:  60 * time.Second,
 	}
 
-	// Start the HTTP server in a separate goroutine
+	// Iniciar servidor em goroutine
 	go func() {
-		tracer.Info("Starting server on %s", cfg.Server.Address)
+		tracer.Info("Starting HTTP server on %s", server.Addr)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			tracer.Error("Failed to start server: %v", err)
-			os.Exit(1)
+			log.Fatalf("Failed to start server: %v", err)
 		}
 	}()
 
-	// Set up signal handling for graceful shutdown
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
-
-	// Wait for interrupt signal
-	<-stop
+	// Configurar graceful shutdown
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
 
 	tracer.Info("Shutting down server...")
 
-	// Create a context with timeout for shutdown
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	// Shutdown graceful
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	// Shut down the HTTP server
+	// Parar servidor HTTP
 	if err := server.Shutdown(ctx); err != nil {
-		tracer.Error("Server shutdown failed: %v", err)
+		tracer.Error("Server forced to shutdown: %v", err)
 	}
 
-	// Stop all running emulators
-	manager.StopAll()
+	// Parar manager de emuladores
+	manager.Shutdown()
 
-	tracer.Info("Server stopped")
-}
+	// Fechar conexões de banco
+	database.CloseAll()
 
-func gracefulShutdown(server *http.Server, manager *emulator.Manager, tracer *trace.Tracer) {
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
-
-	<-stop
-	tracer.Info("Shutdown signal received")
-
-	// Create shutdown context with timeout
-	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer shutdownCancel()
-
-	// Shutdown HTTP server
-	if err := server.Shutdown(shutdownCtx); err != nil {
-		tracer.Error("HTTP server shutdown failed: %v", err)
-	}
-
-	// Stop all emulators
-	manager.StopAll()
-
-	tracer.Info("Application stopped gracefully")
+	tracer.Info("Server exited")
 }
