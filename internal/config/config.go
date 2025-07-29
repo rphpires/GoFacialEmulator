@@ -11,9 +11,9 @@ import (
 // Config representa a configuração da aplicação
 type Config struct {
 	Server     ServerConfig   `yaml:"server"`
-	ServiceDB  DatabaseConfig `yaml:"postgres"` // Banco principal do serviço
-	EmulatorDB DatabaseConfig `yaml:"postgres"` // Mesmo banco, mas conceptualmente separado
-	WxsDB      DatabaseConfig `yaml:"wxsDB"`    // Banco externo WXS
+	ServiceDB  DatabaseConfig `yaml:"postgres"`         // Banco principal do serviço
+	EmulatorDB DatabaseConfig `yaml:"postgresEmulator"` // Mesmo banco, mas conceptualmente separado
+	WxsDB      DatabaseConfig `yaml:"wxsDB"`            // Banco externo WXS
 }
 
 // ServerConfig contém as configurações do servidor HTTP
@@ -38,6 +38,9 @@ type DatabaseConfig struct {
 func (c *DatabaseConfig) DSN() string {
 	switch c.Driver {
 	case "postgres":
+		return fmt.Sprintf("host=%s port=%d dbname=%s user=%s password=%s sslmode=disable",
+			c.Host, c.Port, c.Database, c.Username, c.Password)
+	case "postgresEmulator":
 		return fmt.Sprintf("host=%s port=%d dbname=%s user=%s password=%s sslmode=disable",
 			c.Host, c.Port, c.Database, c.Username, c.Password)
 	case "mssql":
@@ -120,20 +123,22 @@ func DefaultConfig() *Config {
 		Host:     "localhost",
 		Port:     5432,
 		Database: "facial_emulator",
-		Username: "postgres",
-		Password: "testpassword123",
+		Username: "emulator",   // Usar o usuário criado
+		Password: "#Emul@tor#", // Usar a senha definida
 		Schema:   "emulator",
 	}
 
 	return &Config{
 		Server: ServerConfig{
 			Address: ":8080",
+			Host:    "localhost",
+			Port:    8080,
 		},
 		ServiceDB:  postgresConfig,
 		EmulatorDB: postgresConfig, // Mesmo banco
 		WxsDB: DatabaseConfig{
 			Driver:   "mssql",
-			Host:     "127.0.0.1",
+			Host:     "RPH-SRV",
 			Port:     1433,
 			Database: "W_Access",
 			Username: "W-Access",

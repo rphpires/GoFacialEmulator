@@ -11,8 +11,21 @@ postgres:
   host: "localhost"
   port: 5432
   database: "facial_emulator"
-  username: "postgres"
-  password: "postgres"
+  username: "emulator"
+  password: "#Emul@tor#"
+  schema: "emulator"
+  max_connections: 25
+  min_connections: 5
+  connection_lifetime: "1h"
+
+# Configuração do PostgreSQL (banco centralizado)
+postgresEmulator:
+  driver: "postgres"
+  host: "localhost"
+  port: 5432
+  database: "facial_emulator"
+  username: "emulator"
+  password: "#Emul@tor#"
   schema: "emulator"
   max_connections: 25
   min_connections: 5
