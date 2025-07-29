@@ -23,7 +23,7 @@ func main() {
 	tracer.Info("Starting Facial Emulator Service")
 
 	// Carregar configuração
-	cfg, err := config.Load()
+	cfg, err := config.Load("configs/config.yaml")
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}

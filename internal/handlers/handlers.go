@@ -549,36 +549,31 @@ func (h *Handler) handleWebSocket(c *gin.Context) {
 
 	h.tracer.Info("WebSocket client connected")
 
-	// Loop para manter conexão viva e enviar atualizações
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 
-	for {
-		select {
-		case <-ticker.C:
-			// Enviar status atualizado
-			devices, deviceStatusOk, err := h.getCurrentDevices()
-			if err != nil {
-				h.tracer.Error("Failed to get devices for WebSocket: %v", err)
-				continue
-			}
+	// Esta é a forma mais simples que resolve o warning
+	for range ticker.C {
+		devices, deviceStatusOk, err := h.getCurrentDevices()
+		if err != nil {
+			h.tracer.Error("Failed to get devices for WebSocket: %v", err)
+			continue
+		}
 
-			update := map[string]interface{}{
-				"type":          "status_update",
-				"devices":       devices,
-				"running_count": deviceStatusOk,
-				"timestamp":     time.Now().UTC(),
-			}
+		update := map[string]interface{}{
+			"type":          "status_update",
+			"devices":       devices,
+			"running_count": deviceStatusOk,
+			"timestamp":     time.Now().UTC(),
+		}
 
-			if err := conn.WriteJSON(update); err != nil {
-				h.tracer.Error("Failed to write WebSocket message: %v", err)
-				return
-			}
+		conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+		if err := conn.WriteJSON(update); err != nil {
+			h.tracer.Error("Failed to write WebSocket message: %v", err)
+			return
 		}
 	}
 }
-
-// Helper functions - baseadas no EmulatorService.py
 
 // getCurrentDevices obtém dispositivos atuais - baseado no get_current_devices() do Python
 func (h *Handler) getCurrentDevices() ([]map[string]interface{}, int, error) {
