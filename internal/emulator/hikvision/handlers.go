@@ -91,7 +91,7 @@ func (e *Emulator) handleGetStatus(c *gin.Context) {
 	e.tracer.Info("/emulator/get-status: connect")
 
 	currentTime := time.Now().Format("2006-01-02 15:04:05")
-	count, err := e.repo.GetTotalUsers()
+	count, _ := e.repo.GetTotalUsers()
 
 	c.JSON(http.StatusOK, gin.H{
 		"CurrentDatetime": currentTime,

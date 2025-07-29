@@ -19,6 +19,8 @@ type Config struct {
 // ServerConfig contém as configurações do servidor HTTP
 type ServerConfig struct {
 	Address string `yaml:"address" env:"SERVER_ADDR"`
+	Host    string `yaml:"host" env:"HOST_ADDR"`
+	Port    string `yaml:"port" env:"PORT_ADDR"`
 }
 
 // DatabaseConfig contém as configurações de conexão com o banco de dados

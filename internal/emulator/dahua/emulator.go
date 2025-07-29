@@ -284,7 +284,7 @@ func (e *Emulator) generateOnlineEvent() error {
 	e.tracer.Info("Generating online event")
 
 	// Buscar um cartão aleatório
-	cardName, cardNo, userID, err := e.repo.GetRandomCard()
+	_, _, userID, err := e.repo.GetRandomCard()
 	if err != nil {
 		e.tracer.Warning("No card found for event generation: %v", err)
 		return nil

@@ -19,11 +19,11 @@ import (
 
 func main() {
 	// Inicializar tracer
-	tracer := trace.NewTracer("FacialEmulator", trace.INFO)
+	tracer := trace.NewTracer()
 	tracer.Info("Starting Facial Emulator Service")
 
 	// Carregar configuração
-	cfg, err := config.LoadConfig()
+	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}
@@ -34,17 +34,17 @@ func main() {
 	}
 
 	// Obter instâncias dos bancos
-	serviceDB, err := database.GetServiceDB(cfg.PostgreSQL)
+	serviceDB, err := database.GetServiceDB(cfg.ServiceDB)
 	if err != nil {
 		log.Fatalf("Failed to get ServiceDB: %v", err)
 	}
 
-	emulatorDB, err := database.GetEmulatorDB(cfg.PostgreSQL)
+	emulatorDB, err := database.GetEmulatorDB(cfg.EmulatorDB)
 	if err != nil {
 		log.Fatalf("Failed to get EmulatorDB: %v", err)
 	}
 
-	wxsDB, err := database.GetWxsDB(cfg.WXS)
+	wxsDB, err := database.GetWxsDB(cfg.WxsDB)
 	if err != nil {
 		log.Fatalf("Failed to get WxsDB: %v", err)
 	}

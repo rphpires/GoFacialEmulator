@@ -153,7 +153,7 @@ func (h *Handler) mainPage(c *gin.Context) {
 		return
 	}
 
-	countValues, comparisonStatusOk, err := h.getComparisonPageContent()
+	_, comparisonStatusOk, err := h.getComparisonPageContent()
 	if err != nil {
 		h.tracer.Error("Failed to get comparison content: %v", err)
 		comparisonStatusOk = 0
@@ -502,7 +502,8 @@ func (h *Handler) getUserComparisons(c *gin.Context) {
 	// Primeiro, atualizar as comparações
 	h.refreshUsersComparison()
 
-	comparisons, err := h.getComparisonPageContent()
+	// currentValues, comparisonStatusOk, nil := h.getComparisonPageContent()
+	comparisons, _, err := h.getComparisonPageContent()
 	if err != nil {
 		h.tracer.Error("Failed to get user comparisons: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve user comparisons"})

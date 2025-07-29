@@ -272,11 +272,11 @@ func (e *BaseEmulator) SendEventToRemoteServer(event interface{}, contentType st
 
 	remoteURL := fmt.Sprintf("http://%s:%s/notification", remoteServer, remotePort)
 
-	// Serializar evento
-	payload, err := json.Marshal(event)
-	if err != nil {
-		return fmt.Errorf("failed to marshal event: %w", err)
-	}
+	// // Serializar evento
+	// payload, err := json.Marshal(event)
+	// if err != nil {
+	// 	return fmt.Errorf("failed to marshal event: %w", err)
+	// }
 
 	// Criar requisição HTTP
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

@@ -81,22 +81,6 @@ func (h *Handler) timeoutMiddleware(timeout time.Duration) gin.HandlerFunc {
 	}
 }
 
-// corsMiddleware configura CORS
-func (h *Handler) corsMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.Header("Access-Control-Allow-Origin", "*")
-		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
-
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(http.StatusNoContent)
-			return
-		}
-
-		c.Next()
-	}
-}
-
 // structuredLoggingMiddleware registra requisições de forma estruturada
 func (h *Handler) structuredLoggingMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
