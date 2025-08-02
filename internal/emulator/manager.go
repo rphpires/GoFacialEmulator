@@ -59,7 +59,7 @@ func (m *Manager) Initialize() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	_, err := m.ServiceDB.Exec(ctx, "UPDATE emulator.devices SET status = 'stopped'")
+	_, err := m.ServiceDB.Exec(ctx, "UPDATE service.devices SET status = 'stopped'")
 	if err != nil {
 		return fmt.Errorf("failed to reset device status: %w", err)
 	}
@@ -94,6 +94,7 @@ func (m *Manager) RefreshDevices() error {
 		return fmt.Errorf("failed to get controllers from WXS: %w", err)
 	}
 
+	m.Tracer.Info("DEBUG: Found %d controllers from WXS", len(controllers))
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
@@ -164,7 +165,7 @@ func (m *Manager) getDeviceType(model string) int {
 // upsertDevice insere ou atualiza um dispositivo
 func (m *Manager) upsertDevice(ctx context.Context, device models.Device) error {
 	query := `
-		INSERT INTO emulator.devices (
+		INSERT INTO service.devices (
 			local_controller_id, name, ip_address, port, model, enabled, type, 
 			status, event_interval, total_users, log_enabled
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
@@ -211,7 +212,7 @@ func (m *Manager) cleanupOrphanedDevices(ctx context.Context, controllers []map[
 			}
 
 			// Remover do banco
-			_, err := m.ServiceDB.Exec(ctx, "DELETE FROM emulator.devices WHERE local_controller_id = $1", device.ID)
+			_, err := m.ServiceDB.Exec(ctx, "DELETE FROM service.devices WHERE local_controller_id = $1", device.ID)
 			if err != nil {
 				m.Tracer.Error("Failed to delete orphaned device %d: %v", device.ID, err)
 			}
@@ -232,7 +233,7 @@ func (m *Manager) ListDevices() ([]models.Device, error) {
 	query := `
 		SELECT local_controller_id, name, ip_address, port, model, enabled, type, 
 		       status, event_interval, total_users, log_enabled
-		FROM emulator.devices
+		FROM service.devices
 		ORDER BY local_controller_id
 	`
 
@@ -254,6 +255,7 @@ func (m *Manager) ListDevices() ([]models.Device, error) {
 		}
 
 		// Atualizar status baseado no emulador real
+		m.Tracer.Info("Attempting to acquire RLock... ListDevices")
 		m.mutex.RLock()
 		if emulator, exists := m.emulators[device.ID]; exists && emulator.IsRunning() {
 			device.Status = "running"
@@ -261,6 +263,7 @@ func (m *Manager) ListDevices() ([]models.Device, error) {
 			device.Status = "stopped"
 		}
 		m.mutex.RUnlock()
+		m.Tracer.Info("RLock released: ListDevices")
 
 		devices = append(devices, device)
 	}
@@ -276,9 +279,63 @@ func (m *Manager) GetDevice(id int) (models.Device, error) {
 	query := `
 		SELECT local_controller_id, name, ip_address, port, model, enabled, type, 
 		       status, event_interval, total_users, log_enabled
-		FROM emulator.devices
+		FROM service.devices
 		WHERE local_controller_id = $1
 	`
+
+	m.Tracer.Info("GetDevice in DB with ID=%d", id)
+	var device models.Device
+	err := m.ServiceDB.QueryRow(ctx, query, id).Scan(
+		&device.ID, &device.Name, &device.IPAddress, &device.Port,
+		&device.Model, &device.Enabled, &device.Type, &device.Status,
+		&device.EventInterval, &device.TotalUsers, &device.LogEnabled)
+
+	if err != nil {
+		return device, fmt.Errorf("device not found: %w", err)
+	}
+
+	m.Tracer.Info("GetDevice founded in DB ID=%d", device.ID)
+	// Atualizar status baseado no emulador real
+	m.Tracer.Info("About to acquire RLock for device %d", device.ID)
+	m.mutex.RLock()
+	m.Tracer.Info("RLock acquired successfully")
+	// if emulator, exists := m.emulators[device.ID]; exists && emulator.IsRunning() {
+	// 	device.Status = "running"
+	// } else {
+	// 	device.Status = "stopped"
+	// }
+	if emulator, exists := m.emulators[device.ID]; exists {
+		m.Tracer.Info("Emulator exists for device %d, checking if running...", device.ID)
+		isRunning := emulator.IsRunning() // ← PODE TRAVAR AQUI!
+		m.Tracer.Info("IsRunning() returned: %v", isRunning)
+
+		if isRunning {
+			device.Status = "running"
+		} else {
+			device.Status = "stopped"
+		}
+	} else {
+		m.Tracer.Info("No emulator found for device %d", device.ID)
+		device.Status = "stopped"
+	}
+
+	m.mutex.RUnlock()
+	m.Tracer.Info("RLock released: GetDevice")
+
+	m.Tracer.Info("Device with ID=%d was founded, Status=%s", id, device.Status)
+	return device, nil
+}
+
+func (m *Manager) getDeviceUnsafe(id int) (models.Device, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	query := `
+        SELECT local_controller_id, name, ip_address, port, model, enabled, type, 
+               status, event_interval, total_users, log_enabled
+        FROM service.devices
+        WHERE local_controller_id = $1
+    `
 
 	var device models.Device
 	err := m.ServiceDB.QueryRow(ctx, query, id).Scan(
@@ -290,14 +347,12 @@ func (m *Manager) GetDevice(id int) (models.Device, error) {
 		return device, fmt.Errorf("device not found: %w", err)
 	}
 
-	// Atualizar status baseado no emulador real
-	m.mutex.RLock()
+	// Atualizar status baseado no emulador real (SEM LOCK - já está dentro de lock)
 	if emulator, exists := m.emulators[device.ID]; exists && emulator.IsRunning() {
 		device.Status = "running"
 	} else {
 		device.Status = "stopped"
 	}
-	m.mutex.RUnlock()
 
 	return device, nil
 }
@@ -313,7 +368,7 @@ func (m *Manager) Start(id int) error {
 	}
 
 	// Obter informações do dispositivo
-	device, err := m.GetDevice(id)
+	device, err := m.getDeviceUnsafe(id)
 	if err != nil {
 		return fmt.Errorf("failed to get device info: %w", err)
 	}
@@ -337,7 +392,7 @@ func (m *Manager) Start(id int) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	_, err = m.ServiceDB.Exec(ctx, "UPDATE emulator.devices SET status = 'running' WHERE local_controller_id = $1", id)
+	_, err = m.ServiceDB.Exec(ctx, "UPDATE service.devices SET status = 'running' WHERE local_controller_id = $1", id)
 	if err != nil {
 		m.Tracer.Error("Failed to update device status: %v", err)
 	}
@@ -386,7 +441,7 @@ func (m *Manager) Stop(id int) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	_, err := m.ServiceDB.Exec(ctx, "UPDATE emulator.devices SET status = 'stopped' WHERE local_controller_id = $1", id)
+	_, err := m.ServiceDB.Exec(ctx, "UPDATE service.devices SET status = 'stopped' WHERE local_controller_id = $1", id)
 	if err != nil {
 		m.Tracer.Error("Failed to update device status: %v", err)
 	}
@@ -442,7 +497,7 @@ func (m *Manager) StopAll() {
 
 			// Atualizar status no banco
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			_, err := m.ServiceDB.Exec(ctx, "UPDATE emulator.devices SET status = 'stopped' WHERE local_controller_id = $1", id)
+			_, err := m.ServiceDB.Exec(ctx, "UPDATE service.devices SET status = 'stopped' WHERE local_controller_id = $1", id)
 			cancel()
 
 			if err != nil {
@@ -486,10 +541,14 @@ func (m *Manager) performHealthChecks() {
 
 // checkDeviceHealth verifica a saúde de um dispositivo - equivalente ao check_connection() e emulator_watchdog()
 func (m *Manager) checkDeviceHealth(device models.Device) {
+	m.Tracer.Info("Attempting to acquire RLock...checkDeviceHealth")
 	m.mutex.RLock()
 	emulator, exists := m.emulators[device.ID]
 	isRunning := exists && emulator.IsRunning()
 	m.mutex.RUnlock()
+	m.Tracer.Info("RLock released: checkDeviceHealth")
+
+	m.Tracer.Info("DeviceID=%d is running=%t", device.ID, isRunning)
 
 	watchdogInfo, exists := m.watchdog[device.ID]
 	if !exists {
@@ -549,7 +608,7 @@ func (m *Manager) UpdateDeviceSettings(id int, logEnabled bool) error {
 	}
 
 	_, err := m.ServiceDB.Exec(ctx,
-		"UPDATE emulator.devices SET log_enabled = $1, updated_at = NOW() WHERE local_controller_id = $2",
+		"UPDATE service.devices SET log_enabled = $1, updated_at = NOW() WHERE local_controller_id = $2",
 		logEnabledInt, id)
 
 	if err != nil {

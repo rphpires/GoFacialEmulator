@@ -267,7 +267,7 @@ Events[0].UserType=0
 		boundary, len(eventText), eventText)
 
 	// Decodificar a imagem
-	imageData, err := base64.StdEncoding.DecodeString(PhotoImg)
+	imageData, err := GetPhotoImageData()
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode image: %w", err)
 	}
@@ -361,7 +361,7 @@ func (e *Emulator) generateOnlineEvent() error {
 	}
 
 	// Decodificar a imagem
-	imageData, err := base64.StdEncoding.DecodeString(PhotoImg)
+	imageData, err := GetPhotoImageData()
 	if err != nil {
 		return fmt.Errorf("failed to decode image: %w", err)
 	}
@@ -476,3 +476,23 @@ U1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3
 uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD9/KKK
 KACiiigAooooA=
 `
+
+// GetCleanPhotoBase64 retorna a string base64 limpa para uso
+func GetCleanPhotoBase64() string {
+	// Remove quebras de linha, espaços e caracteres de controle
+	cleaned := strings.ReplaceAll(PhotoImg, "\n", "")
+	cleaned = strings.ReplaceAll(cleaned, "\r", "")
+	cleaned = strings.ReplaceAll(cleaned, " ", "")
+	cleaned = strings.ReplaceAll(cleaned, "\t", "")
+
+	// Remove o primeiro e último caractere se forem quebras de linha vazias
+	cleaned = strings.TrimSpace(cleaned)
+
+	return cleaned
+}
+
+// GetPhotoImageData retorna os dados da imagem decodificados
+func GetPhotoImageData() ([]byte, error) {
+	cleanBase64 := GetCleanPhotoBase64()
+	return base64.StdEncoding.DecodeString(cleanBase64)
+}

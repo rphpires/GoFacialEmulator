@@ -296,7 +296,7 @@ func (e *Emulator) sendEventToRemoteServer(event *Event) error {
 		boundary, contentLength, string(eventJSON))
 
 	// Decodifica a imagem
-	imageData, err := base64.StdEncoding.DecodeString(PhotoImg)
+	imageData, err := GetPhotoImageData()
 	if err != nil {
 		return fmt.Errorf("failed to decode image: %w", err)
 	}
@@ -412,6 +412,7 @@ func (e *Emulator) generateRandomEvent() ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get random user info: %w", err)
 	}
+	e.tracer.Info("generateRandomEvent.Hik: Nome=%s", name)
 
 	// Obtém o fuso horário local
 	loc, _ := time.LoadLocation("America/Sao_Paulo")
@@ -474,10 +475,11 @@ func (e *Emulator) generateRandomEvent() ([]byte, error) {
 		boundary, contentLength, string(eventJSON))
 
 	// Decodificar a imagem
-	imageData, err := base64.StdEncoding.DecodeString(PhotoImg)
+	imageData, err := GetPhotoImageData()
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode image: %w", err)
 	}
+	e.tracer.Info("After decoded Photo")
 
 	// Adicionar a imagem ao pacote
 	dataPhoto := fmt.Sprintf("\r\n--%s\r\nContent-Disposition: form-data; name=\"Picture\"; filename=\"Picture.jpg\"\r\nContent-Type: image/jpeg\r\nContent-Length: %d\r\nContent-ID: pictureImage\r\n\r\n",
@@ -581,18 +583,25 @@ func (e *Emulator) handleEventStream(c *gin.Context) {
 	}
 }
 
-// PhotoImg constante com imagem base64 para eventos
-const PhotoImg = `
-/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAIBAQIBAQICAgICAgICAwUDAwMDAwYEBAMFBwYHBwcG
-BwcICQsJCAgKCAcHCg0KCgsMDAwMBwkODw0MDgsMDAz/2wBDAQICAgMDAwYDAwYMCAcIDAwMDAwM
-DAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAz/wAARCADIAKADASIA
-AhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQA
-AAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3
-ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWm
-p6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEA
-AwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSEx
-BhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElK
-U1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3
-uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD9/KKK
-KACiiigAooooA=
-`
+// PhotoImg constante com imagem base64 para eventos (mesma do Hikvision)
+const PhotoImg = "/9j/4AAQSkZJRgABAQAAAQABAAD//gA7Q1JFQVRPUjogZ2QtanBlZyB2MS4wICh1c2luZyBJSkcgSlBFRyB2NjIpLCBxdWFsaXR5ID0gOTAK/9sAQwADAgIDAgIDAwMDBAMDBAUIBQUEBAUKBwcGCAwKDAwLCgsLDQ4SEA0OEQ4LCxAWEBETFBUVFQwPFxgWFBgSFBUU/9sAQwEDBAQFBAUJBQUJFA0LDRQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQU/8AAEQgAAQABAwEiAAIRAQMRAf/EAB8AAAEFAQEBAQEBAAAAAAAAAAABAgMEBQYHCAkKC//EALUQAAIBAwMCBAMFBQQEAAABfQECAwAEEQUSITFBBhNRYQcicRQygZGhCCNCscEVUtHwJDNicoIJChYXGBkaJSYnKCkqNDU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6g4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2drh4uPk5ebn6Onq8fLz9PX29/j5+v/EAB8BAAMBAQEBAQEBAQEAAAAAAAABAgMEBQYHCAkKC//EALURAAIBAgQEAwQHBQQEAAECdwABAgMRBAUhMQYSQVEHYXETIjKBCBRCkaGxwQkjM1LwFWJy0QoWJDThJfEXGBkaJicoKSo1Njc4OTpDREVGR0hJSlNUVVZXWFlaY2RlZmdoaWpzdHV2d3h5eoKDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1tfY2drh4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD9/KKKKAP/2Q=="
+
+// GetCleanPhotoBase64 retorna a string base64 limpa para uso
+func GetCleanPhotoBase64() string {
+	// Remove quebras de linha, espaços e caracteres de controle
+	cleaned := strings.ReplaceAll(PhotoImg, "\n", "")
+	cleaned = strings.ReplaceAll(cleaned, "\r", "")
+	cleaned = strings.ReplaceAll(cleaned, " ", "")
+	cleaned = strings.ReplaceAll(cleaned, "\t", "")
+
+	// Remove o primeiro e último caractere se forem quebras de linha vazias
+	cleaned = strings.TrimSpace(cleaned)
+
+	return cleaned
+}
+
+// GetPhotoImageData retorna os dados da imagem decodificados
+func GetPhotoImageData() ([]byte, error) {
+	cleanBase64 := GetCleanPhotoBase64()
+	return base64.StdEncoding.DecodeString(cleanBase64)
+}

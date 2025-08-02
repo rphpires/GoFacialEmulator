@@ -28,10 +28,14 @@ func main() {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
-	// Inicializar bancos de dados
-	if err := database.Initialize(cfg); err != nil {
-		log.Fatalf("Failed to initialize database: %v", err)
+	tracer.Info("Validating database structure...")
+	if err := database.ValidateDatabaseOnStartup(cfg.ServiceDB); err != nil {
+		log.Fatalf("Failed to validate/recreate database: %v", err)
 	}
+	tracer.Info("Database validation completed successfully")
+
+	// Inicializar bancos de dados (sem migrations automáticas agora)
+	tracer.Info("Initializing database connections...")
 
 	// Obter instâncias dos bancos
 	serviceDB, err := database.GetServiceDB(cfg.ServiceDB)
@@ -49,15 +53,37 @@ func main() {
 		log.Fatalf("Failed to get WxsDB: %v", err)
 	}
 
+	// Testar conexões
+	tracer.Info("Testing database connections...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := serviceDB.Ping(ctx); err != nil {
+		log.Fatalf("ServiceDB connection test failed: %v", err)
+	}
+
+	if err := emulatorDB.Ping(ctx); err != nil {
+		log.Fatalf("EmulatorDB connection test failed: %v", err)
+	}
+
+	if err := wxsDB.Ping(ctx); err != nil {
+		tracer.Warning("WxsDB connection test failed (WXS may be unavailable): %v", err)
+		// Não falhar aqui pois WXS pode estar indisponível temporariamente
+	} else {
+		tracer.Info("All database connections successful")
+	}
+
 	// Inicializar manager de emuladores
 	manager := emulator.NewManager(serviceDB, emulatorDB, wxsDB, tracer)
 	if err := manager.Initialize(); err != nil {
 		log.Fatalf("Failed to initialize emulator manager: %v", err)
 	}
 
-	// Atualizar dispositivos do WXS
+	// Atualizar dispositivos do WXS (se disponível)
 	if err := manager.RefreshDevices(); err != nil {
 		tracer.Error("Failed to refresh devices: %v", err)
+		// Continuar mesmo se WXS não estiver disponível
 	}
 
 	// Inicializar handlers HTTP
@@ -88,7 +114,7 @@ func main() {
 	tracer.Info("Shutting down server...")
 
 	// Shutdown graceful
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	// Parar servidor HTTP

@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"strconv"
+	"text/template"
 	"time"
 
 	"GoFacialEmulator/internal/database"
@@ -49,7 +50,31 @@ func (h *Handler) Router() http.Handler {
 
 	// Servir arquivos estáticos
 	router.Static("/static", "./web/static")
-	router.LoadHTMLGlob("web/templates/**/*")
+	// Definir funções auxiliares para templates
+	// funcMap := template.FuncMap{
+	// 	"sub": func(a, b int) int { return a - b },
+	// 	"add": func(a, b int) int { return a + b },
+	// 	"le":  func(a, b int) bool { return a <= b },
+	// 	"ge":  func(a, b int) bool { return a >= b },
+	// 	"lt":  func(a, b int) bool { return a < b },
+	// 	"gt":  func(a, b int) bool { return a > b },
+	// 	"eq":  func(a, b interface{}) bool { return a == b },
+	// 	"ne":  func(a, b interface{}) bool { return a != b },
+	// }
+
+	// files := []string{
+	// 	"web/templates/base.html",
+	// 	"web/templates/devices.html",
+	// 	"web/templates/comparison.html",
+	// 	"web/templates/header.html",
+	// 	"web/templates/footer.html",
+	// 	"web/templates/sidebar.html",
+	// 	"web/templates/metrics.html",
+	// 	"web/templates/pagination.html",
+	// }
+
+	// tmpl := template.Must(template.New("").Funcs(funcMap).ParseFiles(files...))
+	// router.SetHTMLTemplate(tmpl)
 
 	// Rotas da interface web - baseadas no EmulatorService.py
 	h.setupWebRoutes(router)
@@ -64,6 +89,31 @@ func (h *Handler) Router() http.Handler {
 	router.GET("/health", h.healthCheck)
 
 	return router
+}
+
+func (h *Handler) loadTemplate(templateName string) *template.Template {
+	funcMap := template.FuncMap{
+		"sub": func(a, b int) int { return a - b },
+		"add": func(a, b int) int { return a + b },
+		"le":  func(a, b int) bool { return a <= b },
+		"ge":  func(a, b int) bool { return a >= b },
+		"lt":  func(a, b int) bool { return a < b },
+		"gt":  func(a, b int) bool { return a > b },
+		"eq":  func(a, b interface{}) bool { return a == b },
+		"ne":  func(a, b interface{}) bool { return a != b },
+	}
+
+	baseFiles := []string{
+		"web/templates/base.html",
+		"web/templates/header.html",
+		"web/templates/footer.html",
+		"web/templates/sidebar.html",
+		"web/templates/metrics.html",
+		"web/templates/pagination.html",
+	}
+
+	files := append(baseFiles, templateName)
+	return template.Must(template.New("").Funcs(funcMap).ParseFiles(files...))
 }
 
 // setupWebRoutes configura rotas da interface web
@@ -147,25 +197,18 @@ func (h *Handler) mainPage(c *gin.Context) {
 	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "10"))
 
 	devices, deviceStatusOk, err := h.getCurrentDevices()
+	h.tracer.Info("## Before MainPage, devices: %s", devices)
 	if err != nil {
 		h.tracer.Error("Failed to get current devices: %v", err)
 		c.HTML(http.StatusInternalServerError, "error.html", gin.H{"error": err.Error()})
 		return
 	}
 
+	h.tracer.Info("DEBUG: Total devices found: %d", len(devices))
 	_, comparisonStatusOk, err := h.getComparisonPageContent()
 	if err != nil {
 		h.tracer.Error("Failed to get comparison content: %v", err)
 		comparisonStatusOk = 0
-	}
-
-	qntTotalEmulators := len(devices)
-	counterCards := map[string]interface{}{
-		"total":                   qntTotalEmulators,
-		"comparison_status_ok":    comparisonStatusOk,
-		"comparison_status_error": qntTotalEmulators - comparisonStatusOk,
-		"running":                 deviceStatusOk,
-		"stopped":                 qntTotalEmulators - deviceStatusOk,
 	}
 
 	// Paginação
@@ -183,6 +226,17 @@ func (h *Handler) mainPage(c *gin.Context) {
 
 	totalPages := (totalDevices + perPage - 1) / perPage
 
+	qntTotalEmulators := len(devices)
+	counterCards := map[string]interface{}{
+		"total":                   qntTotalEmulators,
+		"comparison_status_ok":    comparisonStatusOk,
+		"comparison_status_error": qntTotalEmulators - comparisonStatusOk,
+		"running":                 deviceStatusOk,
+		"stopped":                 qntTotalEmulators - deviceStatusOk,
+	}
+
+	h.tracer.Info("##: paginatedDevices: %s", paginatedDevices)
+
 	context := gin.H{
 		"devices":       paginatedDevices,
 		"page":          page,
@@ -191,7 +245,8 @@ func (h *Handler) mainPage(c *gin.Context) {
 		"counter_cards": counterCards,
 	}
 
-	c.HTML(http.StatusOK, "devices.html", context)
+	tmpl := h.loadTemplate("web/templates/devices.html")
+	tmpl.ExecuteTemplate(c.Writer, "base.html", context)
 }
 
 // startEmulators inicia emuladores selecionados
@@ -212,6 +267,8 @@ func (h *Handler) startEmulators(c *gin.Context) {
 	// Atualizar configurações de log
 	h.updateLogEnabled(requestBody.EnableLog)
 
+	h.tracer.Info("## Start Emulators - Devices received: %+v", requestBody.Devices)
+
 	// Iniciar emuladores
 	for _, deviceStr := range requestBody.Devices {
 		if deviceStr == "all" {
@@ -219,12 +276,14 @@ func (h *Handler) startEmulators(c *gin.Context) {
 			break
 		}
 
+		h.tracer.Info("## strconv.Atoi deviceID: %s", deviceStr)
 		deviceID, err := strconv.Atoi(deviceStr)
 		if err != nil {
 			h.tracer.Error("Invalid device ID: %s", deviceStr)
 			continue
 		}
 
+		h.tracer.Info("## Starting single deviceID: %s", deviceStr)
 		if err := h.manager.Start(deviceID); err != nil {
 			h.tracer.Error("Failed to start device %d: %v", deviceID, err)
 		}
@@ -336,7 +395,8 @@ func (h *Handler) comparisonPage(c *gin.Context) {
 		"counter_cards": counterCards,
 	}
 
-	c.HTML(http.StatusOK, "comparison.html", context)
+	tmpl := h.loadTemplate("web/templates/comparison.html")
+	tmpl.ExecuteTemplate(c.Writer, "base.html", context)
 }
 
 // comparisonRefresh atualiza dados de comparação
@@ -418,6 +478,7 @@ func (h *Handler) startSingleDevice(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid device ID"})
 		return
 	}
+	h.tracer.Info("startSingleDevice: device_port=%d", id)
 
 	if err := h.manager.Start(id); err != nil {
 		h.tracer.Error("Failed to start device %d: %v", id, err)
@@ -624,7 +685,7 @@ func (h *Handler) updateLogEnabled(devices map[string]bool) {
 			logEnabled = 1
 		}
 
-		query := "UPDATE emulator.devices SET log_enabled = $1 WHERE port = $2"
+		query := "UPDATE service.devices SET log_enabled = $1 WHERE port = $2"
 		_, err = h.serviceDB.Exec(ctx, query, logEnabled, port)
 		if err != nil {
 			h.tracer.Error("Failed to update log setting for port %d: %v", port, err)
@@ -646,8 +707,8 @@ func (h *Handler) getComparisonPageContent() ([]map[string]interface{}, int, err
 			uc.wxs_count, 
 			uc.site_controller_count, 
 			d.total_users 
-		FROM emulator.users_comparison uc
-		JOIN emulator.devices d ON d.local_controller_id = uc.local_controller_id
+		FROM service.users_comparison uc
+		JOIN service.devices d ON d.local_controller_id = uc.local_controller_id
 	`
 
 	rows, err := h.serviceDB.Query(ctx, query)
@@ -710,7 +771,7 @@ func (h *Handler) refreshUsersComparison() {
 			// Verificar se registro existe
 			var exists int
 			err := h.serviceDB.QueryRow(ctx,
-				"SELECT COUNT(*) FROM emulator.users_comparison WHERE local_controller_id = $1",
+				"SELECT COUNT(*) FROM service.users_comparison WHERE local_controller_id = $1",
 				lcID).Scan(&exists)
 
 			if err != nil {
@@ -721,14 +782,14 @@ func (h *Handler) refreshUsersComparison() {
 			if exists > 0 {
 				// Atualizar registro existente
 				_, err = h.serviceDB.Exec(ctx, `
-					UPDATE emulator.users_comparison 
+					UPDATE service.users_comparison 
 					SET wxs_count = $1, site_controller_id = $2, base_comm_port = $3 
 					WHERE local_controller_id = $4`,
 					count, siteControllerID, port, lcID)
 			} else {
 				// Inserir novo registro
 				_, err = h.serviceDB.Exec(ctx, `
-					INSERT INTO emulator.users_comparison 
+					INSERT INTO service.users_comparison
 					(site_controller_id, local_controller_id, base_comm_port, wxs_count, site_controller_count) 
 					VALUES ($1, $2, $3, $4, 0)`,
 					siteControllerID, lcID, port, count)

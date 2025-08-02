@@ -1,0 +1,58 @@
+{{ if gt .total_pages 1 }}
+<nav>
+  <ul class="pagination justify-content-center">
+    {{ if gt .page 1 }}
+    <li class="page-item">
+      <a class="page-link" href="?page=1&per_page={{ .per_page }}">
+        Primeira
+      </a>
+    </li>
+    <li class="page-item">
+      <a
+        class="page-link"
+        href="?page={{ sub .page 1 }}&per_page={{ .per_page }}"
+      >
+        Anterior
+      </a>
+    </li>
+    {{ end }} {{ range $page_number := .page_range }} {{ if and (le $page_number
+    (add $.page 3)) (ge $page_number (sub $.page 3)) }} {{ if eq $.page
+    $page_number }}
+    <li class="page-item active">
+      <a
+        class="page-link"
+        href="?page={{ $page_number }}&per_page={{ $.per_page }}"
+      >
+        {{ $page_number }}
+      </a>
+    </li>
+    {{ else }}
+    <li class="page-item">
+      <a
+        class="page-link"
+        href="?page={{ $page_number }}&per_page={{ $.per_page }}"
+      >
+        {{ $page_number }}
+      </a>
+    </li>
+    {{ end }} {{ end }} {{ end }} {{ if lt .page .total_pages }}
+    <li class="page-item">
+      <a
+        class="page-link"
+        href="?page={{ add .page 1 }}&per_page={{ .per_page }}"
+      >
+        Próxima
+      </a>
+    </li>
+    <li class="page-item">
+      <a
+        class="page-link"
+        href="?page={{ .total_pages }}&per_page={{ .per_page }}"
+      >
+        Última
+      </a>
+    </li>
+    {{ end }}
+  </ul>
+</nav>
+{{ end }}

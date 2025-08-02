@@ -1,6 +1,8 @@
 # Configuração do servidor HTTP
 server:
   address: ":8080"
+  host: "localhost"
+  port: 8080
   read_timeout: "30s"
   write_timeout: "30s"
   idle_timeout: "120s"
@@ -12,7 +14,7 @@ postgres:
   port: 5432
   database: "facial_emulator"
   username: "emulator"
-  password: "#Emul@tor#"
+  password: "testpassword123"
   schema: "emulator"
   max_connections: 25
   min_connections: 5
@@ -25,7 +27,7 @@ postgresEmulator:
   port: 5432
   database: "facial_emulator"
   username: "emulator"
-  password: "#Emul@tor#"
+  password: "testpassword123"
   schema: "emulator"
   max_connections: 25
   min_connections: 5
@@ -38,7 +40,7 @@ wxsDB:
   port: 1433
   database: "W_Access"
   username: "W-Access"
-  password: "password"
+  password: "db_W-X-S@Wellcare924_"
   timeout: "30s"
 
 # Configurações de logging

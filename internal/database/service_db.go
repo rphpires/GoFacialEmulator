@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"GoFacialEmulator/internal/config"
 
@@ -19,12 +20,44 @@ type ServiceDB struct {
 
 // NewServiceDB cria uma nova instância do ServiceDB
 func NewServiceDB(cfg config.DatabaseConfig) (*ServiceDB, error) {
-	connString := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable",
-		cfg.Username, cfg.Password, cfg.Host, cfg.Port, cfg.Database)
+	// Usar o método PostgresURL() para consistência
+	connString := cfg.PostgresURL()
+	if connString == "" {
+		// Fallback para DSN se PostgresURL não funcionar
+		connString = fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable",
+			cfg.Username, cfg.Password, cfg.Host, cfg.Port, cfg.Database)
 
-	pool, err := pgxpool.Connect(context.Background(), connString)
+		if cfg.Schema != "" {
+			connString += fmt.Sprintf("&search_path=%s", cfg.Schema)
+		}
+	}
+
+	// Configurar pool de conexões
+	poolConfig, err := pgxpool.ParseConfig(connString)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao fazer parse da configuração de conexão: %w", err)
+	}
+
+	// Configurar parâmetros do pool
+	if cfg.MaxConnections > 0 {
+		poolConfig.MaxConns = int32(cfg.MaxConnections)
+	}
+	if cfg.MinConnections > 0 {
+		poolConfig.MinConns = int32(cfg.MinConnections)
+	}
+
+	pool, err := pgxpool.ConnectConfig(context.Background(), poolConfig)
 	if err != nil {
 		return nil, fmt.Errorf("erro ao conectar ao PostgreSQL: %w", err)
+	}
+
+	// Testar conexão
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := pool.Ping(ctx); err != nil {
+		pool.Close()
+		return nil, fmt.Errorf("erro ao testar conexão com PostgreSQL: %w", err)
 	}
 
 	return &ServiceDB{

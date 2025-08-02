@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strconv"
 	"strings"
@@ -9,65 +10,83 @@ import (
 
 	"GoFacialEmulator/internal/config"
 
-	"github.com/jackc/pgconn"
-	"github.com/jackc/pgx/v4"
-	"github.com/jackc/pgx/v4/pgxpool"
+	_ "github.com/denisenkom/go-mssqldb" // Driver SQL Server
 )
 
-// WxsDB gerencia operações no banco WXS (equivalente ao sql do Python)
+// WxsDB gerencia operações no banco WXS (SQL Server)
 type WxsDB struct {
-	pool   *pgxpool.Pool
+	db     *sql.DB
 	schema string
 }
 
-// NewWxsDB cria uma nova instância do WxsDB
+// NewWxsDB cria uma nova instância do WxsDB para SQL Server
 func NewWxsDB(cfg config.DatabaseConfig) (*WxsDB, error) {
-	// Para SQL Server, adaptado para PostgreSQL por enquanto
-	connString := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable",
-		cfg.Username, cfg.Password, cfg.Host, cfg.Port, cfg.Database)
+	// Connection string para SQL Server
+	connString := fmt.Sprintf("server=%s;port=%d;database=%s;user id=%s;password=%s;encrypt=disable;connection timeout=30",
+		cfg.Host, cfg.Port, cfg.Database, cfg.Username, cfg.Password)
 
-	pool, err := pgxpool.Connect(context.Background(), connString)
+	db, err := sql.Open("mssql", connString)
 	if err != nil {
-		return nil, fmt.Errorf("erro ao conectar ao WXS: %w", err)
+		return nil, fmt.Errorf("erro ao conectar ao WXS SQL Server: %w", err)
+	}
+
+	// Configurar pool de conexões
+	db.SetMaxOpenConns(10)
+	db.SetMaxIdleConns(5)
+	db.SetConnMaxLifetime(time.Hour)
+
+	// Testar conexão
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := db.PingContext(ctx); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("erro ao testar conexão com WXS SQL Server: %w", err)
 	}
 
 	return &WxsDB{
-		pool:   pool,
+		db:     db,
 		schema: cfg.Schema,
 	}, nil
 }
 
 // Close fecha a conexão
 func (db *WxsDB) Close() {
-	if db.pool != nil {
-		db.pool.Close()
+	if db.db != nil {
+		db.db.Close()
 	}
 }
 
-// Implementar interface DBInterface
-func (db *WxsDB) Query(ctx context.Context, query string, args ...interface{}) (pgx.Rows, error) {
-	return db.pool.Query(ctx, query, args...)
-}
-
-func (db *WxsDB) QueryRow(ctx context.Context, query string, args ...interface{}) pgx.Row {
-	return db.pool.QueryRow(ctx, query, args...)
-}
-
-func (db *WxsDB) Exec(ctx context.Context, query string, args ...interface{}) (pgconn.CommandTag, error) {
-	return db.pool.Exec(ctx, query, args...)
-}
-
-func (db *WxsDB) Begin(ctx context.Context) (pgx.Tx, error) {
-	return db.pool.Begin(ctx)
-}
-
+// Ping testa a conexão com o banco
 func (db *WxsDB) Ping(ctx context.Context) error {
-	return db.pool.Ping(ctx)
+	return db.db.PingContext(ctx)
+}
+
+// ====================== INTERFACE ADAPTADA PARA SQL SERVER ======================
+
+// Query executa uma query e retorna rows (compatível com sql.DB)
+func (db *WxsDB) QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error) {
+	return db.db.QueryContext(ctx, query, args...)
+}
+
+// QueryRow executa uma query que retorna uma única linha
+func (db *WxsDB) QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row {
+	return db.db.QueryRowContext(ctx, query, args...)
+}
+
+// Exec executa uma query sem retorno de dados
+func (db *WxsDB) ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error) {
+	return db.db.ExecContext(ctx, query, args...)
+}
+
+// Begin inicia uma transação
+func (db *WxsDB) BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error) {
+	return db.db.BeginTx(ctx, opts)
 }
 
 // ====================== WXS SPECIFIC OPERATIONS ======================
 
-// GetLocalControllers obtém controladores locais configurados como emuladores - equivalente ao refresh_configured_devices() do Python
+// GetLocalControllers obtém controladores locais configurados como emuladores
 func (db *WxsDB) GetLocalControllers() ([]map[string]interface{}, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -85,7 +104,7 @@ func (db *WxsDB) GetLocalControllers() ([]map[string]interface{}, error) {
 		WHERE LocalControllerDescription LIKE 'emulator%'
 	`
 
-	rows, err := db.Query(ctx, query)
+	rows, err := db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query local controllers: %w", err)
 	}
@@ -133,23 +152,27 @@ func (db *WxsDB) GetLocalControllers() ([]map[string]interface{}, error) {
 		controllers = append(controllers, controller)
 	}
 
-	return controllers, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating rows: %w", err)
+	}
+
+	return controllers, nil
 }
 
-// CountCHIDsByLocalController conta CHIDs por controlador local - equivalente ao wxs_count_chids_by_local_controller() do Python
+// CountCHIDsByLocalController conta CHIDs por controlador local
 func (db *WxsDB) CountCHIDsByLocalController() (map[int]map[int][]interface{}, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	// Query adaptada para a estrutura do WXS
+	// Query adaptada para SQL Server
 	query := `
 		SELECT DISTINCT
-			sc.SiteControllerID,
+			sc.ControllerID,
 			lc.LocalControllerID,
 			lc.BaseCommPort,
 			COUNT(DISTINCT ch.CHID) as user_count
 		FROM CfgHWLocalControllers lc
-		JOIN CfgHWSiteControllers sc ON sc.SiteControllerID = lc.SiteControllerID
+		JOIN CfgHWControllers sc ON sc.ControllerID = lc.SiteControllerID
 		LEFT JOIN CfgHWReaders rdr ON lc.LocalControllerID = rdr.LocalControllerID
 		LEFT JOIN CfgACAccessLevelsContents al_cont ON rdr.ReaderID = al_cont.ReaderID
 		LEFT JOIN CHAccessLevels ch ON al_cont.AccessLevelID = ch.AccessLevelID
@@ -159,10 +182,10 @@ func (db *WxsDB) CountCHIDsByLocalController() (map[int]map[int][]interface{}, e
 			FROM CHCards
 			WHERE IPRdrUserID IS NOT NULL
 		  )
-		GROUP BY sc.SiteControllerID, lc.LocalControllerID, lc.BaseCommPort
+		GROUP BY sc.ControllerID, lc.LocalControllerID, lc.BaseCommPort
 	`
 
-	rows, err := db.Query(ctx, query)
+	rows, err := db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to count CHIDs: %w", err)
 	}
@@ -184,10 +207,14 @@ func (db *WxsDB) CountCHIDsByLocalController() (map[int]map[int][]interface{}, e
 		result[siteControllerID][localControllerID] = []interface{}{port, userCount}
 	}
 
-	return result, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating CHID rows: %w", err)
+	}
+
+	return result, nil
 }
 
-// CountUsersInSiteControllerDB conta usuários no banco do site controller - equivalente ao count_users_in_sitecontroller_db() do Python
+// CountUsersInSiteControllerDB conta usuários no banco do site controller
 func (db *WxsDB) CountUsersInSiteControllerDB() (map[int]map[int]int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -206,7 +233,7 @@ func (db *WxsDB) CountUsersInSiteControllerDB() (map[int]map[int]int, error) {
 		GROUP BY lc.LocalControllerID, lc.BaseCommPort
 	`
 
-	rows, err := db.Query(ctx, query)
+	rows, err := db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to count users in site controller: %w", err)
 	}
@@ -228,12 +255,124 @@ func (db *WxsDB) CountUsersInSiteControllerDB() (map[int]map[int]int, error) {
 		result[localControllerID][port] = userCount
 	}
 
-	return result, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating user count rows: %w", err)
+	}
+
+	return result, nil
+}
+
+// ====================== MÉTODOS UTILITÁRIOS ======================
+
+// TestConnection testa se a conexão está funcionando
+func (db *WxsDB) TestConnection() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Testar ping
+	if err := db.Ping(ctx); err != nil {
+		return fmt.Errorf("ping failed: %w", err)
+	}
+
+	// Testar query simples
+	var version string
+	err := db.QueryRowContext(ctx, "SELECT @@VERSION").Scan(&version)
+	if err != nil {
+		return fmt.Errorf("version query failed: %w", err)
+	}
+
+	return nil
+}
+
+// GetDatabaseInfo retorna informações sobre o banco
+func (db *WxsDB) GetDatabaseInfo() (map[string]interface{}, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	info := make(map[string]interface{})
+
+	// Versão do SQL Server
+	var version string
+	err := db.QueryRowContext(ctx, "SELECT @@VERSION").Scan(&version)
+	if err == nil {
+		// Pegar apenas a primeira linha da versão
+		lines := strings.Split(version, "\n")
+		if len(lines) > 0 {
+			info["version"] = strings.TrimSpace(lines[0])
+		}
+	}
+
+	// Nome do banco
+	var dbName string
+	err = db.QueryRowContext(ctx, "SELECT DB_NAME()").Scan(&dbName)
+	if err == nil {
+		info["database"] = dbName
+	}
+
+	// Usuário atual
+	var currentUser string
+	err = db.QueryRowContext(ctx, "SELECT SUSER_NAME()").Scan(&currentUser)
+	if err == nil {
+		info["user"] = currentUser
+	}
+
+	// Contar tabelas principais do WXS
+	tables := []string{
+		"CfgHWLocalControllers",
+		"CfgHWControllers",
+		"CfgHWReaders",
+		"CHAccessLevels",
+		"CHCards",
+	}
+
+	tableInfo := make(map[string]int)
+	for _, table := range tables {
+		var count int
+		query := fmt.Sprintf("SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = '%s'", table)
+		err = db.QueryRowContext(ctx, query).Scan(&count)
+		if err == nil && count > 0 {
+			// Tabela existe, contar registros
+			countQuery := fmt.Sprintf("SELECT COUNT(*) FROM [%s]", table)
+			var recordCount int
+			err = db.QueryRowContext(ctx, countQuery).Scan(&recordCount)
+			if err == nil {
+				tableInfo[table] = recordCount
+			} else {
+				tableInfo[table] = -1 // Existe mas não conseguiu contar
+			}
+		} else {
+			tableInfo[table] = 0 // Não existe
+		}
+	}
+	info["tables"] = tableInfo
+
+	return info, nil
+}
+
+// ====================== TRANSACTION SUPPORT ======================
+
+// Transaction executa uma função dentro de uma transação
+func (db *WxsDB) Transaction(ctx context.Context, fn func(*sql.Tx) error) error {
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback() // Rollback se não foi commitado
+
+	if err := fn(tx); err != nil {
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return nil
 }
 
 // ====================== CONSTANTS AND HELPERS ======================
 
-// Constantes para tipos de controladores (adaptar conforme necessário baseado no WXS real)
+// Constantes para tipos de controladores (adaptar conforme WXS real)
 var (
 	HIKVISION_CONTROLLER_TYPES = []int{21101, 21102, 21103} // Adaptar conforme WXS
 	DAHUA_CONTROLLER_TYPES     = []int{22111, 22121, 22131} // Adaptar conforme WXS

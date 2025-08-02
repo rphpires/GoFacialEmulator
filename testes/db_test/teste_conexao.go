@@ -11,7 +11,7 @@ import (
 
 func main() {
 	// Configuração direta da string de conexão
-	username := "postgres"
+	username := "emulator"
 	password := "testpassword123"
 	host := "localhost"
 	port := 5432

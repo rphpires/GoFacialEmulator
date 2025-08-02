@@ -19,11 +19,19 @@ var (
 )
 
 // Initialize inicializa as conexões com o banco de dados
+// func Initialize(cfg *config.Config) error {
+// 	// Inicializar migrações do banco de dados principal
+// 	if err := InitializeDatabase(cfg.ServiceDB); err != nil {
+// 		return fmt.Errorf("erro ao inicializar banco de dados: %w", err)
+// 	}
+
+//		return nil
+//	}
 func Initialize(cfg *config.Config) error {
-	// Inicializar migrações do banco de dados principal
-	if err := InitializeDatabase(cfg.ServiceDB); err != nil {
-		return fmt.Errorf("erro ao inicializar banco de dados: %w", err)
-	}
+	log.Println("Inicializando conexões com banco de dados...")
+
+	// A validação já foi feita no main.go com ValidateDatabaseOnStartup()
+	// Aqui apenas confirmamos que as conexões funcionam
 
 	return nil
 }

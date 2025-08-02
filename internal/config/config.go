@@ -12,7 +12,7 @@ import (
 type Config struct {
 	Server     ServerConfig   `yaml:"server"`
 	ServiceDB  DatabaseConfig `yaml:"postgres"`         // Banco principal do serviço
-	EmulatorDB DatabaseConfig `yaml:"postgresEmulator"` // Mesmo banco, mas conceptualmente separado
+	EmulatorDB DatabaseConfig `yaml:"postgresEmulator"` // Mesmo banco, mas conceitualmente separado
 	WxsDB      DatabaseConfig `yaml:"wxsDB"`            // Banco externo WXS
 }
 
@@ -25,13 +25,16 @@ type ServerConfig struct {
 
 // DatabaseConfig contém as configurações de conexão com o banco de dados
 type DatabaseConfig struct {
-	Driver   string `yaml:"driver"`
-	Host     string `yaml:"host"`
-	Port     int    `yaml:"port"`
-	Database string `yaml:"database"`
-	Username string `yaml:"username"`
-	Password string `yaml:"password"`
-	Schema   string `yaml:"schema,omitempty"`
+	Driver             string `yaml:"driver"`
+	Host               string `yaml:"host"`
+	Port               int    `yaml:"port"`
+	Database           string `yaml:"database"`
+	Username           string `yaml:"username"`
+	Password           string `yaml:"password"`
+	Schema             string `yaml:"schema,omitempty"`
+	MaxConnections     int    `yaml:"max_connections,omitempty"`
+	MinConnections     int    `yaml:"min_connections,omitempty"`
+	ConnectionLifetime string `yaml:"connection_lifetime,omitempty"`
 }
 
 // DSN retorna a string de conexão para o banco de dados
@@ -90,6 +93,22 @@ func applyEnvOverrides(config *Config) error {
 	applyDBEnvOverrides(&config.WxsDB, "WXS_DB")
 
 	return nil
+}
+
+func (c *DatabaseConfig) PostgresURL() string {
+	if c.Driver != "postgres" {
+		return ""
+	}
+
+	url := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable",
+		c.Username, c.Password, c.Host, c.Port, c.Database)
+
+	// Adicionar schema se especificado
+	if c.Schema != "" {
+		url += fmt.Sprintf("&search_path=%s", c.Schema)
+	}
+
+	return url
 }
 
 // applyDBEnvOverrides aplica overrides de ambiente para configuração de banco

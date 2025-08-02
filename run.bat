@@ -1,0 +1,1 @@
+go run .\cmd\emulator-service\main.go
