@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"text/template"
@@ -50,40 +52,12 @@ func (h *Handler) Router() http.Handler {
 
 	// Servir arquivos estáticos
 	router.Static("/static", "./web/static")
-	// Definir funções auxiliares para templates
-	// funcMap := template.FuncMap{
-	// 	"sub": func(a, b int) int { return a - b },
-	// 	"add": func(a, b int) int { return a + b },
-	// 	"le":  func(a, b int) bool { return a <= b },
-	// 	"ge":  func(a, b int) bool { return a >= b },
-	// 	"lt":  func(a, b int) bool { return a < b },
-	// 	"gt":  func(a, b int) bool { return a > b },
-	// 	"eq":  func(a, b interface{}) bool { return a == b },
-	// 	"ne":  func(a, b interface{}) bool { return a != b },
-	// }
-
-	// files := []string{
-	// 	"web/templates/base.html",
-	// 	"web/templates/devices.html",
-	// 	"web/templates/comparison.html",
-	// 	"web/templates/header.html",
-	// 	"web/templates/footer.html",
-	// 	"web/templates/sidebar.html",
-	// 	"web/templates/metrics.html",
-	// 	"web/templates/pagination.html",
-	// }
-
-	// tmpl := template.Must(template.New("").Funcs(funcMap).ParseFiles(files...))
-	// router.SetHTMLTemplate(tmpl)
 
 	// Rotas da interface web - baseadas no EmulatorService.py
 	h.setupWebRoutes(router)
 
 	// Rotas da API REST
 	h.setupAPIRoutes(router)
-
-	// WebSocket para atualizações em tempo real
-	router.GET("/ws", h.handleWebSocket)
 
 	// Rota de saúde
 	router.GET("/health", h.healthCheck)
@@ -130,6 +104,8 @@ func (h *Handler) setupWebRoutes(router *gin.Engine) {
 	// Página de comparação
 	router.GET("/comparison", h.comparisonPage)
 	router.GET("/comparison_refresh", h.comparisonRefresh)
+
+	router.GET("/events", h.handleSSE)
 }
 
 // setupAPIRoutes configura rotas da API
@@ -599,43 +575,6 @@ func (h *Handler) healthCheck(c *gin.Context) {
 	})
 }
 
-// WebSocket Handler para atualizações em tempo real
-func (h *Handler) handleWebSocket(c *gin.Context) {
-	conn, err := h.upgrader.Upgrade(c.Writer, c.Request, nil)
-	if err != nil {
-		h.tracer.Error("Failed to upgrade WebSocket: %v", err)
-		return
-	}
-	defer conn.Close()
-
-	h.tracer.Info("WebSocket client connected")
-
-	ticker := time.NewTicker(5 * time.Second)
-	defer ticker.Stop()
-
-	// Esta é a forma mais simples que resolve o warning
-	for range ticker.C {
-		devices, deviceStatusOk, err := h.getCurrentDevices()
-		if err != nil {
-			h.tracer.Error("Failed to get devices for WebSocket: %v", err)
-			continue
-		}
-
-		update := map[string]interface{}{
-			"type":          "status_update",
-			"devices":       devices,
-			"running_count": deviceStatusOk,
-			"timestamp":     time.Now().UTC(),
-		}
-
-		conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
-		if err := conn.WriteJSON(update); err != nil {
-			h.tracer.Error("Failed to write WebSocket message: %v", err)
-			return
-		}
-	}
-}
-
 // getCurrentDevices obtém dispositivos atuais - baseado no get_current_devices() do Python
 func (h *Handler) getCurrentDevices() ([]map[string]interface{}, int, error) {
 	devices, err := h.manager.ListDevices()
@@ -801,6 +740,87 @@ func (h *Handler) refreshUsersComparison() {
 		}
 	}
 
-	// TODO: Atualizar contagens do site controller se necessário
 	h.tracer.Info("Users comparison refreshed successfully")
+}
+
+func (h *Handler) handleSSE(c *gin.Context) {
+	h.tracer.Info("SSE client connected")
+
+	// Configurar headers para SSE
+	c.Header("Content-Type", "text/event-stream")
+	c.Header("Cache-Control", "no-cache")
+	c.Header("Connection", "keep-alive")
+	c.Header("Access-Control-Allow-Origin", "*")
+
+	// Adicionar listener para mudanças de status
+	listener := h.manager.AddStatusListener()
+	defer h.manager.RemoveStatusListener(listener)
+
+	// ADICIONAR ESTE LOG:
+	h.tracer.Info("SSE listener added successfully")
+
+	// Canal para detectar desconexão do cliente
+	clientGone := c.Request.Context().Done()
+
+	for {
+		select {
+		case event, ok := <-listener:
+			if !ok {
+				h.tracer.Info("SSE listener closed")
+				return
+			}
+
+			// ADICIONAR ESTE LOG:
+			h.tracer.Info("SSE received event: Device %d -> %s", event.DeviceID, event.Status)
+
+			// Obter contadores atualizados
+			devices, err := h.manager.ListDevices()
+			if err != nil {
+				h.tracer.Error("Failed to get devices for SSE: %v", err)
+				continue
+			}
+
+			runningCount := 0
+			for _, device := range devices {
+				if device.Status == "running" {
+					runningCount++
+				}
+			}
+
+			// Enviar evento SSE
+			data := map[string]interface{}{
+				"device_id":     event.DeviceID,
+				"status":        event.Status,
+				"name":          event.Name,
+				"running_count": runningCount,
+				"stopped_count": len(devices) - runningCount,
+				"total_count":   len(devices),
+			}
+
+			jsonData, err := json.Marshal(data)
+			if err != nil {
+				h.tracer.Error("Failed to marshal SSE data: %v", err)
+				continue
+			}
+
+			// ADICIONAR ESTE LOG:
+			h.tracer.Info("Sending SSE data: %s", string(jsonData))
+
+			// Formato SSE: data: {json}\n\n
+			_, err = fmt.Fprintf(c.Writer, "data: %s\n\n", jsonData)
+			if err != nil {
+				h.tracer.Error("Failed to write SSE data: %v", err)
+				return
+			}
+
+			// Forçar envio imediato
+			if f, ok := c.Writer.(http.Flusher); ok {
+				f.Flush()
+			}
+
+		case <-clientGone:
+			h.tracer.Info("SSE client disconnected")
+			return
+		}
+	}
 }
