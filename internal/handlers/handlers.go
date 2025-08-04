@@ -18,14 +18,14 @@ import (
 // Handler gerencia todas as rotas HTTP - baseado no EmulatorService.py
 type Handler struct {
 	manager   *emulator.Manager
-	serviceDB *database.ServiceDB
+	serviceDB *database.SimpleOptimizedPool
 	wxsDB     *database.WxsDB
 	tracer    *trace.Tracer
 	upgrader  websocket.Upgrader
 }
 
 // NewHandler cria uma nova instância de Handler
-func NewHandler(manager *emulator.Manager, serviceDB *database.ServiceDB, wxsDB *database.WxsDB, tracer *trace.Tracer) *Handler {
+func NewHandler(manager *emulator.Manager, serviceDB *database.SimpleOptimizedPool, wxsDB *database.WxsDB, tracer *trace.Tracer) *Handler {
 	return &Handler{
 		manager:   manager,
 		serviceDB: serviceDB,

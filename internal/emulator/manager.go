@@ -15,8 +15,8 @@ import (
 
 // Manager gerencia todos os emuladores - baseado no EmulatorService.py
 type Manager struct {
-	ServiceDB  *database.ServiceDB
-	EmulatorDB *database.EmulatorDB
+	ServiceDB  *database.SimpleOptimizedPool
+	EmulatorDB *database.SimpleOptimizedPool
 	WxsDB      *database.WxsDB
 	Tracer     *trace.Tracer
 
@@ -38,7 +38,7 @@ type WatchdogInfo struct {
 }
 
 // NewManager cria um novo gerenciador de emuladores
-func NewManager(serviceDB *database.ServiceDB, emulatorDB *database.EmulatorDB, wxsDB *database.WxsDB, tracer *trace.Tracer) *Manager {
+func NewManager(serviceDB *database.SimpleOptimizedPool, emulatorDB *database.SimpleOptimizedPool, wxsDB *database.WxsDB, tracer *trace.Tracer) *Manager {
 	return &Manager{
 		ServiceDB:      serviceDB,
 		EmulatorDB:     emulatorDB,

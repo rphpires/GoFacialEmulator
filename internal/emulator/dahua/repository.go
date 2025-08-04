@@ -1,26 +1,56 @@
+// internal/emulator/dahua/repository.go (versão otimizada)
 package dahua
 
 import (
+	"GoFacialEmulator/internal/cache"
+	"GoFacialEmulator/internal/database"
 	"context"
 	"fmt"
 	"time"
+)
 
-	"GoFacialEmulator/internal/database"
+// Queries pré-definidas (prepared statements automáticos)
+const (
+	queryCardCount = "SELECT COUNT(*) FROM emulator.dahua_cards WHERE device_id = $1"
+	queryFaceCount = "SELECT COUNT(*) FROM emulator.dahua_faces WHERE device_id = $1"
+
+	// Query otimizada que busca tudo de uma vez
+	queryAllCounts = `
+        SELECT 
+            (SELECT COUNT(*) FROM emulator.dahua_cards WHERE device_id = $1) as cards,
+            (SELECT COUNT(*) FROM emulator.dahua_faces WHERE device_id = $1) as faces
+    `
+
+	queryRandomCard = `
+        SELECT card_name, card_no, user_id 
+        FROM emulator.dahua_cards 
+        WHERE device_id = $1
+        ORDER BY RANDOM() LIMIT 1
+    `
+
+	queryNextRecNo = `
+        SELECT COALESCE(MIN(t1.rec_no + 1), 1) 
+        FROM emulator.dahua_cards AS t1
+        LEFT JOIN emulator.dahua_cards AS t2 ON t1.rec_no + 1 = t2.rec_no AND t1.device_id = t2.device_id
+        WHERE t1.device_id = $1 AND t2.rec_no IS NULL
+    `
 )
 
 // Repository gerencia operações de banco específicas do Dahua
 type Repository struct {
-	db       database.DBInterface
+	db       *database.SimpleOptimizedPool
 	deviceID int
+	cache    *cache.SimpleCache
 	timeout  time.Duration
 }
 
 // NewRepository cria um novo repositório Dahua
-func NewRepository(db database.DBInterface, deviceID int) *Repository {
+func NewRepository(db *database.SimpleOptimizedPool, deviceID int) *Repository {
 	return &Repository{
 		db:       db,
 		deviceID: deviceID,
-		timeout:  5 * time.Second,
+		cache:    cache.NewSimpleCache(),
+		timeout:  10 * time.Second, // Timeout maior para alta concorrência
 	}
 }
 
@@ -58,48 +88,51 @@ func (r *Repository) SetSetting(key, value string) error {
 
 	_, err := r.db.Exec(ctx,
 		`INSERT INTO emulator.device_settings (device_id, cfg_id, value) 
-		 VALUES ($1, $2, $3) 
-		 ON CONFLICT (device_id, cfg_id) DO UPDATE SET value = $3, updated_at = NOW()`,
+         VALUES ($1, $2, $3) 
+         ON CONFLICT (device_id, cfg_id) DO UPDATE SET value = $3, updated_at = NOW()`,
 		r.deviceID, key, value)
 	return err
 }
 
 // ====================== COUNT OPERATIONS ======================
 
-// GetTotalUsers retorna total de cartões (Dahua usa cartões como usuários)
+// GetTotalUsers com cache (Dahua usa cartões como usuários)
 func (r *Repository) GetTotalUsers() (int, error) {
+	// Tentar cache primeiro
+	if count, found := r.cache.GetUserCount(r.deviceID); found {
+		return count, nil
+	}
+
+	// Cache miss - buscar no banco
 	ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
 	defer cancel()
 
 	var count int
-	err := r.db.QueryRow(ctx,
-		"SELECT COUNT(*) FROM emulator.dahua_cards WHERE device_id = $1",
-		r.deviceID).Scan(&count)
-	return count, err
+	err := r.db.QueryRow(ctx, queryCardCount, r.deviceID).Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+
+	// Cachear por 60 segundos
+	r.cache.SetUserCount(r.deviceID, count, 60*time.Second)
+	return count, nil
 }
 
-// CountItems retorna contadores de todos os tipos de itens
+// CountItems otimizado - uma única query
 func (r *Repository) CountItems() (*CountItems, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
 	defer cancel()
 
 	counts := &CountItems{}
+	err := r.db.QueryRow(ctx, queryAllCounts, r.deviceID).Scan(
+		&counts.Cards, &counts.Faces)
 
-	// Contar cartões
-	err := r.db.QueryRow(ctx,
-		"SELECT COUNT(*) FROM emulator.dahua_cards WHERE device_id = $1",
-		r.deviceID).Scan(&counts.Cards)
 	if err != nil {
-		return nil, fmt.Errorf("failed to count cards: %w", err)
+		return nil, fmt.Errorf("failed to count items: %w", err)
 	}
 
-	// Contar faces
-	err = r.db.QueryRow(ctx,
-		"SELECT COUNT(*) FROM emulator.dahua_faces WHERE device_id = $1",
-		r.deviceID).Scan(&counts.Faces)
-	if err != nil {
-		return nil, fmt.Errorf("failed to count faces: %w", err)
-	}
+	// Cachear contagem de cartões (usuários)
+	r.cache.SetUserCount(r.deviceID, counts.Cards, 60*time.Second)
 
 	return counts, nil
 }
@@ -114,7 +147,7 @@ func (r *Repository) CheckIfCardExists(cardNo string, userID int) (bool, error) 
 	var count int
 	err := r.db.QueryRow(ctx,
 		`SELECT COUNT(*) FROM emulator.dahua_cards 
-		 WHERE device_id = $1 AND (card_no = $2 OR user_id = $3)`,
+         WHERE device_id = $1 AND (card_no = $2 OR user_id = $3)`,
 		r.deviceID, cardNo, userID).Scan(&count)
 	if err != nil {
 		return false, err
@@ -128,12 +161,7 @@ func (r *Repository) GetNextRecNo() (int, error) {
 	defer cancel()
 
 	var recNo int
-	err := r.db.QueryRow(ctx,
-		`SELECT COALESCE(MIN(t1.rec_no + 1), 1) 
-		 FROM emulator.dahua_cards AS t1
-		 LEFT JOIN emulator.dahua_cards AS t2 ON t1.rec_no + 1 = t2.rec_no AND t1.device_id = t2.device_id
-		 WHERE t1.device_id = $1 AND t2.rec_no IS NULL`,
-		r.deviceID).Scan(&recNo)
+	err := r.db.QueryRow(ctx, queryNextRecNo, r.deviceID).Scan(&recNo)
 
 	if err != nil {
 		// Se não há registros, começar do 1
@@ -165,14 +193,15 @@ func (r *Repository) AddCard(cardName string, userID int, cardNo string, validDa
 
 	_, err = r.db.Exec(ctx,
 		`INSERT INTO emulator.dahua_cards (device_id, rec_no, card_name, user_id, card_no, valid_date_start, valid_date_end) 
-		 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
 		r.deviceID, recNo, cardName, userID, cardNo, validDateStart, validDateEnd)
 
-	if err != nil {
-		return 0, err
+	// Invalidar cache APENAS se sucesso
+	if err == nil {
+		r.cache.InvalidateDevice(r.deviceID)
 	}
 
-	return recNo, nil
+	return recNo, err
 }
 
 // RemoveCard remove um cartão pelo RecNo
@@ -183,6 +212,12 @@ func (r *Repository) RemoveCard(recNo int) error {
 	_, err := r.db.Exec(ctx,
 		"DELETE FROM emulator.dahua_cards WHERE device_id = $1 AND rec_no = $2",
 		r.deviceID, recNo)
+
+	// Invalidar cache APENAS se sucesso
+	if err == nil {
+		r.cache.InvalidateDevice(r.deviceID)
+	}
+
 	return err
 }
 
@@ -193,8 +228,8 @@ func (r *Repository) FindCard(userID int) (string, error) {
 
 	rows, err := r.db.Query(ctx,
 		`SELECT rec_no, card_name, user_id, card_no, valid_date_start, valid_date_end 
-		 FROM emulator.dahua_cards 
-		 WHERE device_id = $1 AND user_id = $2`,
+         FROM emulator.dahua_cards 
+         WHERE device_id = $1 AND user_id = $2`,
 		r.deviceID, userID)
 	if err != nil {
 		return "", err
@@ -228,10 +263,10 @@ func (r *Repository) GetCards(count, offset int) (string, error) {
 
 	rows, err := r.db.Query(ctx,
 		`SELECT rec_no, card_name, user_id, card_no, valid_date_start, valid_date_end 
-		 FROM emulator.dahua_cards 
-		 WHERE device_id = $1
-		 ORDER BY rec_no
-		 LIMIT $2 OFFSET $3`,
+         FROM emulator.dahua_cards 
+         WHERE device_id = $1
+         ORDER BY rec_no
+         LIMIT $2 OFFSET $3`,
 		r.deviceID, count, offset)
 	if err != nil {
 		return "", err
@@ -332,9 +367,14 @@ func (r *Repository) AddFace(userID int, md5 string) error {
 
 	_, err := r.db.Exec(ctx,
 		`INSERT INTO emulator.dahua_faces (device_id, user_id, md5_hash) 
-		 VALUES ($1, $2, $3)
-		 ON CONFLICT (device_id, user_id) DO UPDATE SET md5_hash = $3, updated_at = NOW()`,
+         VALUES ($1, $2, $3)
+         ON CONFLICT (device_id, user_id) DO UPDATE SET md5_hash = $3, updated_at = NOW()`,
 		r.deviceID, userID, md5)
+
+	// Invalidar cache APENAS se sucesso
+	if err == nil {
+		r.cache.InvalidateDevice(r.deviceID)
+	}
 
 	return err
 }
@@ -348,6 +388,11 @@ func (r *Repository) RemoveFace(userID int) error {
 		"DELETE FROM emulator.dahua_faces WHERE device_id = $1 AND user_id = $2",
 		r.deviceID, userID)
 
+	// Invalidar cache APENAS se sucesso
+	if err == nil {
+		r.cache.InvalidateDevice(r.deviceID)
+	}
+
 	return err
 }
 
@@ -357,9 +402,7 @@ func (r *Repository) FindRemoteFaces() (*FindFaceResponse, error) {
 	defer cancel()
 
 	var count int
-	err := r.db.QueryRow(ctx,
-		"SELECT COUNT(*) FROM emulator.dahua_faces WHERE device_id = $1",
-		r.deviceID).Scan(&count)
+	err := r.db.QueryRow(ctx, queryFaceCount, r.deviceID).Scan(&count)
 	if err != nil {
 		return nil, err
 	}
@@ -378,10 +421,10 @@ func (r *Repository) GetRemoteFaces(count, offset int) (*GetFaceResponse, error)
 
 	rows, err := r.db.Query(ctx,
 		`SELECT user_id, md5_hash 
-		 FROM emulator.dahua_faces 
-		 WHERE device_id = $1
-		 ORDER BY user_id
-		 LIMIT $2 OFFSET $3`,
+         FROM emulator.dahua_faces 
+         WHERE device_id = $1
+         ORDER BY user_id
+         LIMIT $2 OFFSET $3`,
 		r.deviceID, count, offset)
 	if err != nil {
 		return nil, err
@@ -407,17 +450,11 @@ func (r *Repository) GetRemoteFaces(count, offset int) (*GetFaceResponse, error)
 
 // ====================== UTILITY OPERATIONS ======================
 
-// GetRandomCard retorna um cartão aleatório para geração de eventos
+// GetRandomCard retorna um cartão aleatório para geração de eventos - com cache
 func (r *Repository) GetRandomCard() (cardName, cardNo string, userID int, err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
 	defer cancel()
 
-	err = r.db.QueryRow(ctx,
-		`SELECT card_name, card_no, user_id 
-		 FROM emulator.dahua_cards 
-		 WHERE device_id = $1
-		 ORDER BY RANDOM() 
-		 LIMIT 1`, r.deviceID).Scan(&cardName, &cardNo, &userID)
-
+	err = r.db.QueryRow(ctx, queryRandomCard, r.deviceID).Scan(&cardName, &cardNo, &userID)
 	return
 }
