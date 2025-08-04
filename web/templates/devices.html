@@ -111,7 +111,8 @@
 
 </div>
 
-<!-- Script to handle checkbox selection -->
+<!-- SUBSTITUIR o script existente no final de devices.html por este: -->
+
 <script>
   function changePerPage() {
     const perPage = document.getElementById('per-page-select').value;
@@ -137,35 +138,8 @@
         const allChecked = Array.from(deviceCheckboxes).every(checkbox => checkbox.checked);
         const anyChecked = Array.from(deviceCheckboxes).some(checkbox => checkbox.checked);
         
-        // O selectAllCheckbox deve estar marcado se todos os checkboxes individuais estiverem marcados
         selectAllCheckbox.checked = allChecked;
-        
-        // O selectAllCheckbox deve estar indeterminado se ao menos um checkbox individual estiver marcado, mas não todos
         selectAllCheckbox.indeterminate = !allChecked && anyChecked;
-      });
-    });
-  });
-
-  document.addEventListener('DOMContentLoaded', () => {
-    const selectAllCheckbox = document.getElementById('select-all');
-    const deviceCheckboxes = document.querySelectorAll('.device-checkbox');
-
-    function setAllCheckboxes(checked) {
-      deviceCheckboxes.forEach(checkbox => {
-        checkbox.checked = checked;
-      });
-    }
-
-    // Evento para selecionar todos os checkboxes
-    selectAllCheckbox.addEventListener('change', (event) => {
-      setAllCheckboxes(event.target.checked);
-    });
-
-    // Atualiza o estado do checkbox de seleção geral
-    deviceCheckboxes.forEach(checkbox => {
-      checkbox.addEventListener('change', () => {
-        const allChecked = Array.from(deviceCheckboxes).every(checkbox => checkbox.checked);
-        selectAllCheckbox.checked = allChecked;
       });
     });
 
@@ -177,34 +151,44 @@
 
       deviceCheckboxes.forEach((checkbox) => {
         if (checkbox.checked) {
-          const row = checkbox.closest('tr'); // Acessa a linha da tabela
-          // const portElement = row.querySelector('td#port_no'); // Pega o objeto <td> com o id "port_no"
-          const portElement = row.querySelector('td#lc_id'); // Pega o objeto <td> com o id "port_no"
+          const row = checkbox.closest('tr');
+          const portElement = row.querySelector('td#lc_id');
 
-            if (row) {
-              // const portElement = row.querySelector('td#port_no');
-              const portElement = row.querySelector('td#lc_id');
-
-              if (portElement) {
-                // Pegue o valor do texto do <td> e adicione ao array
-                const port = portElement.textContent.trim();
-                selectedDevices.push(port);
-              }
-            }
+          if (row && portElement) {
+            const port = portElement.textContent.trim();
+            selectedDevices.push(port);
+          }
         }
       });
       return selectedDevices;
     }
 
+    // Função para obter configurações de log
+    function getSelectedDevicesLog() {
+      const selectedDevicesLog = {};
+      const deviceCheckboxes = document.querySelectorAll('input.device-checkbox');
+
+      deviceCheckboxes.forEach((checkbox) => {
+        if (checkbox.checked) {
+          const row = checkbox.closest('tr');
+          const portElement = row.querySelector('td#lc_id');
+          const logCheckbox = row.querySelector('.log-checkbox');
+
+          if (row && portElement && logCheckbox) {
+            const port = portElement.textContent.trim();
+            selectedDevicesLog[port] = logCheckbox.checked;
+          }
+        }
+      });
+      return selectedDevicesLog;
+    }
+
     // Função chamada ao clicar em "Iniciar"
     window.start_emulators = async () => {
       const selectedDevices = getSelectedDevices();
-
-      console.log(selectedDevices)
       const selectedDevicesLog = getSelectedDevicesLog();
 
-      console.log(selectedDevicesLog)
-      if (selectedDevices.length > 0 || selectedDevicesLog.length > 0) {
+      if (selectedDevices.length > 0) {
         try {
           const response = await fetch('/start', {
             method: 'POST',
@@ -216,7 +200,6 @@
 
           if (response.ok) {
             alert('Emuladores iniciados com sucesso!');
-            window.location.href = '/';  // Redireciona após sucesso
           } else {
             alert('Falha ao iniciar emuladores.');
           }
@@ -244,7 +227,6 @@
 
           if (response.ok) {
             alert('Emuladores parados com sucesso!');
-            window.location.href = '/';  // Redireciona após sucesso
           } else {
             alert('Falha ao parar emuladores.');
           }
@@ -256,11 +238,100 @@
         alert('Nenhum dispositivo selecionado.');
       }
     };
+
+    // NOVA FUNCIONALIDADE: Server-Sent Events para atualizações em tempo real
+    const eventSource = new EventSource('/events');
+    
+    eventSource.onopen = function(event) {
+      console.log('SSE connection opened:', event);
+    };
+
+    eventSource.onmessage = function(event) {
+      console.log('SSE message received:', event.data); // LOG ADICIONADO
+      try {
+        const data = JSON.parse(event.data);
+        console.log('Status update received:', data);
+        
+        // Atualizar status do dispositivo específico
+        updateDeviceStatus(data.device_id, data.status);
+        
+        // Atualizar contadores
+        updateCounters(data.running_count, data.stopped_count, data.total_count);
+        
+      } catch (error) {
+        console.error('Error parsing SSE data:', error);
+      }
+    };
+    
+    eventSource.onerror = function(event) {
+      console.error('SSE connection error:', event);
+      console.log('SSE readyState:', eventSource.readyState); // LOG ADICIONADO
+    };
+
+    // Função para atualizar status de um dispositivo específico
+    function updateDeviceStatus(deviceId, status) {
+      const deviceRow = document.querySelector(`#device_${deviceId}`);
+      if (!deviceRow) return;
+      
+      // Encontrar a célula de status
+      const statusCells = deviceRow.querySelectorAll('td');
+      const statusCell = statusCells[statusCells.length - 1]; // Última coluna é o status
+      
+      if (statusCell) {
+        let statusClass = '';
+        let statusColor = '';
+        
+        if (status === 'running') {
+          statusClass = 'border-success';
+          statusColor = '#117529';
+        } else if (status === 'error') {
+          statusClass = 'border-warning';
+          statusColor = '#856404';
+          status = 'error'; // Mostrar erro temporariamente
+        } else {
+          statusClass = 'border-danger';
+          statusColor = '#a70000';
+        }
+        
+        statusCell.innerHTML = `
+          <span class="border ${statusClass}" style="padding: 5px; border-radius: 5px; color: ${statusColor};">
+            ${status}
+          </span>
+        `;
+      }
+      
+      // Atualizar botões de controle
+      const startButton = deviceRow.querySelector('.btn-outline-success');
+      const stopButton = deviceRow.querySelector('.btn-outline-danger');
+      const logCheckbox = deviceRow.querySelector('.log-checkbox');
+      
+      if (startButton && stopButton && logCheckbox) {
+        if (status === 'running') {
+          startButton.classList.add('btn-custom-disabled');
+          stopButton.classList.remove('btn-custom-disabled');
+          logCheckbox.disabled = true;
+        } else {
+          startButton.classList.remove('btn-custom-disabled');
+          stopButton.classList.add('btn-custom-disabled');
+          logCheckbox.disabled = false;
+        }
+      }
+    }
+    
+    // Função para atualizar contadores no header
+    function updateCounters(runningCount, stoppedCount, totalCount) {
+      const runningCounter = document.querySelector('#counter_running');
+      const stoppedCounter = document.querySelector('#counter_stopped');
+      const totalCounter = document.querySelector('#counter_total');
+      
+      if (runningCounter) runningCounter.textContent = runningCount;
+      if (stoppedCounter) stoppedCounter.textContent = stoppedCount;
+      if (totalCounter) totalCounter.textContent = totalCount;
+    }
   });
 
   function startSingleEmulator(port, isChecked) {
-    
-    console.log("##startSingleEmulator ")
+    console.log("##startSingleEmulator ");
     const enableLog = {};
     enableLog[port] = isChecked;
     
@@ -293,50 +364,7 @@
       alert(`Erro ao parar o emulador na porta ${port}.`);
     });
   }
-
-  const socket = io();
-  socket.on('update_device_status', function(data) {
-    console.log('Recebido:', data);
-
-    const deviceRow = document.querySelector(`#device_${data.device_id}`);
-    console.log('Selecionado:', deviceRow);
-
-    const runningCounter = document.querySelector(`#counter_running`);
-    console.log('Counter running card:', runningCounter);
-
-    const stoppedCounter = document.querySelector(`#counter_stopped`);
-    console.log('Counter running card:', stoppedCounter);
-
-    if (deviceRow) {
-      // Atualiza o conteúdo da linha da tabela com o HTML fornecido
-      deviceRow.innerHTML = data.updated_html;
-      console.log('Linha atualizada com sucesso.');
-    } else {
-      console.log('Linha não encontrada:', data.device_id);
-    }
-
-    if (runningCounter) {
-      // Atualiza contagem de emuladores em execução
-      runningCounter.innerHTML = data.counter_cards.running;
-      console.log('Contagem "running" atualizada com sucesso.');
-    }
-    else {
-      console.log('Linha não encontrada:', data.counter_cards.running);
-    }
-
-    if (stoppedCounter) {
-      // Atualiza contagem de emuladores em execução
-      stoppedCounter.innerHTML = data.counter_cards.stopped;
-      console.log('Contagem "stopped" atualizada com sucesso.');
-    }
-    else {
-      console.log('Linha não encontrada:', data.counter_cards.stopped);
-    }
-
-  });
-
 </script>
-
 
 <style>
   .btn-custom-disabled {

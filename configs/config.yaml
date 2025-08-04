@@ -16,9 +16,6 @@ postgres:
   username: "emulator"
   password: "testpassword123"
   schema: "emulator"
-  max_connections: 25
-  min_connections: 5
-  connection_lifetime: "1h"
 
 # Configuração do PostgreSQL (banco centralizado)
 postgresEmulator:
@@ -29,9 +26,6 @@ postgresEmulator:
   username: "emulator"
   password: "testpassword123"
   schema: "emulator"
-  max_connections: 25
-  min_connections: 5
-  connection_lifetime: "1h"
 
 # Configuração do banco de dados WXS (sistema externo)
 wxsDB:

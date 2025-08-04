@@ -6,22 +6,47 @@ import (
 	"strconv"
 	"time"
 
+	"GoFacialEmulator/internal/cache"
 	"GoFacialEmulator/internal/database"
 )
 
-// Repository gerencia operações de banco específicas do Hikvision
+const (
+	queryUserCount   = "SELECT COUNT(*) FROM emulator.hikvision_users WHERE device_id = $1"
+	queryCardCount   = "SELECT COUNT(*) FROM emulator.hikvision_cards WHERE device_id = $1"
+	queryFaceCount   = "SELECT COUNT(*) FROM emulator.hikvision_faces WHERE device_id = $1"
+	queryFingerCount = "SELECT COUNT(*) FROM emulator.hikvision_fingers WHERE device_id = $1"
+
+	// Query otimizada que busca tudo de uma vez
+	queryAllCounts = `
+        SELECT 
+            (SELECT COUNT(*) FROM emulator.hikvision_users WHERE device_id = $1) as users,
+            (SELECT COUNT(*) FROM emulator.hikvision_cards WHERE device_id = $1) as cards,
+            (SELECT COUNT(*) FROM emulator.hikvision_faces WHERE device_id = $1) as faces,
+            (SELECT COUNT(*) FROM emulator.hikvision_fingers WHERE device_id = $1) as fingers
+    `
+
+	queryRandomUserCard = `
+        SELECT u.name, c.card_no, u.employee_no 
+        FROM emulator.hikvision_users u
+        JOIN emulator.hikvision_cards c ON c.employee_no = u.employee_no AND c.device_id = u.device_id
+        WHERE u.device_id = $1
+        ORDER BY RANDOM() LIMIT 1
+    `
+)
+
 type Repository struct {
-	db       database.DBInterface
+	db       *database.SimpleOptimizedPool
 	deviceID int
+	cache    *cache.SimpleCache
 	timeout  time.Duration
 }
 
-// NewRepository cria um novo repositório Hikvision
-func NewRepository(db database.DBInterface, deviceID int) *Repository {
+func NewRepository(db *database.SimpleOptimizedPool, deviceID int) *Repository {
 	return &Repository{
 		db:       db,
 		deviceID: deviceID,
-		timeout:  5 * time.Second,
+		cache:    cache.NewSimpleCache(),
+		timeout:  10 * time.Second, // Timeout maior para alta concorrência
 	}
 }
 
@@ -67,56 +92,41 @@ func (r *Repository) SetSetting(key, value string) error {
 
 // ====================== COUNT OPERATIONS ======================
 
-// GetTotalUsers retorna total de usuários para este dispositivo
 func (r *Repository) GetTotalUsers() (int, error) {
+	// Tentar cache primeiro
+	if count, found := r.cache.GetUserCount(r.deviceID); found {
+		return count, nil
+	}
+
+	// Cache miss - buscar no banco
 	ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
 	defer cancel()
 
 	var count int
-	err := r.db.QueryRow(ctx,
-		"SELECT COUNT(*) FROM emulator.hikvision_users WHERE device_id = $1",
-		r.deviceID).Scan(&count)
-	return count, err
+	err := r.db.QueryRow(ctx, queryUserCount, r.deviceID).Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+
+	// Cachear por 60 segundos
+	r.cache.SetUserCount(r.deviceID, count, 60*time.Second)
+	return count, nil
 }
 
-// CountItems retorna contadores de todos os tipos de itens
 func (r *Repository) CountItems() (*CountItems, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
 	defer cancel()
 
 	counts := &CountItems{}
+	err := r.db.QueryRow(ctx, queryAllCounts, r.deviceID).Scan(
+		&counts.Users, &counts.Cards, &counts.Faces, &counts.Fingerprints)
 
-	// Contar usuários
-	err := r.db.QueryRow(ctx,
-		"SELECT COUNT(*) FROM emulator.hikvision_users WHERE device_id = $1",
-		r.deviceID).Scan(&counts.Users)
 	if err != nil {
-		return nil, fmt.Errorf("failed to count users: %w", err)
+		return nil, err
 	}
 
-	// Contar cartões
-	err = r.db.QueryRow(ctx,
-		"SELECT COUNT(*) FROM emulator.hikvision_cards WHERE device_id = $1",
-		r.deviceID).Scan(&counts.Cards)
-	if err != nil {
-		return nil, fmt.Errorf("failed to count cards: %w", err)
-	}
-
-	// Contar faces
-	err = r.db.QueryRow(ctx,
-		"SELECT COUNT(*) FROM emulator.hikvision_faces WHERE device_id = $1",
-		r.deviceID).Scan(&counts.Faces)
-	if err != nil {
-		return nil, fmt.Errorf("failed to count faces: %w", err)
-	}
-
-	// Contar impressões digitais
-	err = r.db.QueryRow(ctx,
-		"SELECT COUNT(*) FROM emulator.hikvision_fingers WHERE device_id = $1",
-		r.deviceID).Scan(&counts.Fingerprints)
-	if err != nil {
-		return nil, fmt.Errorf("failed to count fingerprints: %w", err)
-	}
+	// Cachear contagem de usuários
+	r.cache.SetUserCount(r.deviceID, counts.Users, 60*time.Second)
 
 	return counts, nil
 }
@@ -157,6 +167,10 @@ func (r *Repository) AddUser(user *User) error {
 		 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
 		r.deviceID, user.EmployeeNo, user.Name, user.Password, user.LocalUIRight, user.BeginTime, user.EndTime)
 
+	if err == nil {
+		r.cache.InvalidateDevice(r.deviceID)
+	}
+
 	return err
 }
 
@@ -171,10 +185,13 @@ func (r *Repository) UpdateUser(user *User) error {
 		 WHERE device_id = $1 AND employee_no = $2`,
 		r.deviceID, user.EmployeeNo, user.Name, user.Password, user.LocalUIRight, user.BeginTime, user.EndTime)
 
+	if err == nil {
+		r.cache.InvalidateDevice(r.deviceID)
+	}
+
 	return err
 }
 
-// DeleteUser remove um usuário e todos os dados relacionados
 func (r *Repository) DeleteUser(employeeNo string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
 	defer cancel()
@@ -202,7 +219,7 @@ func (r *Repository) DeleteUser(employeeNo string) error {
 		return err
 	}
 
-	// Deletar face associada (usando employee_no como user_id)
+	// Deletar face associada
 	_, err = tx.Exec(ctx,
 		"DELETE FROM emulator.hikvision_faces WHERE device_id = $1 AND user_id = $2",
 		r.deviceID, employeeNo)
@@ -210,7 +227,7 @@ func (r *Repository) DeleteUser(employeeNo string) error {
 		return err
 	}
 
-	// Deletar impressões digitais associadas (usando employee_no como chid)
+	// Deletar impressões digitais
 	_, err = tx.Exec(ctx,
 		"DELETE FROM emulator.hikvision_fingers WHERE device_id = $1 AND chid = $2",
 		r.deviceID, employeeNo)
@@ -218,7 +235,15 @@ func (r *Repository) DeleteUser(employeeNo string) error {
 		return err
 	}
 
-	return tx.Commit(ctx)
+	// Commit da transação
+	if err = tx.Commit(ctx); err != nil {
+		return err
+	}
+
+	// Invalidar cache APENAS após commit bem sucedido
+	r.cache.InvalidateDevice(r.deviceID)
+
+	return nil
 }
 
 // GetUsers retorna usuários com paginação
@@ -288,6 +313,10 @@ func (r *Repository) AddCard(card *Card) error {
 		`INSERT INTO emulator.hikvision_cards (device_id, employee_no, card_no) 
 		 VALUES ($1, $2, $3)`,
 		r.deviceID, card.EmployeeNo, card.CardNo)
+
+	if err == nil {
+		r.cache.InvalidateDevice(r.deviceID)
+	}
 
 	return err
 }
@@ -437,18 +466,10 @@ func (r *Repository) GetFaces(limit, offset int) ([]*Face, error) {
 
 // ====================== UTILITY OPERATIONS ======================
 
-// GetRandomUserAndCard retorna um usuário e cartão aleatórios para geração de eventos
 func (r *Repository) GetRandomUserAndCard() (name, cardNo, employeeNo string, err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
 	defer cancel()
 
-	err = r.db.QueryRow(ctx,
-		`SELECT u.name, c.card_no, u.employee_no 
-		 FROM emulator.hikvision_users u
-		 JOIN emulator.hikvision_cards c ON c.employee_no = u.employee_no AND c.device_id = u.device_id
-		 WHERE u.device_id = $1
-		 ORDER BY RANDOM() 
-		 LIMIT 1`, r.deviceID).Scan(&name, &cardNo, &employeeNo)
-
+	err = r.db.QueryRow(ctx, queryRandomUserCard, r.deviceID).Scan(&name, &cardNo, &employeeNo)
 	return
 }
