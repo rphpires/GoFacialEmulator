@@ -11,9 +11,9 @@ import (
 // Config representa a configuração da aplicação
 type Config struct {
 	Server     ServerConfig   `yaml:"server"`
-	ServiceDB  DatabaseConfig `yaml:"postgres"`         // Banco principal do serviço
-	EmulatorDB DatabaseConfig `yaml:"postgresEmulator"` // Mesmo banco, mas conceitualmente separado
-	WxsDB      DatabaseConfig `yaml:"wxsDB"`            // Banco externo WXS
+	ServiceDB  DatabaseConfig `yaml:"service_db"`  // Banco principal do serviço
+	EmulatorDB DatabaseConfig `yaml:"emulator_db"` // Mesmo banco, mas conceitualmente separado
+	WxsDB      DatabaseConfig `yaml:"wxsDB"`       // Banco externo WXS
 }
 
 // ServerConfig contém as configurações do servidor HTTP
@@ -40,10 +40,10 @@ type DatabaseConfig struct {
 // DSN retorna a string de conexão para o banco de dados
 func (c *DatabaseConfig) DSN() string {
 	switch c.Driver {
-	case "postgres":
+	case "service_db":
 		return fmt.Sprintf("host=%s port=%d dbname=%s user=%s password=%s sslmode=disable",
 			c.Host, c.Port, c.Database, c.Username, c.Password)
-	case "postgresEmulator":
+	case "emulator_db":
 		return fmt.Sprintf("host=%s port=%d dbname=%s user=%s password=%s sslmode=disable",
 			c.Host, c.Port, c.Database, c.Username, c.Password)
 	case "mssql":

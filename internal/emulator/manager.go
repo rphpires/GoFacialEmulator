@@ -15,8 +15,8 @@ import (
 
 // Manager gerencia todos os emuladores - baseado no EmulatorService.py
 type Manager struct {
-	ServiceDB  *database.SimpleOptimizedPool
-	EmulatorDB *database.SimpleOptimizedPool
+	ServiceDB  *database.AdaptivePool
+	EmulatorDB *database.AdaptivePool
 	WxsDB      *database.WxsDB
 	Tracer     *trace.Tracer
 
@@ -49,7 +49,7 @@ type StatusChangeEvent struct {
 type StatusChangeListener chan StatusChangeEvent
 
 // NewManager cria um novo gerenciador de emuladores
-func NewManager(serviceDB *database.SimpleOptimizedPool, emulatorDB *database.SimpleOptimizedPool, wxsDB *database.WxsDB, tracer *trace.Tracer) *Manager {
+func NewManager(serviceDB *database.AdaptivePool, emulatorDB *database.AdaptivePool, wxsDB *database.WxsDB, tracer *trace.Tracer) *Manager {
 	return &Manager{
 		ServiceDB:      serviceDB,
 		EmulatorDB:     emulatorDB,
@@ -698,5 +698,16 @@ func (m *Manager) notifyStatusChange(deviceID int, status string, deviceName str
 			// Se o canal estiver cheio, pula (evita bloqueio)
 			m.Tracer.Warning("Status listener %d channel full, skipping event for device %d", i, deviceID)
 		}
+	}
+}
+
+func (m *Manager) GetPoolStats() map[string]interface{} {
+	serviceStats := m.ServiceDB.GetStats()
+	emulatorStats := m.EmulatorDB.GetStats()
+	
+	return map[string]interface{}{
+		"service_db":  serviceStats,
+		"emulator_db": emulatorStats,
+		"timestamp":   time.Now(),
 	}
 }

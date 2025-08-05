@@ -20,14 +20,14 @@ import (
 // Handler gerencia todas as rotas HTTP - baseado no EmulatorService.py
 type Handler struct {
 	manager   *emulator.Manager
-	serviceDB *database.SimpleOptimizedPool
+	serviceDB *database.AdaptivePool
 	wxsDB     *database.WxsDB
 	tracer    *trace.Tracer
 	upgrader  websocket.Upgrader
 }
 
 // NewHandler cria uma nova instância de Handler
-func NewHandler(manager *emulator.Manager, serviceDB *database.SimpleOptimizedPool, wxsDB *database.WxsDB, tracer *trace.Tracer) *Handler {
+func NewHandler(manager *emulator.Manager, serviceDB *database.AdaptivePool, wxsDB *database.WxsDB, tracer *trace.Tracer) *Handler {
 	return &Handler{
 		manager:   manager,
 		serviceDB: serviceDB,
@@ -133,6 +133,7 @@ func (h *Handler) setupAPIRoutes(router *gin.Engine) {
 		// Status do sistema
 		api.GET("/status", h.getSystemStatus)
 		api.GET("/comparison", h.getUserComparisons)
+		api.GET("/pool-stats", h.getPoolStats)
 	}
 }
 
@@ -823,4 +824,9 @@ func (h *Handler) handleSSE(c *gin.Context) {
 			return
 		}
 	}
+}
+
+func (h *Handler) getPoolStats(c *gin.Context) {
+	stats := h.manager.GetPoolStats()
+	c.JSON(http.StatusOK, stats)
 }

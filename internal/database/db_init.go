@@ -1,18 +1,20 @@
 package database
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"sync"
+	"time"
 
 	"GoFacialEmulator/internal/config"
+
+	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 var (
-	// serviceDB  *ServiceDB
-	// emulatorDB *EmulatorDB
-	serviceDB  *SimpleOptimizedPool
-	emulatorDB *SimpleOptimizedPool
+	serviceDB  *AdaptivePool
+	emulatorDB *AdaptivePool
 	wxsDB      *WxsDB
 
 	serviceOnce  sync.Once
@@ -29,23 +31,33 @@ func Initialize(cfg *config.Config) error {
 	return nil
 }
 
-func GetServiceDB(cfg config.DatabaseConfig) (*SimpleOptimizedPool, error) {
+func GetServiceDB(cfg config.DatabaseConfig) (*AdaptivePool, error) {
 	var err error
 	serviceOnce.Do(func() {
-		serviceDB, err = NewSimpleOptimizedPool(cfg.PostgresURL())
+		// Contar dispositivos configurados para dimensionar pool
+		emulatorCount := getEstimatedEmulatorCount(cfg)
+
+		log.Printf("Creating adaptive pool for %d estimated emulators", emulatorCount)
+		serviceDB, err = NewAdaptivePool(cfg.PostgresURL(), emulatorCount)
 		if err != nil {
-			log.Printf("Erro ao criar ServiceDB: %v", err)
+			log.Printf("Erro ao criar ServiceDB adaptativo: %v", err)
+		} else {
+			log.Printf("Adaptive pool created successfully")
 		}
 	})
 	return serviceDB, err
 }
 
-func GetEmulatorDB(cfg config.DatabaseConfig) (*SimpleOptimizedPool, error) {
+func GetEmulatorDB(cfg config.DatabaseConfig) (*AdaptivePool, error) {
 	var err error
 	emulatorOnce.Do(func() {
-		emulatorDB, err = NewSimpleOptimizedPool(cfg.PostgresURL())
+		// Para EmulatorDB, usar estimativa similar
+		emulatorCount := getEstimatedEmulatorCount(cfg)
+
+		log.Printf("Creating adaptive emulator pool for %d estimated emulators", emulatorCount)
+		emulatorDB, err = NewAdaptivePool(cfg.PostgresURL(), emulatorCount)
 		if err != nil {
-			log.Printf("Erro ao criar EmulatorDB: %v", err)
+			log.Printf("Erro ao criar EmulatorDB adaptativo: %v", err)
 		}
 	})
 	return emulatorDB, err
@@ -83,4 +95,34 @@ func CloseAll() {
 	if wxsDB != nil {
 		wxsDB.Close()
 	}
+}
+
+func getEstimatedEmulatorCount(cfg config.DatabaseConfig) int {
+	// Tentar contar dispositivos existentes no banco
+	// Se falhar, usar estimativa conservadora
+
+	connString := cfg.PostgresURL()
+	tempPool, err := pgxpool.Connect(context.Background(), connString)
+	if err != nil {
+		log.Printf("Não conseguiu conectar para contar dispositivos, usando estimativa padrão: %v", err)
+		return 50 // Estimativa conservadora
+	}
+	defer tempPool.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var count int
+	err = tempPool.QueryRow(ctx, "SELECT COUNT(*) FROM service.devices WHERE enabled = true").Scan(&count)
+	if err != nil {
+		log.Printf("Não conseguiu contar dispositivos, usando estimativa padrão: %v", err)
+		return 50 // Estimativa conservadora
+	}
+
+	if count == 0 {
+		count = 20 // Mínimo para desenvolvimento
+	}
+
+	log.Printf("Found %d enabled devices in database", count)
+	return count
 }

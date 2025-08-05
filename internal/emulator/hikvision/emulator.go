@@ -35,7 +35,7 @@ type Emulator struct {
 }
 
 // NewEmulator cria uma nova instância do emulador Hikvision
-func NewEmulator(db *database.SimpleOptimizedPool, device models.Device, tracer *trace.Tracer) *Emulator {
+func NewEmulator(db *database.AdaptivePool, device models.Device, tracer *trace.Tracer) *Emulator {
 	tracer.Info("Initializing Hikvision emulator model: %s", device.Name)
 
 	repo := NewRepository(db, device.ID)

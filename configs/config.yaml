@@ -1,36 +1,33 @@
-# Configuração do servidor HTTP
 server:
-  address: ":8080"
-  host: "localhost"
+  host: "0.0.0.0"
   port: 8080
-  read_timeout: "30s"
-  write_timeout: "30s"
-  idle_timeout: "120s"
 
-# Configuração do PostgreSQL (banco centralizado)
-postgres:
+service_db:
   driver: "postgres"
-  host: "localhost"
+  host: "0.0.0.0"
   port: 5432
-  database: "facial_emulator"
   username: "emulator"
-  password: "testpassword123"
-  schema: "emulator"
+  password: "emulator123"
+  database: "service_db"
+  sslmode: "disable"
+  max_connections: 10
+  max_idle_connections: 5
 
-# Configuração do PostgreSQL (banco centralizado)
-postgresEmulator:
+emulator_db:
   driver: "postgres"
-  host: "localhost"
+  host: "0.0.0.0"
   port: 5432
-  database: "facial_emulator"
   username: "emulator"
-  password: "testpassword123"
-  schema: "emulator"
-
+  password: "emulator123"
+  database: "emulator_db"
+  sslmode: "disable"
+  max_connections: 20
+  max_idle_connections: 10
+  
 # Configuração do banco de dados WXS (sistema externo)
 wxsDB:
   driver: "mssql"
-  host: "RPH-SRV"
+  host: "172.20.112.1"
   port: 1433
   database: "W_Access"
   username: "W-Access"

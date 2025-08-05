@@ -35,13 +35,13 @@ const (
 )
 
 type Repository struct {
-	db       *database.SimpleOptimizedPool
+	db       *database.AdaptivePool
 	deviceID int
 	cache    *cache.SimpleCache
 	timeout  time.Duration
 }
 
-func NewRepository(db *database.SimpleOptimizedPool, deviceID int) *Repository {
+func NewRepository(db *database.AdaptivePool, deviceID int) *Repository {
 	return &Repository{
 		db:       db,
 		deviceID: deviceID,
