@@ -18,11 +18,9 @@ import (
 )
 
 func main() {
-	// Inicializar tracer
 	tracer := trace.NewTracer()
 	tracer.Info("Starting Facial Emulator Service")
 
-	// Carregar configuração
 	cfg, err := config.Load("configs/config.yaml")
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
@@ -34,10 +32,7 @@ func main() {
 	}
 	tracer.Info("Database validation completed successfully")
 
-	// Inicializar bancos de dados (sem migrations automáticas agora)
 	tracer.Info("Initializing database connections...")
-
-	// Obter instâncias dos bancos
 	serviceDB, err := database.GetServiceDB(cfg.ServiceDB)
 	if err != nil {
 		log.Fatalf("Failed to get ServiceDB: %v", err)

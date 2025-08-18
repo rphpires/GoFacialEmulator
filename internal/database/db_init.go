@@ -34,7 +34,6 @@ func Initialize(cfg *config.Config) error {
 func GetServiceDB(cfg config.DatabaseConfig) (*AdaptivePool, error) {
 	var err error
 	serviceOnce.Do(func() {
-		// Contar dispositivos configurados para dimensionar pool
 		emulatorCount := getEstimatedEmulatorCount(cfg)
 
 		log.Printf("Creating adaptive pool for %d estimated emulators", emulatorCount)
