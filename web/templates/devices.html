@@ -15,6 +15,75 @@
     </div>
   </div>
 
+  <div class="row mt-3">
+    <div class="col-12">
+      <div class="card filters-expanded" id="filters-card">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="card-title mb-0">
+              <i class="bi bi-funnel"></i> Filtros
+            </h6>
+            <button 
+              type="button" 
+              class="btn btn-sm btn-outline-secondary" 
+              id="toggle-filters-btn"
+              onclick="toggleFilters()"
+              title="Expandir/Recolher filtros"
+            >
+              <i class="bi bi-chevron-up" id="toggle-filters-icon"></i>
+            </button>
+          </div>
+          
+          <div id="filters-content" class="collapse show">
+            <form id="filter-form" class="row g-3" onsubmit="applyFilters(event)">
+              <div class="col-md-3">
+                <label for="filter-id" class="form-label">LocalControllerID</label>
+                <input 
+                  type="number" 
+                  class="form-control" 
+                  id="filter-id" 
+                  name="id" 
+                  placeholder="Ex: 123"
+                  value="{{ .filters.id }}"
+                >
+              </div>
+              <div class="col-md-4">
+                <label for="filter-name" class="form-label">Nome</label>
+                <input 
+                  type="text" 
+                  class="form-control" 
+                  id="filter-name" 
+                  name="name" 
+                  placeholder="Ex: Dispositivo Principal"
+                  value="{{ .filters.name }}"
+                >
+              </div>
+              <div class="col-md-3">
+                <label for="filter-port" class="form-label">Port</label>
+                <input 
+                  type="number" 
+                  class="form-control" 
+                  id="filter-port" 
+                  name="port" 
+                  placeholder="Ex: 8080"
+                  value="{{ .filters.port }}"
+                >
+              </div>
+              <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary me-2">
+                  <i class="bi bi-search"></i> Filtrar
+                </button>
+                <button type="button" class="btn btn-outline-secondary" onclick="clearFilters()">
+                  <i class="bi bi-x-circle"></i> Limpar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <table class="table table-striped table-hover mt-3" id="device-table">
     <thead>
       <tr>
@@ -80,7 +149,6 @@
   </table>
 
   <div class="d-flex justify-content-center align-items-center position-relative">
-    <!-- Controle de quantidade de itens por página, ao lado esquerdo da paginação -->
     <div class="d-flex align-items-center position-absolute start-0">
       <label for="per-page-select" class="form-label mb-0 me-2">Itens por página:</label>
       <select id="per-page-select" class="form-select" style="width: auto;" onchange="changePerPage()">
@@ -89,25 +157,23 @@
         <option value="20" {{ if eq .per_page 20 }}selected{{ end }}>20</option>
       </select>
     </div>
-  
-    <!-- Paginação centralizada -->
+
     <nav>
       <ul class="pagination mb-0">
         <li class="page-item {{ if eq .page 1 }}disabled{{ end }}">
-          <a class="page-link" href="/?page={{ sub .page 1 }}&per_page={{ .per_page }}">Anterior</a>
+          <a class="page-link" href="/?page={{ sub .page 1 }}&per_page={{ .per_page }}{{ if .filters.id }}&id={{ .filters.id }}{{ end }}{{ if .filters.name }}&name={{ .filters.name }}{{ end }}{{ if .filters.port }}&port={{ .filters.port }}{{ end }}">Anterior</a>
         </li>
         {{ range $p := .page_range }}
         <li class="page-item {{ if eq $.page $p }}active{{ end }}">
-          <a class="page-link" href="/?page={{ $p }}&per_page={{ $.per_page }}">{{ $p }}</a>
+          <a class="page-link" href="/?page={{ $p }}&per_page={{ $.per_page }}{{ if $.filters.id }}&id={{ $.filters.id }}{{ end }}{{ if $.filters.name }}&name={{ $.filters.name }}{{ end }}{{ if $.filters.port }}&port={{ $.filters.port }}{{ end }}">{{ $p }}</a>
         </li>
         {{ end }}
         <li class="page-item {{ if eq .page .total_pages }}disabled{{ end }}">
-          <a class="page-link" href="/?page={{ add .page 1 }}&per_page={{ .per_page }}">Próxima</a>
+          <a class="page-link" href="/?page={{ add .page 1 }}&per_page={{ .per_page }}{{ if .filters.id }}&id={{ .filters.id }}{{ end }}{{ if .filters.name }}&name={{ .filters.name }}{{ end }}{{ if .filters.port }}&port={{ .filters.port }}{{ end }}">Próxima</a>
         </li>
       </ul>
     </nav>
   </div>
-  
 
 </div>
 
@@ -364,6 +430,90 @@
       alert(`Erro ao parar o emulador na porta ${port}.`);
     });
   }
+  
+  function applyFilters(event) {
+    event.preventDefault();
+    
+    const formData = new FormData(event.target);
+    const params = new URLSearchParams();
+    
+    // Adicionar filtros apenas se tiverem valor
+    const id = formData.get('id');
+    const name = formData.get('name');
+    const port = formData.get('port');
+    
+    if (id && id.trim()) params.append('id', id.trim());
+    if (name && name.trim()) params.append('name', name.trim());
+    if (port && port.trim()) params.append('port', port.trim());
+    
+    // Resetar para página 1 quando aplicar filtros
+    params.append('page', '1');
+    params.append('per_page', document.getElementById('per-page-select').value);
+    
+    // Redirecionar com os filtros
+    window.location.href = `/?${params.toString()}`;
+  }
+
+  function clearFilters() {
+    window.location.href = `/?page=1&per_page=${document.getElementById('per-page-select').value}`;
+  }
+
+  // Atualizar a função changePerPage para manter os filtros
+  function changePerPage() {
+    const perPage = document.getElementById('per-page-select').value;
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    urlParams.set('page', '1');
+    urlParams.set('per_page', perPage);
+    
+    window.location.href = `/?${urlParams.toString()}`;
+  }
+
+  function toggleFilters() {
+    const filtersContent = document.getElementById('filters-content');
+    const toggleIcon = document.getElementById('toggle-filters-icon');
+    const filtersCard = document.getElementById('filters-card');
+    
+    if (filtersContent.classList.contains('show')) {
+      // Recolher filtros
+      filtersContent.classList.remove('show');
+      toggleIcon.className = 'bi bi-chevron-down';
+      filtersCard.className = 'card filters-collapsed';
+    } else {
+      // Expandir filtros
+      filtersContent.classList.add('show');
+      toggleIcon.className = 'bi bi-chevron-up';
+      filtersCard.className = 'card filters-expanded';
+    }
+  }
+
+  // Verificar se há filtros ativos e manter expandido se houver
+  document.addEventListener('DOMContentLoaded', function() {
+    const filterInputs = document.querySelectorAll('#filter-form input');
+    const filtersContent = document.getElementById('filters-content');
+    const toggleIcon = document.getElementById('toggle-filters-icon');
+    const filtersCard = document.getElementById('filters-card');
+    let hasActiveFilters = false;
+    
+    filterInputs.forEach(input => {
+      if (input.value && input.value.trim() !== '') {
+        hasActiveFilters = true;
+      }
+    });
+    
+    // Se houver filtros ativos, manter expandido
+    if (hasActiveFilters) {
+      filtersContent.classList.add('show');
+      toggleIcon.className = 'bi bi-chevron-up';
+      filtersCard.className = 'card filters-expanded';
+    } else {
+      // Se não houver filtros, iniciar recolhido
+      filtersContent.classList.remove('show');
+      toggleIcon.className = 'bi bi-chevron-down';
+      filtersCard.className = 'card filters-collapsed';
+    }
+  });
+
 </script>
 
 <style>
@@ -381,7 +531,53 @@
   .btn-custom-disabled:hover {
     background-color: #d3d3d3; /* Mantém a cor cinza claro ao passar o mouse */
     border-color: #d3d3d3; /* Mantém a cor cinza claro ao passar o mouse */
+  }    
+
+  
+  .collapse {
+    visibility: hidden;
+    height: 0;
+    overflow: hidden;
+    transition: height 0.3s ease, visibility 0.3s ease;
   }
+
+  .collapse.show {
+    visibility: visible;
+    height: auto;
+  }
+
+  /* Ajustar espaçamento baseado no estado dos filtros */
+  .filters-collapsed .card-body {
+    padding-bottom: 0.5rem !important;
+  }
+
+  .filters-collapsed .d-flex.justify-content-between.align-items-center.mb-3 {
+    margin-bottom: 5px !important;
+  }
+
+  .filters-expanded .card-body {
+    padding-bottom: 1.25rem !important;
+  }
+
+  .filters-expanded .d-flex.justify-content-between.align-items-center.mb-3 {
+    margin-bottom: 1rem !important;
+  }
+
+  #toggle-filters-btn {
+    border: 1px solid #dee2e6;
+    background-color: #f8f9fa;
+    transition: all 0.2s ease;
+  }
+
+  #toggle-filters-btn:hover {
+    background-color: #e9ecef;
+    border-color: #adb5bd;
+  }
+
+  #toggle-filters-icon {
+    transition: transform 0.2s ease;
+  }
+
 </style>
 
 {{ end }}

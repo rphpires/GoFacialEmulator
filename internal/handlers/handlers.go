@@ -173,7 +173,14 @@ func (h *Handler) mainPage(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "10"))
 
-	devices, deviceStatusOk, err := h.getCurrentDevices()
+	// Capturar filtros da query string
+	filters := map[string]string{
+		"id":   c.Query("id"),
+		"name": c.Query("name"),
+		"port": c.Query("port"),
+	}
+
+	devices, deviceStatusOk, err := h.getCurrentDevicesWithFilters(filters)
 	h.tracer.Info("## Before MainPage, devices: %s", devices)
 	if err != nil {
 		h.tracer.Error("Failed to get current devices: %v", err)
@@ -220,6 +227,7 @@ func (h *Handler) mainPage(c *gin.Context) {
 		"total_pages":   totalPages,
 		"per_page":      perPage,
 		"counter_cards": counterCards,
+		"filters":       filters, // Passar filtros para o template
 	}
 
 	tmpl := h.loadTemplate("web/templates/devices.html")
@@ -829,4 +837,35 @@ func (h *Handler) handleSSE(c *gin.Context) {
 func (h *Handler) getPoolStats(c *gin.Context) {
 	stats := h.manager.GetPoolStats()
 	c.JSON(http.StatusOK, stats)
+}
+
+func (h *Handler) getCurrentDevicesWithFilters(filters map[string]string) ([]map[string]interface{}, int, error) {
+	devices, err := h.manager.ListDevicesWithFilters(filters)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	var currentDevices []map[string]interface{}
+	deviceStatusRunning := 0
+
+	for _, device := range devices {
+		if device.Status == "running" {
+			deviceStatusRunning++
+		}
+
+		currentDevices = append(currentDevices, map[string]interface{}{
+			"lc_id":       device.ID,
+			"name":        device.Name,
+			"ip_address":  device.IPAddress,
+			"port":        device.Port,
+			"log_enabled": device.LogEnabled,
+			"model":       device.Model,
+			"status":      device.Status,
+			"enabled":     device.Enabled,
+			"interval":    device.EventInterval,
+			"total":       device.TotalUsers,
+		})
+	}
+
+	return currentDevices, deviceStatusRunning, nil
 }

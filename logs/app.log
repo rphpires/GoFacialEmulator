@@ -1,92 +1,20 @@
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.125 - Starting Facial Emulator Service
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.125 - Validating database structure...
-2025/08/18 19:29:29 🔍 Validando estrutura do banco de dados...
-2025/08/18 19:29:29 ✅ Estrutura do banco está correta
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.152 - Database validation completed successfully
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.152 - Initializing database connections...
-2025/08/18 19:29:29 Não conseguiu contar dispositivos, usando estimativa padrão: ERROR: operator does not exist: integer = boolean (SQLSTATE 42883)
-2025/08/18 19:29:29 Creating adaptive pool for 50 estimated emulators
-2025/08/18 19:29:29 Adaptive pool created successfully
-2025/08/18 19:29:29 Não conseguiu contar dispositivos, usando estimativa padrão: ERROR: operator does not exist: integer = boolean (SQLSTATE 42883)
-2025/08/18 19:29:29 Creating adaptive emulator pool for 50 estimated emulators
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.181 - Testing database connections...
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.183 - All database connections successful
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.184 - Initializing emulator manager
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.188 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.188 - RLock released: ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.188 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.188 - RLock released: ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.189 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.189 - RLock released: ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.189 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.189 - RLock released: ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.189 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.189 - RLock released: ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.189 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.189 - RLock released: ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.189 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.189 - RLock released: ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.189 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.189 - RLock released: ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.189 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.189 - RLock released: ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.189 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.189 - RLock released: ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.189 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.189 - RLock released: ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.189 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.189 - RLock released: ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.189 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.189 - RLock released: ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.189 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.189 - RLock released: ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.189 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.189 - RLock released: ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.189 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.189 - RLock released: ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.189 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.189 - RLock released: ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.189 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.189 - RLock released: ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.189 - Refreshing device list from WXS database
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.189 - Starting watchdog system
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.194 - DEBUG: Found 18 controllers from WXS
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.226 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.226 - RLock released: ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.226 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.226 - RLock released: ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.226 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.226 - RLock released: ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.226 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.226 - RLock released: ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.226 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.226 - RLock released: ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.226 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.226 - RLock released: ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.226 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.226 - RLock released: ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.226 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.226 - RLock released: ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.226 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.226 - RLock released: ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.226 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.226 - RLock released: ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.226 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.226 - RLock released: ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.226 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.226 - RLock released: ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.226 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.226 - RLock released: ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.226 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.226 - RLock released: ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.226 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.226 - RLock released: ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.226 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.226 - RLock released: ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.226 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.226 - RLock released: ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.226 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.226 - RLock released: ListDevices
+2025/08/19 15:04:23 INFO - 2025-08-19 15:04:23.944 - Starting Facial Emulator Service
+2025/08/19 15:04:23 INFO - 2025-08-19 15:04:23.944 - Validating database structure...
+2025/08/19 15:04:23 🔍 Validando estrutura do banco de dados...
+2025/08/19 15:04:23 ✅ Estrutura do banco está correta
+2025/08/19 15:04:23 INFO - 2025-08-19 15:04:23.968 - Database validation completed successfully
+2025/08/19 15:04:23 INFO - 2025-08-19 15:04:23.968 - Initializing database connections...
+2025/08/19 15:04:23 Não conseguiu contar dispositivos, usando estimativa padrão: ERROR: operator does not exist: integer = boolean (SQLSTATE 42883)
+2025/08/19 15:04:23 Creating adaptive pool for 50 estimated emulators
+2025/08/19 15:04:23 Adaptive pool created successfully
+2025/08/19 15:04:23 Não conseguiu contar dispositivos, usando estimativa padrão: ERROR: operator does not exist: integer = boolean (SQLSTATE 42883)
+2025/08/19 15:04:23 Creating adaptive emulator pool for 50 estimated emulators
+2025/08/19 15:04:23 INFO - 2025-08-19 15:04:23.996 - Testing database connections...
+2025/08/19 15:04:23 INFO - 2025-08-19 15:04:23.997 - All database connections successful
+2025/08/19 15:04:23 INFO - 2025-08-19 15:04:23.997 - Initializing emulator manager
+2025/08/19 15:04:24 INFO - 2025-08-19 15:04:24.002 - Refreshing device list from WXS database
+2025/08/19 15:04:24 INFO - 2025-08-19 15:04:24.002 - Starting watchdog system
+2025/08/19 15:04:24 INFO - 2025-08-19 15:04:24.003 - DEBUG: Found 18 controllers from WXS
 [GIN-debug] [WARNING] Creating an Engine instance with the Logger and Recovery middleware already attached.
 
 [GIN-debug] [WARNING] Running in "debug" mode. Switch to "release" mode in production.
@@ -123,480 +51,163 @@
 [GIN-debug] GET    /api/comparison           --> GoFacialEmulator/internal/handlers.(*Handler).getUserComparisons-fm (6 handlers)
 [GIN-debug] GET    /api/pool-stats           --> GoFacialEmulator/internal/handlers.(*Handler).getPoolStats-fm (6 handlers)
 [GIN-debug] GET    /health                   --> GoFacialEmulator/internal/handlers.(*Handler).healthCheck-fm (6 handlers)
-2025/08/18 19:29:29 INFO - 2025-08-18 19:29:29.226 - Starting HTTP server on 0.0.0.0:8080
-2025/08/18 19:29:31 INFO - 2025-08-18 19:29:31.440 - SSE client connected
-2025/08/18 19:29:31 INFO - 2025-08-18 19:29:31.440 - SSE listener added successfully
-2025/08/18 19:29:32 INFO - 2025-08-18 19:29:32.576 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:32 INFO - 2025-08-18 19:29:32.576 - RLock released: ListDevices
-2025/08/18 19:29:32 INFO - 2025-08-18 19:29:32.576 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:32 INFO - 2025-08-18 19:29:32.577 - RLock released: ListDevices
-2025/08/18 19:29:32 INFO - 2025-08-18 19:29:32.577 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:32 INFO - 2025-08-18 19:29:32.577 - RLock released: ListDevices
-2025/08/18 19:29:32 INFO - 2025-08-18 19:29:32.577 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:32 INFO - 2025-08-18 19:29:32.577 - RLock released: ListDevices
-2025/08/18 19:29:32 INFO - 2025-08-18 19:29:32.577 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:32 INFO - 2025-08-18 19:29:32.577 - RLock released: ListDevices
-2025/08/18 19:29:32 INFO - 2025-08-18 19:29:32.577 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:32 INFO - 2025-08-18 19:29:32.577 - RLock released: ListDevices
-2025/08/18 19:29:32 INFO - 2025-08-18 19:29:32.577 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:32 INFO - 2025-08-18 19:29:32.577 - RLock released: ListDevices
-2025/08/18 19:29:32 INFO - 2025-08-18 19:29:32.577 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:32 INFO - 2025-08-18 19:29:32.577 - RLock released: ListDevices
-2025/08/18 19:29:32 INFO - 2025-08-18 19:29:32.577 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:32 INFO - 2025-08-18 19:29:32.577 - RLock released: ListDevices
-2025/08/18 19:29:32 INFO - 2025-08-18 19:29:32.577 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:32 INFO - 2025-08-18 19:29:32.577 - RLock released: ListDevices
-2025/08/18 19:29:32 INFO - 2025-08-18 19:29:32.577 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:32 INFO - 2025-08-18 19:29:32.577 - RLock released: ListDevices
-2025/08/18 19:29:32 INFO - 2025-08-18 19:29:32.577 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:32 INFO - 2025-08-18 19:29:32.577 - RLock released: ListDevices
-2025/08/18 19:29:32 INFO - 2025-08-18 19:29:32.578 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:32 INFO - 2025-08-18 19:29:32.578 - RLock released: ListDevices
-2025/08/18 19:29:32 INFO - 2025-08-18 19:29:32.578 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:32 INFO - 2025-08-18 19:29:32.578 - RLock released: ListDevices
-2025/08/18 19:29:32 INFO - 2025-08-18 19:29:32.578 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:32 INFO - 2025-08-18 19:29:32.578 - RLock released: ListDevices
-2025/08/18 19:29:32 INFO - 2025-08-18 19:29:32.578 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:32 INFO - 2025-08-18 19:29:32.578 - RLock released: ListDevices
-2025/08/18 19:29:32 INFO - 2025-08-18 19:29:32.578 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:32 INFO - 2025-08-18 19:29:32.578 - RLock released: ListDevices
-2025/08/18 19:29:32 INFO - 2025-08-18 19:29:32.578 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:32 INFO - 2025-08-18 19:29:32.578 - RLock released: ListDevices
-2025/08/18 19:29:32 INFO - 2025-08-18 19:29:32.579 - ## Before MainPage, devices: [map[enabled:%!s(int=0) interval:%!s(int=30) ip_address:localhost lc_id:%!s(int=102) log_enabled:%!s(int=0) model:Hikvision name:Emulator Teste port:%!s(int=9090) status:stopped total:%!s(int=0)] map[enabled:%!s(int=0) interval:%!s(int=25) ip_address:localhost lc_id:%!s(int=103) log_enabled:%!s(int=0) model:Hikvision name:Emulador Hikvision 2 port:%!s(int=9091) status:stopped total:%!s(int=0)] map[enabled:%!s(int=0) interval:%!s(int=60) ip_address:localhost lc_id:%!s(int=105) log_enabled:%!s(int=0) model:Hikvision name:Emulador 3 port:%!s(int=9092) status:stopped total:%!s(int=0)] map[enabled:%!s(int=0) interval:%!s(int=120) ip_address:localhost lc_id:%!s(int=106) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4 port:%!s(int=9093) status:stopped total:%!s(int=0)] map[enabled:%!s(int=0) interval:%!s(int=200) ip_address:localhost lc_id:%!s(int=107) log_enabled:%!s(int=0) model:Hikvision name:Emulador 9095 port:%!s(int=9095) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=400) ip_address:localhost lc_id:%!s(int=109) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4040 port:%!s(int=4040) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=400) ip_address:localhost lc_id:%!s(int=110) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4041 port:%!s(int=4041) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4042) ip_address:localhost lc_id:%!s(int=111) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4042 port:%!s(int=4042) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4043) ip_address:localhost lc_id:%!s(int=112) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4043 port:%!s(int=4043) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4043) ip_address:localhost lc_id:%!s(int=113) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4044 port:%!s(int=4044) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4045) ip_address:localhost lc_id:%!s(int=114) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4045 port:%!s(int=4045) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4046) ip_address:localhost lc_id:%!s(int=115) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4046 port:%!s(int=4046) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4047) ip_address:localhost lc_id:%!s(int=116) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4047 port:%!s(int=4047) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4048) ip_address:localhost lc_id:%!s(int=117) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4048 port:%!s(int=4048) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4049) ip_address:localhost lc_id:%!s(int=118) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4049 port:%!s(int=4049) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4050) ip_address:localhost lc_id:%!s(int=119) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4050 port:%!s(int=4050) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4051) ip_address:localhost lc_id:%!s(int=120) log_enabled:%!s(int=0) model:Hikvision name:Emulator 4051 port:%!s(int=4051) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=10) ip_address:localhost lc_id:%!s(int=121) log_enabled:%!s(int=0) model:Dahua name:Emulador Dahua port:%!s(int=7075) status:stopped total:%!s(int=0)]]
-2025/08/18 19:29:32 INFO - 2025-08-18 19:29:32.579 - DEBUG: Total devices found: 18
-2025/08/18 19:29:32 INFO - 2025-08-18 19:29:32.583 - ##: paginatedDevices: [map[enabled:%!s(int=1) interval:%!s(int=4045) ip_address:localhost lc_id:%!s(int=114) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4045 port:%!s(int=4045) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4046) ip_address:localhost lc_id:%!s(int=115) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4046 port:%!s(int=4046) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4047) ip_address:localhost lc_id:%!s(int=116) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4047 port:%!s(int=4047) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4048) ip_address:localhost lc_id:%!s(int=117) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4048 port:%!s(int=4048) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4049) ip_address:localhost lc_id:%!s(int=118) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4049 port:%!s(int=4049) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4050) ip_address:localhost lc_id:%!s(int=119) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4050 port:%!s(int=4050) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4051) ip_address:localhost lc_id:%!s(int=120) log_enabled:%!s(int=0) model:Hikvision name:Emulator 4051 port:%!s(int=4051) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=10) ip_address:localhost lc_id:%!s(int=121) log_enabled:%!s(int=0) model:Dahua name:Emulador Dahua port:%!s(int=7075) status:stopped total:%!s(int=0)]]
-2025/08/18 19:29:32 INFO - 2025-08-18 19:29:32.587 - HTTP GET / - 200 - 11.634374ms
-[GIN] 2025/08/18 - 19:29:32 | 200 |   12.150027ms |             ::1 | GET      "/?page=2&per_page=10"
-2025/08/18 19:29:32 INFO - 2025-08-18 19:29:32.614 - SSE client disconnected
-2025/08/18 19:29:32 INFO - 2025-08-18 19:29:32.615 - HTTP GET /events - 200 - 1.174181159s
-[GIN] 2025/08/18 - 19:29:32 | 200 |  1.174234071s |             ::1 | GET      "/events"
-2025/08/18 19:29:33 INFO - 2025-08-18 19:29:33.222 - SSE client connected
-2025/08/18 19:29:33 INFO - 2025-08-18 19:29:33.223 - SSE listener added successfully
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.046 - >>> Starting Emulators
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.047 - ## Start Emulators - Devices received: [121]
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.047 - ## strconv.Atoi deviceID: 121
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.047 - ## Starting single deviceID: 121
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.048 - Initializing Dahua emulator model: Emulador Dahua v1.1
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.056 - Remote server URL: http://192.168.0.152:15512
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.056 - Starting Dahua emulator: Emulador Dahua
-[GIN-debug] [WARNING] Creating an Engine instance with the Logger and Recovery middleware already attached.
-
-[GIN-debug] [WARNING] Running in "debug" mode. Switch to "release" mode in production.
- - using env:	export GIN_MODE=release
- - using code:	gin.SetMode(gin.ReleaseMode)
-
-[GIN-debug] GET    /emulator/get-status      --> GoFacialEmulator/internal/emulator/dahua.(*Emulator).handleGetStatus-fm (3 handlers)
-[GIN-debug] GET    /cgi-bin/global.cgi       --> GoFacialEmulator/internal/emulator/dahua.(*Emulator).handleGlobal-fm (3 handlers)
-[GIN-debug] GET    /cgi-bin/magicBox.cgi     --> GoFacialEmulator/internal/emulator/dahua.(*Emulator).handleMagicBox-fm (3 handlers)
-[GIN-debug] GET    /cgi-bin/configManager.cgi --> GoFacialEmulator/internal/emulator/dahua.(*Emulator).handleConfigManager-fm (3 handlers)
-[GIN-debug] GET    /cgi-bin/accessControl.cgi --> GoFacialEmulator/internal/emulator/dahua.(*Emulator).handleAccessControl-fm (3 handlers)
-[GIN-debug] GET    /cgi-bin/FaceInfoManager.cgi --> GoFacialEmulator/internal/emulator/dahua.(*Emulator).handleFaceInfoManagerGet-fm (3 handlers)
-[GIN-debug] POST   /cgi-bin/FaceInfoManager.cgi --> GoFacialEmulator/internal/emulator/dahua.(*Emulator).handleFaceInfoManagerPost-fm (3 handlers)
-[GIN-debug] GET    /cgi-bin/recordFinder.cgi --> GoFacialEmulator/internal/emulator/dahua.(*Emulator).handleRecordFinder-fm (3 handlers)
-[GIN-debug] GET    /cgi-bin/recordUpdater.cgi --> GoFacialEmulator/internal/emulator/dahua.(*Emulator).handleRecordUpdaterGet-fm (3 handlers)
-[GIN-debug] POST   /cgi-bin/recordUpdater.cgi --> GoFacialEmulator/internal/emulator/dahua.(*Emulator).handleRecordUpdaterPost-fm (3 handlers)
-[GIN-debug] GET    /cgi-bin/snapManager.cgi  --> GoFacialEmulator/internal/emulator/dahua.(*Emulator).handleSnapManager-fm (3 handlers)
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.056 - Starting Dahua HTTP server on localhost:7075
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.056 - Starting event generator with interval: 10s
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.146 - Started emulator for device 121 (Emulador Dahua)
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.146 - HTTP POST /start - 303 - 100.487107ms
-[GIN] 2025/08/18 - 19:29:38 | 303 |  100.547988ms |             ::1 | POST     "/start"
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.146 - Notifying status change: Device 121 (Emulador Dahua) -> running. Active listeners: 1
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.146 - Successfully sent event to listener 0
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.146 - SSE received event: Device 121 -> running
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.147 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.147 - RLock released: ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.147 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.147 - RLock released: ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.147 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.147 - RLock released: ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.147 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.147 - RLock released: ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.147 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.147 - RLock released: ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.147 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.147 - RLock released: ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.147 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.147 - RLock released: ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.147 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.147 - RLock released: ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.147 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.147 - RLock released: ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.147 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.147 - RLock released: ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.147 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.147 - RLock released: ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.147 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.147 - RLock released: ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.147 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.147 - RLock released: ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.147 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.147 - RLock released: ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.147 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.147 - RLock released: ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.147 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.147 - RLock released: ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.147 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.147 - RLock released: ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.147 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.147 - RLock released: ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.147 - Sending SSE data: {"device_id":121,"name":"Emulador Dahua","running_count":1,"status":"running","stopped_count":17,"total_count":18}
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.153 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.153 - RLock released: ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.153 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.153 - RLock released: ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.153 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.153 - RLock released: ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.153 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.153 - RLock released: ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.153 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.153 - RLock released: ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.153 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.153 - RLock released: ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.153 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.153 - RLock released: ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.153 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.153 - RLock released: ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.153 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.153 - RLock released: ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.153 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.153 - RLock released: ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.153 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.153 - RLock released: ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.153 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.153 - RLock released: ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.153 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.153 - RLock released: ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.153 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.153 - RLock released: ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.153 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.153 - RLock released: ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.153 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.153 - RLock released: ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.153 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.153 - RLock released: ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.153 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.153 - RLock released: ListDevices
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.154 - ## Before MainPage, devices: [map[enabled:%!s(int=0) interval:%!s(int=30) ip_address:localhost lc_id:%!s(int=102) log_enabled:%!s(int=0) model:Hikvision name:Emulator Teste port:%!s(int=9090) status:stopped total:%!s(int=0)] map[enabled:%!s(int=0) interval:%!s(int=25) ip_address:localhost lc_id:%!s(int=103) log_enabled:%!s(int=0) model:Hikvision name:Emulador Hikvision 2 port:%!s(int=9091) status:stopped total:%!s(int=0)] map[enabled:%!s(int=0) interval:%!s(int=60) ip_address:localhost lc_id:%!s(int=105) log_enabled:%!s(int=0) model:Hikvision name:Emulador 3 port:%!s(int=9092) status:stopped total:%!s(int=0)] map[enabled:%!s(int=0) interval:%!s(int=120) ip_address:localhost lc_id:%!s(int=106) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4 port:%!s(int=9093) status:stopped total:%!s(int=0)] map[enabled:%!s(int=0) interval:%!s(int=200) ip_address:localhost lc_id:%!s(int=107) log_enabled:%!s(int=0) model:Hikvision name:Emulador 9095 port:%!s(int=9095) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=400) ip_address:localhost lc_id:%!s(int=109) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4040 port:%!s(int=4040) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=400) ip_address:localhost lc_id:%!s(int=110) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4041 port:%!s(int=4041) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4042) ip_address:localhost lc_id:%!s(int=111) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4042 port:%!s(int=4042) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4043) ip_address:localhost lc_id:%!s(int=112) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4043 port:%!s(int=4043) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4043) ip_address:localhost lc_id:%!s(int=113) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4044 port:%!s(int=4044) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4045) ip_address:localhost lc_id:%!s(int=114) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4045 port:%!s(int=4045) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4046) ip_address:localhost lc_id:%!s(int=115) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4046 port:%!s(int=4046) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4047) ip_address:localhost lc_id:%!s(int=116) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4047 port:%!s(int=4047) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4048) ip_address:localhost lc_id:%!s(int=117) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4048 port:%!s(int=4048) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4049) ip_address:localhost lc_id:%!s(int=118) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4049 port:%!s(int=4049) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4050) ip_address:localhost lc_id:%!s(int=119) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4050 port:%!s(int=4050) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4051) ip_address:localhost lc_id:%!s(int=120) log_enabled:%!s(int=0) model:Hikvision name:Emulator 4051 port:%!s(int=4051) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=10) ip_address:localhost lc_id:%!s(int=121) log_enabled:%!s(int=0) model:Dahua name:Emulador Dahua port:%!s(int=7075) status:running total:%!s(int=0)]]
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.154 - DEBUG: Total devices found: 18
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.154 - ##: paginatedDevices: [map[enabled:%!s(int=0) interval:%!s(int=30) ip_address:localhost lc_id:%!s(int=102) log_enabled:%!s(int=0) model:Hikvision name:Emulator Teste port:%!s(int=9090) status:stopped total:%!s(int=0)] map[enabled:%!s(int=0) interval:%!s(int=25) ip_address:localhost lc_id:%!s(int=103) log_enabled:%!s(int=0) model:Hikvision name:Emulador Hikvision 2 port:%!s(int=9091) status:stopped total:%!s(int=0)] map[enabled:%!s(int=0) interval:%!s(int=60) ip_address:localhost lc_id:%!s(int=105) log_enabled:%!s(int=0) model:Hikvision name:Emulador 3 port:%!s(int=9092) status:stopped total:%!s(int=0)] map[enabled:%!s(int=0) interval:%!s(int=120) ip_address:localhost lc_id:%!s(int=106) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4 port:%!s(int=9093) status:stopped total:%!s(int=0)] map[enabled:%!s(int=0) interval:%!s(int=200) ip_address:localhost lc_id:%!s(int=107) log_enabled:%!s(int=0) model:Hikvision name:Emulador 9095 port:%!s(int=9095) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=400) ip_address:localhost lc_id:%!s(int=109) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4040 port:%!s(int=4040) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=400) ip_address:localhost lc_id:%!s(int=110) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4041 port:%!s(int=4041) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4042) ip_address:localhost lc_id:%!s(int=111) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4042 port:%!s(int=4042) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4043) ip_address:localhost lc_id:%!s(int=112) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4043 port:%!s(int=4043) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4043) ip_address:localhost lc_id:%!s(int=113) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4044 port:%!s(int=4044) status:stopped total:%!s(int=0)]]
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.156 - HTTP GET / - 200 - 3.384031ms
-[GIN] 2025/08/18 - 19:29:38 | 200 |    3.570794ms |             ::1 | GET      "/"
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.529 - New [GET] Request at: '/cgi-bin/global.cgi' | action=getCurrentTime | time=
-[GIN] 2025/08/18 - 19:29:38 | 200 |   50.420213ms |       127.0.0.1 | GET      "/cgi-bin/global.cgi?action=getCurrentTime"
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.671 - SetConfig: map[PictureHttpUpload.Enable:[False] PictureHttpUpload.UploadServerList[0].Address:[192.168.0.152] PictureHttpUpload.UploadServerList[0].Port:[15512] PictureHttpUpload.UploadServerList[0].Uploadpath:[/notification] action:[setConfig]]
-2025/08/18 19:29:38 INFO - 2025-08-18 19:29:38.676 - Set LocalAuthentication: PictureHttpUpload.Enable=False
-[GIN] 2025/08/18 - 19:29:38 | 200 |   56.680881ms |       127.0.0.1 | GET      "/cgi-bin/configManager.cgi?action=setConfig&PictureHttpUpload.Enable=False&PictureHttpUpload.UploadServerList%5B0%5D.Address=192.168.0.152&PictureHttpUpload.UploadServerList%5B0%5D.Port=15512&PictureHttpUpload.UploadServerList%5B0%5D.Uploadpath=%2Fnotification"
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.185 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.185 - RLock released: ListDevices
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.185 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.186 - RLock released: ListDevices
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.186 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.186 - RLock released: ListDevices
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.186 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.186 - RLock released: ListDevices
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.186 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.186 - RLock released: ListDevices
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.186 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.186 - RLock released: ListDevices
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.186 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.186 - RLock released: ListDevices
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.186 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.186 - RLock released: ListDevices
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.186 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.186 - RLock released: ListDevices
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.186 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.186 - RLock released: ListDevices
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.186 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.186 - RLock released: ListDevices
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.186 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.186 - RLock released: ListDevices
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.186 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.186 - RLock released: ListDevices
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.186 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.186 - RLock released: ListDevices
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.186 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.186 - RLock released: ListDevices
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.186 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.186 - RLock released: ListDevices
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.186 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.186 - RLock released: ListDevices
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.186 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.186 - RLock released: ListDevices
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.187 - Attempting to acquire RLock...checkDeviceHealth
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.187 - RLock released: checkDeviceHealth
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.187 - DeviceID=102 is running=false
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.187 - Attempting to acquire RLock...checkDeviceHealth
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.187 - RLock released: checkDeviceHealth
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.187 - DeviceID=103 is running=false
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.187 - Attempting to acquire RLock...checkDeviceHealth
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.187 - RLock released: checkDeviceHealth
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.187 - DeviceID=105 is running=false
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.187 - Attempting to acquire RLock...checkDeviceHealth
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.187 - RLock released: checkDeviceHealth
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.187 - DeviceID=106 is running=false
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.187 - Attempting to acquire RLock...checkDeviceHealth
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.187 - RLock released: checkDeviceHealth
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.187 - DeviceID=107 is running=false
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.187 - Attempting to acquire RLock...checkDeviceHealth
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.187 - RLock released: checkDeviceHealth
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.187 - DeviceID=109 is running=false
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.187 - Attempting to acquire RLock...checkDeviceHealth
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.187 - RLock released: checkDeviceHealth
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.187 - DeviceID=110 is running=false
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.187 - Attempting to acquire RLock...checkDeviceHealth
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.187 - RLock released: checkDeviceHealth
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.187 - DeviceID=111 is running=false
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.187 - Attempting to acquire RLock...checkDeviceHealth
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.187 - RLock released: checkDeviceHealth
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.187 - DeviceID=112 is running=false
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.187 - Attempting to acquire RLock...checkDeviceHealth
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.187 - RLock released: checkDeviceHealth
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.187 - DeviceID=113 is running=false
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.187 - Attempting to acquire RLock...checkDeviceHealth
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.187 - RLock released: checkDeviceHealth
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.187 - DeviceID=114 is running=false
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.187 - Attempting to acquire RLock...checkDeviceHealth
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.187 - RLock released: checkDeviceHealth
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.187 - DeviceID=115 is running=false
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.187 - Attempting to acquire RLock...checkDeviceHealth
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.187 - RLock released: checkDeviceHealth
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.187 - DeviceID=116 is running=false
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.187 - Attempting to acquire RLock...checkDeviceHealth
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.187 - RLock released: checkDeviceHealth
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.187 - DeviceID=117 is running=false
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.187 - Attempting to acquire RLock...checkDeviceHealth
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.187 - RLock released: checkDeviceHealth
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.187 - DeviceID=118 is running=false
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.187 - Attempting to acquire RLock...checkDeviceHealth
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.187 - RLock released: checkDeviceHealth
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.187 - DeviceID=119 is running=false
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.187 - Attempting to acquire RLock...checkDeviceHealth
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.187 - RLock released: checkDeviceHealth
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.187 - DeviceID=120 is running=false
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.187 - Attempting to acquire RLock...checkDeviceHealth
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.187 - RLock released: checkDeviceHealth
-2025/08/18 19:29:39 INFO - 2025-08-18 19:29:39.187 - DeviceID=121 is running=true
-2025/08/18 19:29:40 INFO - 2025-08-18 19:29:40.647 - Command closeDoor output: 1
-2025/08/18 19:29:40 INFO - 2025-08-18 19:29:40.677 - New [GET] Request at: '/cgi-bin/global.cgi' | action=setCurrentTime | time=2025-08-18 19:29:38
-[GIN] 2025/08/18 - 19:29:40 | 200 |   50.379658ms |       127.0.0.1 | GET      "/cgi-bin/global.cgi?action=setCurrentTime&time=2025-08-18%2019%3A29%3A38"
-[GIN] 2025/08/18 - 19:29:40 | 200 |   80.419482ms |       127.0.0.1 | GET      "/cgi-bin/accessControl.cgi?action=closeDoor&channel=1"
-2025/08/18 19:29:40 INFO - 2025-08-18 19:29:40.776 - SetConfig: map[Intelbras_ModeCfg.DeviceMode:[2] Intelbras_ModeCfg.KeepAlive.Enable:[False] Intelbras_ModeCfg.KeepAlive.Interval:[5] Intelbras_ModeCfg.KeepAlive.Path:[/keepalive] Intelbras_ModeCfg.KeepAlive.TimeOut:[2000] action:[setConfig]]
-2025/08/18 19:29:40 INFO - 2025-08-18 19:29:40.776 - Set LocalAuthentication: PictureHttpUpload.Enable=
-[GIN] 2025/08/18 - 19:29:40 | 200 |   54.127175ms |       127.0.0.1 | GET      "/cgi-bin/configManager.cgi?action=setConfig&Intelbras_ModeCfg.DeviceMode=2&Intelbras_ModeCfg.KeepAlive.Enable=False&Intelbras_ModeCfg.KeepAlive.Interval=5&Intelbras_ModeCfg.KeepAlive.Path=%2Fkeepalive&Intelbras_ModeCfg.KeepAlive.TimeOut=2000"
-2025/08/18 19:29:42 INFO - 2025-08-18 19:29:42.796 - SetConfig: map[_EnableUnsecure_.Enable:[true] action:[setConfig]]
-2025/08/18 19:29:42 INFO - 2025-08-18 19:29:42.796 - Set LocalAuthentication: PictureHttpUpload.Enable=
-[GIN] 2025/08/18 - 19:29:42 | 200 |    53.80935ms |       127.0.0.1 | GET      "/cgi-bin/configManager.cgi?action=setConfig&_EnableUnsecure_.Enable=true"
-2025/08/18 19:29:42 INFO - 2025-08-18 19:29:42.859 - [GET] /cgi-bin/snapManager.cgi - Starting event stream
-2025/08/18 19:29:44 INFO - 2025-08-18 19:29:44.909 - SetConfig: map[AccessControl[0].UnlockHoldInterval:[5000] action:[setConfig]]
-2025/08/18 19:29:44 INFO - 2025-08-18 19:29:44.909 - Set LocalAuthentication: PictureHttpUpload.Enable=
-[GIN] 2025/08/18 - 19:29:44 | 200 |    52.91283ms |       127.0.0.1 | GET      "/cgi-bin/configManager.cgi?action=setConfig&AccessControl%5B0%5D.UnlockHoldInterval=5000"
-2025/08/18 19:29:47 INFO - 2025-08-18 19:29:47.032 - SetConfig: map[AccessControl[0].SensorEnable:[true] action:[setConfig]]
-2025/08/18 19:29:47 INFO - 2025-08-18 19:29:47.032 - Set LocalAuthentication: PictureHttpUpload.Enable=
-[GIN] 2025/08/18 - 19:29:47 | 200 |    53.51849ms |       127.0.0.1 | GET      "/cgi-bin/configManager.cgi?action=setConfig&AccessControl%5B0%5D.SensorEnable=true"
-2025/08/18 19:29:48 INFO - 2025-08-18 19:29:48.857 - New [GET] Request at: '/cgi-bin/global.cgi' | action=getCurrentTime | time=
-[GIN] 2025/08/18 - 19:29:48 | 200 |   51.349931ms |       127.0.0.1 | GET      "/cgi-bin/global.cgi?action=getCurrentTime"
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.162 - SetConfig: map[AccessControl[0].CloseTimeout:[30] action:[setConfig]]
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.162 - Set LocalAuthentication: PictureHttpUpload.Enable=
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - RLock released: ListDevices
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - RLock released: ListDevices
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - RLock released: ListDevices
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - RLock released: ListDevices
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - RLock released: ListDevices
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - RLock released: ListDevices
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - RLock released: ListDevices
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - RLock released: ListDevices
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - RLock released: ListDevices
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - RLock released: ListDevices
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - RLock released: ListDevices
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - RLock released: ListDevices
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - RLock released: ListDevices
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - RLock released: ListDevices
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - RLock released: ListDevices
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - RLock released: ListDevices
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - RLock released: ListDevices
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - RLock released: ListDevices
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - Attempting to acquire RLock...checkDeviceHealth
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - RLock released: checkDeviceHealth
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - DeviceID=102 is running=false
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - Attempting to acquire RLock...checkDeviceHealth
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - RLock released: checkDeviceHealth
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - DeviceID=103 is running=false
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - Attempting to acquire RLock...checkDeviceHealth
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - RLock released: checkDeviceHealth
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - DeviceID=105 is running=false
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - Attempting to acquire RLock...checkDeviceHealth
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - RLock released: checkDeviceHealth
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - DeviceID=106 is running=false
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - Attempting to acquire RLock...checkDeviceHealth
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - RLock released: checkDeviceHealth
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - DeviceID=107 is running=false
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - Attempting to acquire RLock...checkDeviceHealth
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - RLock released: checkDeviceHealth
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - DeviceID=109 is running=false
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - Attempting to acquire RLock...checkDeviceHealth
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - RLock released: checkDeviceHealth
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - DeviceID=110 is running=false
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - Attempting to acquire RLock...checkDeviceHealth
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - RLock released: checkDeviceHealth
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - DeviceID=111 is running=false
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - Attempting to acquire RLock...checkDeviceHealth
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - RLock released: checkDeviceHealth
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - DeviceID=112 is running=false
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - Attempting to acquire RLock...checkDeviceHealth
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - RLock released: checkDeviceHealth
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - DeviceID=113 is running=false
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - Attempting to acquire RLock...checkDeviceHealth
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - RLock released: checkDeviceHealth
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - DeviceID=114 is running=false
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - Attempting to acquire RLock...checkDeviceHealth
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - RLock released: checkDeviceHealth
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - DeviceID=115 is running=false
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - Attempting to acquire RLock...checkDeviceHealth
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - RLock released: checkDeviceHealth
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - DeviceID=116 is running=false
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - Attempting to acquire RLock...checkDeviceHealth
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - RLock released: checkDeviceHealth
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - DeviceID=117 is running=false
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - Attempting to acquire RLock...checkDeviceHealth
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - RLock released: checkDeviceHealth
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - DeviceID=118 is running=false
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - Attempting to acquire RLock...checkDeviceHealth
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - RLock released: checkDeviceHealth
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - DeviceID=119 is running=false
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - Attempting to acquire RLock...checkDeviceHealth
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - RLock released: checkDeviceHealth
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - DeviceID=120 is running=false
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - Attempting to acquire RLock...checkDeviceHealth
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - RLock released: checkDeviceHealth
-2025/08/18 19:29:49 INFO - 2025-08-18 19:29:49.185 - DeviceID=121 is running=true
-[GIN] 2025/08/18 - 19:29:49 | 200 |   53.359624ms |       127.0.0.1 | GET      "/cgi-bin/configManager.cgi?action=setConfig&AccessControl%5B0%5D.CloseTimeout=30"
-2025/08/18 19:29:51 INFO - 2025-08-18 19:29:51.280 - SetConfig: map[AccessTimeSchedule[1].Enable:[true] AccessTimeSchedule[1].TimeSchedule[0][0]:[1 00:00:00-23:59:00] AccessTimeSchedule[1].TimeSchedule[1][0]:[1 00:00:00-23:59:00] AccessTimeSchedule[1].TimeSchedule[2][0]:[1 00:00:00-23:59:00] AccessTimeSchedule[1].TimeSchedule[3][0]:[1 00:00:00-23:59:00] AccessTimeSchedule[1].TimeSchedule[4][0]:[1 00:00:00-23:59:00] AccessTimeSchedule[1].TimeSchedule[5][0]:[1 00:00:00-23:59:00] AccessTimeSchedule[1].TimeSchedule[6][0]:[1 00:00:00-23:59:00] action:[setConfig]]
-2025/08/18 19:29:51 INFO - 2025-08-18 19:29:51.280 - Set LocalAuthentication: PictureHttpUpload.Enable=
-[GIN] 2025/08/18 - 19:29:51 | 200 |   55.562664ms |       127.0.0.1 | GET      "/cgi-bin/configManager.cgi?action=setConfig&AccessTimeSchedule%5B1%5D.Enable=true&AccessTimeSchedule%5B1%5D.TimeSchedule%5B0%5D%5B0%5D=1%2000%3A00%3A00-23%3A59%3A00&AccessTimeSchedule%5B1%5D.TimeSchedule%5B1%5D%5B0%5D=1%2000%3A00%3A00-23%3A59%3A00&AccessTimeSchedule%5B1%5D.TimeSchedule%5B2%5D%5B0%5D=1%2000%3A00%3A00-23%3A59%3A00&AccessTimeSchedule%5B1%5D.TimeSchedule%5B3%5D%5B0%5D=1%2000%3A00%3A00-23%3A59%3A00&AccessTimeSchedule%5B1%5D.TimeSchedule%5B4%5D%5B0%5D=1%2000%3A00%3A00-23%3A59%3A00&AccessTimeSchedule%5B1%5D.TimeSchedule%5B5%5D%5B0%5D=1%2000%3A00%3A00-23%3A59%3A00&AccessTimeSchedule%5B1%5D.TimeSchedule%5B6%5D%5B0%5D=1%2000%3A00%3A00-23%3A59%3A00"
-2025/08/18 19:29:52 INFO - 2025-08-18 19:29:52.866 - >> Sending Generated Fake Event <<
-2025/08/18 19:29:52 INFO - 2025-08-18 19:29:52.867 - Generating random event for streaming
-2025/08/18 19:29:52 INFO - 2025-08-18 19:29:52.870 - Generating random event for CardNumber: 00000001, CardName: Raphael Pires, UserID: 1
-2025/08/18 19:29:52 INFO - 2025-08-18 19:29:52.870 - >> Sending Heartbeat <<
-[GIN] 2025/08/18 - 19:29:53 | 400 |   50.551046ms |       127.0.0.1 | GET      "/cgi-bin/configManager.cgi?action=getConfig&name=AccessTimeSchedule"
-2025/08/18 19:29:54 INFO - 2025-08-18 19:29:54.872 - Client disconnected from event stream
-[GIN] 2025/08/18 - 19:29:54 | 200 | 12.013741392s |       127.0.0.1 | GET      "/cgi-bin/snapManager.cgi?action=attachFileProc&Flags%5B0%5D=Event&Events=%5BAll%5D&heartbeat=10"
-2025/08/18 19:29:54 INFO - 2025-08-18 19:29:54.933 - SetConfig: map[PictureHttpUpload.Enable:[False] PictureHttpUpload.UploadServerList[0].Address:[192.168.0.152] PictureHttpUpload.UploadServerList[0].Port:[15512] PictureHttpUpload.UploadServerList[0].Uploadpath:[/notification] action:[setConfig]]
-2025/08/18 19:29:54 INFO - 2025-08-18 19:29:54.937 - Set LocalAuthentication: PictureHttpUpload.Enable=False
-[GIN] 2025/08/18 - 19:29:54 | 200 |    55.58511ms |       127.0.0.1 | GET      "/cgi-bin/configManager.cgi?action=setConfig&PictureHttpUpload.Enable=False&PictureHttpUpload.UploadServerList%5B0%5D.Address=192.168.0.152&PictureHttpUpload.UploadServerList%5B0%5D.Port=15512&PictureHttpUpload.UploadServerList%5B0%5D.Uploadpath=%2Fnotification"
-2025/08/18 19:29:55 INFO - 2025-08-18 19:29:55.617 - RecordFinder: action=find, name=AccessControlCardRec
-[GIN] 2025/08/18 - 19:29:55 | 200 |   61.048291ms |       127.0.0.1 | GET      "/cgi-bin/recordFinder.cgi?action=find&name=AccessControlCardRec&StartTime=1755556193&EndTime=1755556194"
-2025/08/18 19:29:57 INFO - 2025-08-18 19:29:57.035 - SetConfig: map[Intelbras_ModeCfg.DeviceMode:[2] Intelbras_ModeCfg.KeepAlive.Enable:[False] Intelbras_ModeCfg.KeepAlive.Interval:[5] Intelbras_ModeCfg.KeepAlive.Path:[/keepalive] Intelbras_ModeCfg.KeepAlive.TimeOut:[2000] action:[setConfig]]
-2025/08/18 19:29:57 INFO - 2025-08-18 19:29:57.036 - Set LocalAuthentication: PictureHttpUpload.Enable=
-[GIN] 2025/08/18 - 19:29:57 | 200 |   52.571671ms |       127.0.0.1 | GET      "/cgi-bin/configManager.cgi?action=setConfig&Intelbras_ModeCfg.DeviceMode=2&Intelbras_ModeCfg.KeepAlive.Enable=False&Intelbras_ModeCfg.KeepAlive.Interval=5&Intelbras_ModeCfg.KeepAlive.Path=%2Fkeepalive&Intelbras_ModeCfg.KeepAlive.TimeOut=2000"
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.064 - New [GET] Request at: '/cgi-bin/global.cgi' | action=getCurrentTime | time=
-[GIN] 2025/08/18 - 19:29:59 | 200 |   50.385128ms |       127.0.0.1 | GET      "/cgi-bin/global.cgi?action=getCurrentTime"
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.120 - [GET] /cgi-bin/snapManager.cgi - Starting event stream
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.196 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.196 - RLock released: ListDevices
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.196 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.196 - RLock released: ListDevices
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.196 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.196 - RLock released: ListDevices
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.196 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.196 - RLock released: ListDevices
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.196 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.196 - RLock released: ListDevices
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.196 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.196 - RLock released: ListDevices
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.196 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.196 - RLock released: ListDevices
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.196 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.196 - RLock released: ListDevices
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.196 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.196 - RLock released: ListDevices
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.196 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.196 - RLock released: ListDevices
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.196 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.196 - RLock released: ListDevices
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.196 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.196 - RLock released: ListDevices
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.196 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.196 - RLock released: ListDevices
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.196 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.197 - RLock released: ListDevices
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.197 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.197 - RLock released: ListDevices
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.197 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.197 - RLock released: ListDevices
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.197 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.197 - RLock released: ListDevices
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.199 - Attempting to acquire RLock... ListDevices
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.199 - RLock released: ListDevices
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.199 - Attempting to acquire RLock...checkDeviceHealth
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.199 - RLock released: checkDeviceHealth
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.199 - DeviceID=102 is running=false
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.199 - Attempting to acquire RLock...checkDeviceHealth
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.199 - RLock released: checkDeviceHealth
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.199 - DeviceID=103 is running=false
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.199 - Attempting to acquire RLock...checkDeviceHealth
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.199 - RLock released: checkDeviceHealth
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.199 - DeviceID=105 is running=false
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.199 - Attempting to acquire RLock...checkDeviceHealth
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.199 - RLock released: checkDeviceHealth
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.200 - DeviceID=106 is running=false
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.200 - Attempting to acquire RLock...checkDeviceHealth
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.200 - RLock released: checkDeviceHealth
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.200 - DeviceID=107 is running=false
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.200 - Attempting to acquire RLock...checkDeviceHealth
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.200 - RLock released: checkDeviceHealth
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.200 - DeviceID=109 is running=false
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.200 - Attempting to acquire RLock...checkDeviceHealth
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.200 - RLock released: checkDeviceHealth
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.200 - DeviceID=110 is running=false
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.200 - Attempting to acquire RLock...checkDeviceHealth
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.200 - RLock released: checkDeviceHealth
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.200 - DeviceID=111 is running=false
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.200 - Attempting to acquire RLock...checkDeviceHealth
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.200 - RLock released: checkDeviceHealth
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.200 - DeviceID=112 is running=false
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.200 - Attempting to acquire RLock...checkDeviceHealth
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.200 - RLock released: checkDeviceHealth
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.200 - DeviceID=113 is running=false
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.200 - Attempting to acquire RLock...checkDeviceHealth
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.200 - RLock released: checkDeviceHealth
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.200 - DeviceID=114 is running=false
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.200 - Attempting to acquire RLock...checkDeviceHealth
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.200 - RLock released: checkDeviceHealth
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.200 - DeviceID=115 is running=false
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.200 - Attempting to acquire RLock...checkDeviceHealth
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.200 - RLock released: checkDeviceHealth
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.200 - DeviceID=116 is running=false
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.200 - Attempting to acquire RLock...checkDeviceHealth
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.200 - RLock released: checkDeviceHealth
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.200 - DeviceID=117 is running=false
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.200 - Attempting to acquire RLock...checkDeviceHealth
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.200 - RLock released: checkDeviceHealth
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.200 - DeviceID=118 is running=false
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.200 - Attempting to acquire RLock...checkDeviceHealth
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.200 - RLock released: checkDeviceHealth
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.200 - DeviceID=119 is running=false
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.200 - Attempting to acquire RLock...checkDeviceHealth
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.200 - RLock released: checkDeviceHealth
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.200 - DeviceID=120 is running=false
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.200 - Attempting to acquire RLock...checkDeviceHealth
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.200 - RLock released: checkDeviceHealth
-2025/08/18 19:29:59 INFO - 2025-08-18 19:29:59.200 - DeviceID=121 is running=true
+2025/08/19 15:04:24 INFO - 2025-08-19 15:04:24.032 - Starting HTTP server on 0.0.0.0:8080
+2025/08/19 15:04:25 INFO - 2025-08-19 15:04:25.374 - SSE client connected
+2025/08/19 15:04:25 INFO - 2025-08-19 15:04:25.374 - SSE listener added successfully
+2025/08/19 15:04:29 INFO - 2025-08-19 15:04:29.496 - ## Before MainPage, devices: [map[enabled:%!s(int=0) interval:%!s(int=30) ip_address:localhost lc_id:%!s(int=102) log_enabled:%!s(int=0) model:Hikvision name:Emulator Teste port:%!s(int=9090) status:stopped total:%!s(int=0)] map[enabled:%!s(int=0) interval:%!s(int=25) ip_address:localhost lc_id:%!s(int=103) log_enabled:%!s(int=0) model:Hikvision name:Emulador Hikvision 2 port:%!s(int=9091) status:stopped total:%!s(int=0)] map[enabled:%!s(int=0) interval:%!s(int=60) ip_address:localhost lc_id:%!s(int=105) log_enabled:%!s(int=0) model:Hikvision name:Emulador 3 port:%!s(int=9092) status:stopped total:%!s(int=0)] map[enabled:%!s(int=0) interval:%!s(int=120) ip_address:localhost lc_id:%!s(int=106) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4 port:%!s(int=9093) status:stopped total:%!s(int=0)] map[enabled:%!s(int=0) interval:%!s(int=200) ip_address:localhost lc_id:%!s(int=107) log_enabled:%!s(int=0) model:Hikvision name:Emulador 9095 port:%!s(int=9095) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=400) ip_address:localhost lc_id:%!s(int=109) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4040 port:%!s(int=4040) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=400) ip_address:localhost lc_id:%!s(int=110) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4041 port:%!s(int=4041) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4042) ip_address:localhost lc_id:%!s(int=111) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4042 port:%!s(int=4042) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4043) ip_address:localhost lc_id:%!s(int=112) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4043 port:%!s(int=4043) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4043) ip_address:localhost lc_id:%!s(int=113) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4044 port:%!s(int=4044) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4045) ip_address:localhost lc_id:%!s(int=114) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4045 port:%!s(int=4045) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4046) ip_address:localhost lc_id:%!s(int=115) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4046 port:%!s(int=4046) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4047) ip_address:localhost lc_id:%!s(int=116) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4047 port:%!s(int=4047) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4048) ip_address:localhost lc_id:%!s(int=117) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4048 port:%!s(int=4048) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4049) ip_address:localhost lc_id:%!s(int=118) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4049 port:%!s(int=4049) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4050) ip_address:localhost lc_id:%!s(int=119) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4050 port:%!s(int=4050) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4051) ip_address:localhost lc_id:%!s(int=120) log_enabled:%!s(int=0) model:Hikvision name:Emulator 4051 port:%!s(int=4051) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=10) ip_address:localhost lc_id:%!s(int=121) log_enabled:%!s(int=0) model:Dahua name:Emulador Dahua port:%!s(int=7075) status:stopped total:%!s(int=0)]]
+2025/08/19 15:04:29 INFO - 2025-08-19 15:04:29.496 - DEBUG: Total devices found: 18
+2025/08/19 15:04:29 INFO - 2025-08-19 15:04:29.502 - ##: paginatedDevices: [map[enabled:%!s(int=0) interval:%!s(int=30) ip_address:localhost lc_id:%!s(int=102) log_enabled:%!s(int=0) model:Hikvision name:Emulator Teste port:%!s(int=9090) status:stopped total:%!s(int=0)] map[enabled:%!s(int=0) interval:%!s(int=25) ip_address:localhost lc_id:%!s(int=103) log_enabled:%!s(int=0) model:Hikvision name:Emulador Hikvision 2 port:%!s(int=9091) status:stopped total:%!s(int=0)] map[enabled:%!s(int=0) interval:%!s(int=60) ip_address:localhost lc_id:%!s(int=105) log_enabled:%!s(int=0) model:Hikvision name:Emulador 3 port:%!s(int=9092) status:stopped total:%!s(int=0)] map[enabled:%!s(int=0) interval:%!s(int=120) ip_address:localhost lc_id:%!s(int=106) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4 port:%!s(int=9093) status:stopped total:%!s(int=0)] map[enabled:%!s(int=0) interval:%!s(int=200) ip_address:localhost lc_id:%!s(int=107) log_enabled:%!s(int=0) model:Hikvision name:Emulador 9095 port:%!s(int=9095) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=400) ip_address:localhost lc_id:%!s(int=109) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4040 port:%!s(int=4040) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=400) ip_address:localhost lc_id:%!s(int=110) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4041 port:%!s(int=4041) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4042) ip_address:localhost lc_id:%!s(int=111) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4042 port:%!s(int=4042) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4043) ip_address:localhost lc_id:%!s(int=112) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4043 port:%!s(int=4043) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4043) ip_address:localhost lc_id:%!s(int=113) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4044 port:%!s(int=4044) status:stopped total:%!s(int=0)]]
+2025/08/19 15:04:29 INFO - 2025-08-19 15:04:29.503 - HTTP GET / - 200 - 8.846323ms
+[GIN] 2025/08/19 - 15:04:29 | 200 |    9.050769ms |             ::1 | GET      "/?page=1&per_page=10"
+2025/08/19 15:04:29 INFO - 2025-08-19 15:04:29.511 - SSE client disconnected
+2025/08/19 15:04:29 INFO - 2025-08-19 15:04:29.511 - HTTP GET /events - 200 - 4.137116971s
+[GIN] 2025/08/19 - 15:04:29 | 200 |  4.137128708s |             ::1 | GET      "/events"
+2025/08/19 15:04:30 INFO - 2025-08-19 15:04:30.310 - SSE client connected
+2025/08/19 15:04:30 INFO - 2025-08-19 15:04:30.310 - SSE listener added successfully
+2025/08/19 15:04:30 INFO - 2025-08-19 15:04:30.716 - HTTP GET /favicon.ico - 404 - 3.512µs
+[GIN] 2025/08/19 - 15:04:30 | 404 |      84.907µs |             ::1 | GET      "/favicon.ico"
+2025/08/19 15:04:34 INFO - 2025-08-19 15:04:34.928 - ## Before MainPage, devices: [map[enabled:%!s(int=1) interval:%!s(int=4051) ip_address:localhost lc_id:%!s(int=120) log_enabled:%!s(int=0) model:Hikvision name:Emulator 4051 port:%!s(int=4051) status:stopped total:%!s(int=0)]]
+2025/08/19 15:04:34 INFO - 2025-08-19 15:04:34.929 - DEBUG: Total devices found: 1
+2025/08/19 15:04:34 INFO - 2025-08-19 15:04:34.929 - ##: paginatedDevices: [map[enabled:%!s(int=1) interval:%!s(int=4051) ip_address:localhost lc_id:%!s(int=120) log_enabled:%!s(int=0) model:Hikvision name:Emulator 4051 port:%!s(int=4051) status:stopped total:%!s(int=0)]]
+2025/08/19 15:04:34 INFO - 2025-08-19 15:04:34.933 - HTTP GET / - 200 - 8.532761ms
+[GIN] 2025/08/19 - 15:04:34 | 200 |    8.649367ms |             ::1 | GET      "/?id=120&page=1&per_page=10"
+2025/08/19 15:04:35 INFO - 2025-08-19 15:04:35.307 - SSE client connected
+2025/08/19 15:04:35 INFO - 2025-08-19 15:04:35.307 - SSE listener added successfully
+2025/08/19 15:04:35 INFO - 2025-08-19 15:04:35.405 - SSE client disconnected
+2025/08/19 15:04:35 INFO - 2025-08-19 15:04:35.405 - HTTP GET /events - 200 - 5.095510666s
+[GIN] 2025/08/19 - 15:04:35 | 200 |  5.095533566s |             ::1 | GET      "/events"
+🔄 Adjusting pool: 52 -> 2 connections (utilization: 1.9%, peak: 1)
+2025/08/19 15:10:26 INFO - 2025-08-19 15:10:26.430 - ## Before MainPage, devices: [map[enabled:%!s(int=1) interval:%!s(int=4051) ip_address:localhost lc_id:%!s(int=120) log_enabled:%!s(int=0) model:Hikvision name:Emulator 4051 port:%!s(int=4051) status:stopped total:%!s(int=0)]]
+2025/08/19 15:10:26 INFO - 2025-08-19 15:10:26.431 - DEBUG: Total devices found: 1
+2025/08/19 15:10:26 INFO - 2025-08-19 15:10:26.433 - ##: paginatedDevices: [map[enabled:%!s(int=1) interval:%!s(int=4051) ip_address:localhost lc_id:%!s(int=120) log_enabled:%!s(int=0) model:Hikvision name:Emulator 4051 port:%!s(int=4051) status:stopped total:%!s(int=0)]]
+2025/08/19 15:10:26 INFO - 2025-08-19 15:10:26.434 - HTTP GET / - 200 - 7.840839ms
+[GIN] 2025/08/19 - 15:10:26 | 200 |    7.885741ms |             ::1 | GET      "/?id=120&page=1&per_page=10"
+2025/08/19 15:10:26 INFO - 2025-08-19 15:10:26.447 - SSE client disconnected
+2025/08/19 15:10:26 INFO - 2025-08-19 15:10:26.447 - HTTP GET /events - 200 - 5m51.140223091s
+[GIN] 2025/08/19 - 15:10:26 | 200 |         5m51s |             ::1 | GET      "/events"
+2025/08/19 15:10:26 INFO - 2025-08-19 15:10:26.821 - SSE client connected
+2025/08/19 15:10:26 INFO - 2025-08-19 15:10:26.821 - SSE listener added successfully
+2025/08/19 15:10:27 INFO - 2025-08-19 15:10:27.129 - HTTP GET /favicon.ico - 404 - 49.869µs
+[GIN] 2025/08/19 - 15:10:27 | 404 |     198.325µs |             ::1 | GET      "/favicon.ico"
+2025/08/19 15:10:45 INFO - 2025-08-19 15:10:45.307 - HTTP GET /.well-known/appspecific/com.chrome.devtools.json - 404 - 73.07µs
+[GIN] 2025/08/19 - 15:10:45 | 404 |     263.186µs |             ::1 | GET      "/.well-known/appspecific/com.chrome.devtools.json"
+2025/08/19 15:14:25 INFO - 2025-08-19 15:14:25.720 - ## Before MainPage, devices: [map[enabled:%!s(int=1) interval:%!s(int=4051) ip_address:localhost lc_id:%!s(int=120) log_enabled:%!s(int=0) model:Hikvision name:Emulator 4051 port:%!s(int=4051) status:stopped total:%!s(int=0)]]
+2025/08/19 15:14:25 INFO - 2025-08-19 15:14:25.722 - DEBUG: Total devices found: 1
+2025/08/19 15:14:25 INFO - 2025-08-19 15:14:25.723 - ##: paginatedDevices: [map[enabled:%!s(int=1) interval:%!s(int=4051) ip_address:localhost lc_id:%!s(int=120) log_enabled:%!s(int=0) model:Hikvision name:Emulator 4051 port:%!s(int=4051) status:stopped total:%!s(int=0)]]
+2025/08/19 15:14:25 INFO - 2025-08-19 15:14:25.726 - HTTP GET / - 200 - 11.173736ms
+[GIN] 2025/08/19 - 15:14:25 | 200 |    11.34319ms |             ::1 | GET      "/?id=120&page=1&per_page=10"
+2025/08/19 15:14:25 INFO - 2025-08-19 15:14:25.740 - SSE client disconnected
+2025/08/19 15:14:25 INFO - 2025-08-19 15:14:25.740 - HTTP GET /events - 200 - 3m58.91927183s
+[GIN] 2025/08/19 - 15:14:25 | 200 |         3m58s |             ::1 | GET      "/events"
+2025/08/19 15:14:25 INFO - 2025-08-19 15:14:25.793 - HTTP GET /.well-known/appspecific/com.chrome.devtools.json - 404 - 5.581µs
+[GIN] 2025/08/19 - 15:14:25 | 404 |     232.073µs |             ::1 | GET      "/.well-known/appspecific/com.chrome.devtools.json"
+2025/08/19 15:14:26 INFO - 2025-08-19 15:14:26.531 - SSE client connected
+2025/08/19 15:14:26 INFO - 2025-08-19 15:14:26.532 - SSE listener added successfully
+2025/08/19 15:14:26 INFO - 2025-08-19 15:14:26.825 - HTTP GET /favicon.ico - 404 - 2.808µs
+[GIN] 2025/08/19 - 15:14:26 | 404 |     167.057µs |             ::1 | GET      "/favicon.ico"
+2025/08/19 15:15:29 INFO - 2025-08-19 15:15:29.511 - ## Before MainPage, devices: [map[enabled:%!s(int=1) interval:%!s(int=4051) ip_address:localhost lc_id:%!s(int=120) log_enabled:%!s(int=0) model:Hikvision name:Emulator 4051 port:%!s(int=4051) status:stopped total:%!s(int=0)]]
+2025/08/19 15:15:29 INFO - 2025-08-19 15:15:29.511 - DEBUG: Total devices found: 1
+2025/08/19 15:15:29 INFO - 2025-08-19 15:15:29.512 - ##: paginatedDevices: [map[enabled:%!s(int=1) interval:%!s(int=4051) ip_address:localhost lc_id:%!s(int=120) log_enabled:%!s(int=0) model:Hikvision name:Emulator 4051 port:%!s(int=4051) status:stopped total:%!s(int=0)]]
+2025/08/19 15:15:29 INFO - 2025-08-19 15:15:29.515 - HTTP GET / - 200 - 6.663547ms
+[GIN] 2025/08/19 - 15:15:29 | 200 |    6.780977ms |             ::1 | GET      "/?id=120&page=1&per_page=10"
+2025/08/19 15:15:29 INFO - 2025-08-19 15:15:29.530 - SSE client disconnected
+2025/08/19 15:15:29 INFO - 2025-08-19 15:15:29.530 - HTTP GET /events - 200 - 1m2.998540709s
+[GIN] 2025/08/19 - 15:15:29 | 200 |          1m2s |             ::1 | GET      "/events"
+2025/08/19 15:15:29 INFO - 2025-08-19 15:15:29.580 - HTTP GET /.well-known/appspecific/com.chrome.devtools.json - 404 - 4.067µs
+[GIN] 2025/08/19 - 15:15:29 | 404 |     110.153µs |             ::1 | GET      "/.well-known/appspecific/com.chrome.devtools.json"
+2025/08/19 15:15:30 INFO - 2025-08-19 15:15:30.385 - SSE client connected
+2025/08/19 15:15:30 INFO - 2025-08-19 15:15:30.385 - SSE listener added successfully
+2025/08/19 15:15:30 INFO - 2025-08-19 15:15:30.781 - HTTP GET /favicon.ico - 404 - 3.327µs
+[GIN] 2025/08/19 - 15:15:30 | 404 |     312.638µs |             ::1 | GET      "/favicon.ico"
+2025/08/19 15:18:06 INFO - 2025-08-19 15:18:06.582 - ## Before MainPage, devices: [map[enabled:%!s(int=1) interval:%!s(int=4051) ip_address:localhost lc_id:%!s(int=120) log_enabled:%!s(int=0) model:Hikvision name:Emulator 4051 port:%!s(int=4051) status:stopped total:%!s(int=0)]]
+2025/08/19 15:18:06 INFO - 2025-08-19 15:18:06.584 - DEBUG: Total devices found: 1
+2025/08/19 15:18:06 INFO - 2025-08-19 15:18:06.586 - ##: paginatedDevices: [map[enabled:%!s(int=1) interval:%!s(int=4051) ip_address:localhost lc_id:%!s(int=120) log_enabled:%!s(int=0) model:Hikvision name:Emulator 4051 port:%!s(int=4051) status:stopped total:%!s(int=0)]]
+2025/08/19 15:18:06 INFO - 2025-08-19 15:18:06.592 - HTTP GET / - 200 - 15.182402ms
+[GIN] 2025/08/19 - 15:18:06 | 200 |   15.360145ms |             ::1 | GET      "/?id=120&page=1&per_page=10"
+2025/08/19 15:18:06 INFO - 2025-08-19 15:18:06.608 - SSE client disconnected
+2025/08/19 15:18:06 INFO - 2025-08-19 15:18:06.609 - HTTP GET /events - 200 - 2m36.223354789s
+[GIN] 2025/08/19 - 15:18:06 | 200 |         2m36s |             ::1 | GET      "/events"
+2025/08/19 15:18:06 INFO - 2025-08-19 15:18:06.661 - HTTP GET /.well-known/appspecific/com.chrome.devtools.json - 404 - 8.765µs
+[GIN] 2025/08/19 - 15:18:06 | 404 |     151.761µs |             ::1 | GET      "/.well-known/appspecific/com.chrome.devtools.json"
+2025/08/19 15:18:07 INFO - 2025-08-19 15:18:07.725 - SSE client connected
+2025/08/19 15:18:07 INFO - 2025-08-19 15:18:07.726 - SSE listener added successfully
+2025/08/19 15:18:08 INFO - 2025-08-19 15:18:08.120 - HTTP GET /favicon.ico - 404 - 2.609µs
+[GIN] 2025/08/19 - 15:18:08 | 404 |     119.185µs |             ::1 | GET      "/favicon.ico"
+2025/08/19 15:20:05 INFO - 2025-08-19 15:20:05.438 - ## Before MainPage, devices: [map[enabled:%!s(int=1) interval:%!s(int=4051) ip_address:localhost lc_id:%!s(int=120) log_enabled:%!s(int=0) model:Hikvision name:Emulator 4051 port:%!s(int=4051) status:stopped total:%!s(int=0)]]
+2025/08/19 15:20:05 INFO - 2025-08-19 15:20:05.438 - DEBUG: Total devices found: 1
+2025/08/19 15:20:05 INFO - 2025-08-19 15:20:05.439 - ##: paginatedDevices: [map[enabled:%!s(int=1) interval:%!s(int=4051) ip_address:localhost lc_id:%!s(int=120) log_enabled:%!s(int=0) model:Hikvision name:Emulator 4051 port:%!s(int=4051) status:stopped total:%!s(int=0)]]
+2025/08/19 15:20:05 INFO - 2025-08-19 15:20:05.441 - HTTP GET / - 200 - 5.201487ms
+[GIN] 2025/08/19 - 15:20:05 | 200 |    5.401812ms |             ::1 | GET      "/?id=120&page=1&per_page=10"
+2025/08/19 15:20:05 INFO - 2025-08-19 15:20:05.453 - SSE client disconnected
+2025/08/19 15:20:05 INFO - 2025-08-19 15:20:05.453 - HTTP GET /events - 200 - 1m57.727496813s
+[GIN] 2025/08/19 - 15:20:05 | 200 |         1m57s |             ::1 | GET      "/events"
+2025/08/19 15:20:05 INFO - 2025-08-19 15:20:05.480 - HTTP GET /.well-known/appspecific/com.chrome.devtools.json - 404 - 5.394µs
+[GIN] 2025/08/19 - 15:20:05 | 404 |     186.241µs |             ::1 | GET      "/.well-known/appspecific/com.chrome.devtools.json"
+2025/08/19 15:20:06 INFO - 2025-08-19 15:20:06.741 - SSE client connected
+2025/08/19 15:20:06 INFO - 2025-08-19 15:20:06.741 - SSE listener added successfully
+2025/08/19 15:20:07 INFO - 2025-08-19 15:20:07.148 - HTTP GET /favicon.ico - 404 - 615.606µs
+[GIN] 2025/08/19 - 15:20:07 | 404 |     839.591µs |             ::1 | GET      "/favicon.ico"
+2025/08/19 15:20:27 INFO - 2025-08-19 15:20:27.035 - ## Before MainPage, devices: [map[enabled:%!s(int=1) interval:%!s(int=4051) ip_address:localhost lc_id:%!s(int=120) log_enabled:%!s(int=0) model:Hikvision name:Emulator 4051 port:%!s(int=4051) status:stopped total:%!s(int=0)]]
+2025/08/19 15:20:27 INFO - 2025-08-19 15:20:27.036 - DEBUG: Total devices found: 1
+2025/08/19 15:20:27 INFO - 2025-08-19 15:20:27.037 - ##: paginatedDevices: [map[enabled:%!s(int=1) interval:%!s(int=4051) ip_address:localhost lc_id:%!s(int=120) log_enabled:%!s(int=0) model:Hikvision name:Emulator 4051 port:%!s(int=4051) status:stopped total:%!s(int=0)]]
+2025/08/19 15:20:27 INFO - 2025-08-19 15:20:27.042 - HTTP GET / - 200 - 11.067186ms
+[GIN] 2025/08/19 - 15:20:27 | 200 |   11.304685ms |             ::1 | GET      "/?id=120&page=1&per_page=10"
+2025/08/19 15:20:27 INFO - 2025-08-19 15:20:27.059 - SSE client disconnected
+2025/08/19 15:20:27 INFO - 2025-08-19 15:20:27.059 - HTTP GET /events - 200 - 20.318810126s
+[GIN] 2025/08/19 - 15:20:27 | 200 | 20.318923083s |             ::1 | GET      "/events"
+2025/08/19 15:20:27 INFO - 2025-08-19 15:20:27.092 - HTTP GET /.well-known/appspecific/com.chrome.devtools.json - 404 - 5.82µs
+[GIN] 2025/08/19 - 15:20:27 | 404 |     147.168µs |             ::1 | GET      "/.well-known/appspecific/com.chrome.devtools.json"
+2025/08/19 15:20:28 INFO - 2025-08-19 15:20:28.121 - SSE client connected
+2025/08/19 15:20:28 INFO - 2025-08-19 15:20:28.121 - SSE listener added successfully
+2025/08/19 15:20:28 INFO - 2025-08-19 15:20:28.449 - HTTP GET /favicon.ico - 404 - 7.354µs
+[GIN] 2025/08/19 - 15:20:28 | 404 |      552.29µs |             ::1 | GET      "/favicon.ico"
+2025/08/19 15:20:48 INFO - 2025-08-19 15:20:48.013 - ## Before MainPage, devices: [map[enabled:%!s(int=1) interval:%!s(int=4051) ip_address:localhost lc_id:%!s(int=120) log_enabled:%!s(int=0) model:Hikvision name:Emulator 4051 port:%!s(int=4051) status:stopped total:%!s(int=0)]]
+2025/08/19 15:20:48 INFO - 2025-08-19 15:20:48.013 - DEBUG: Total devices found: 1
+2025/08/19 15:20:48 INFO - 2025-08-19 15:20:48.014 - ##: paginatedDevices: [map[enabled:%!s(int=1) interval:%!s(int=4051) ip_address:localhost lc_id:%!s(int=120) log_enabled:%!s(int=0) model:Hikvision name:Emulator 4051 port:%!s(int=4051) status:stopped total:%!s(int=0)]]
+2025/08/19 15:20:48 INFO - 2025-08-19 15:20:48.018 - HTTP GET / - 200 - 6.686647ms
+[GIN] 2025/08/19 - 15:20:48 | 200 |    6.810948ms |             ::1 | GET      "/?id=120&page=1&per_page=10"
+2025/08/19 15:20:48 INFO - 2025-08-19 15:20:48.028 - SSE client disconnected
+2025/08/19 15:20:48 INFO - 2025-08-19 15:20:48.028 - HTTP GET /events - 200 - 19.907061207s
+[GIN] 2025/08/19 - 15:20:48 | 200 | 19.907084203s |             ::1 | GET      "/events"
+2025/08/19 15:20:48 INFO - 2025-08-19 15:20:48.047 - HTTP GET /.well-known/appspecific/com.chrome.devtools.json - 404 - 5.428µs
+[GIN] 2025/08/19 - 15:20:48 | 404 |     215.334µs |             ::1 | GET      "/.well-known/appspecific/com.chrome.devtools.json"
+2025/08/19 15:20:49 INFO - 2025-08-19 15:20:49.031 - SSE client connected
+2025/08/19 15:20:49 INFO - 2025-08-19 15:20:49.031 - SSE listener added successfully
+2025/08/19 15:20:49 INFO - 2025-08-19 15:20:49.406 - HTTP GET /favicon.ico - 404 - 7.547µs
+[GIN] 2025/08/19 - 15:20:49 | 404 |     273.234µs |             ::1 | GET      "/favicon.ico"
+2025/08/19 15:20:55 INFO - 2025-08-19 15:20:55.197 - ## Before MainPage, devices: [map[enabled:%!s(int=1) interval:%!s(int=4051) ip_address:localhost lc_id:%!s(int=120) log_enabled:%!s(int=0) model:Hikvision name:Emulator 4051 port:%!s(int=4051) status:stopped total:%!s(int=0)]]
+2025/08/19 15:20:55 INFO - 2025-08-19 15:20:55.197 - DEBUG: Total devices found: 1
+2025/08/19 15:20:55 INFO - 2025-08-19 15:20:55.198 - ##: paginatedDevices: [map[enabled:%!s(int=1) interval:%!s(int=4051) ip_address:localhost lc_id:%!s(int=120) log_enabled:%!s(int=0) model:Hikvision name:Emulator 4051 port:%!s(int=4051) status:stopped total:%!s(int=0)]]
+2025/08/19 15:20:55 INFO - 2025-08-19 15:20:55.202 - HTTP GET / - 200 - 6.453489ms
+[GIN] 2025/08/19 - 15:20:55 | 200 |    6.619292ms |             ::1 | GET      "/?id=120&page=1&per_page=10"
+2025/08/19 15:20:55 INFO - 2025-08-19 15:20:55.216 - SSE client disconnected
+2025/08/19 15:20:55 INFO - 2025-08-19 15:20:55.217 - HTTP GET /events - 200 - 6.18551471s
+[GIN] 2025/08/19 - 15:20:55 | 200 |  6.185653773s |             ::1 | GET      "/events"
+2025/08/19 15:20:55 INFO - 2025-08-19 15:20:55.246 - HTTP GET /.well-known/appspecific/com.chrome.devtools.json - 404 - 9.844µs
+[GIN] 2025/08/19 - 15:20:55 | 404 |     281.667µs |             ::1 | GET      "/.well-known/appspecific/com.chrome.devtools.json"
+2025/08/19 15:20:55 INFO - 2025-08-19 15:20:55.862 - SSE client connected
+2025/08/19 15:20:55 INFO - 2025-08-19 15:20:55.862 - SSE listener added successfully
+2025/08/19 15:20:59 INFO - 2025-08-19 15:20:59.304 - ## Before MainPage, devices: [map[enabled:%!s(int=1) interval:%!s(int=400) ip_address:localhost lc_id:%!s(int=110) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4041 port:%!s(int=4041) status:stopped total:%!s(int=0)]]
+2025/08/19 15:20:59 INFO - 2025-08-19 15:20:59.304 - DEBUG: Total devices found: 1
+2025/08/19 15:20:59 INFO - 2025-08-19 15:20:59.306 - ##: paginatedDevices: [map[enabled:%!s(int=1) interval:%!s(int=400) ip_address:localhost lc_id:%!s(int=110) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4041 port:%!s(int=4041) status:stopped total:%!s(int=0)]]
+2025/08/19 15:20:59 INFO - 2025-08-19 15:20:59.311 - HTTP GET / - 200 - 7.568892ms
+[GIN] 2025/08/19 - 15:20:59 | 200 |    7.714259ms |             ::1 | GET      "/?id=110&page=1&per_page=10"
+2025/08/19 15:20:59 INFO - 2025-08-19 15:20:59.422 - HTTP GET /.well-known/appspecific/com.chrome.devtools.json - 404 - 7.048µs
+[GIN] 2025/08/19 - 15:20:59 | 404 |     194.845µs |             ::1 | GET      "/.well-known/appspecific/com.chrome.devtools.json"
+2025/08/19 15:21:00 INFO - 2025-08-19 15:21:00.075 - SSE client connected
+2025/08/19 15:21:00 INFO - 2025-08-19 15:21:00.076 - SSE listener added successfully
+2025/08/19 15:21:00 INFO - 2025-08-19 15:21:00.297 - SSE client disconnected
+2025/08/19 15:21:00 INFO - 2025-08-19 15:21:00.297 - HTTP GET /events - 200 - 4.434894749s
+[GIN] 2025/08/19 - 15:21:00 | 200 |  4.436632445s |             ::1 | GET      "/events"
+2025/08/19 15:21:01 INFO - 2025-08-19 15:21:01.246 - ## Before MainPage, devices: [map[enabled:%!s(int=0) interval:%!s(int=30) ip_address:localhost lc_id:%!s(int=102) log_enabled:%!s(int=0) model:Hikvision name:Emulator Teste port:%!s(int=9090) status:stopped total:%!s(int=0)] map[enabled:%!s(int=0) interval:%!s(int=25) ip_address:localhost lc_id:%!s(int=103) log_enabled:%!s(int=0) model:Hikvision name:Emulador Hikvision 2 port:%!s(int=9091) status:stopped total:%!s(int=0)] map[enabled:%!s(int=0) interval:%!s(int=60) ip_address:localhost lc_id:%!s(int=105) log_enabled:%!s(int=0) model:Hikvision name:Emulador 3 port:%!s(int=9092) status:stopped total:%!s(int=0)] map[enabled:%!s(int=0) interval:%!s(int=120) ip_address:localhost lc_id:%!s(int=106) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4 port:%!s(int=9093) status:stopped total:%!s(int=0)] map[enabled:%!s(int=0) interval:%!s(int=200) ip_address:localhost lc_id:%!s(int=107) log_enabled:%!s(int=0) model:Hikvision name:Emulador 9095 port:%!s(int=9095) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=400) ip_address:localhost lc_id:%!s(int=109) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4040 port:%!s(int=4040) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=400) ip_address:localhost lc_id:%!s(int=110) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4041 port:%!s(int=4041) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4042) ip_address:localhost lc_id:%!s(int=111) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4042 port:%!s(int=4042) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4043) ip_address:localhost lc_id:%!s(int=112) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4043 port:%!s(int=4043) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4043) ip_address:localhost lc_id:%!s(int=113) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4044 port:%!s(int=4044) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4045) ip_address:localhost lc_id:%!s(int=114) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4045 port:%!s(int=4045) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4046) ip_address:localhost lc_id:%!s(int=115) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4046 port:%!s(int=4046) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4047) ip_address:localhost lc_id:%!s(int=116) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4047 port:%!s(int=4047) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4048) ip_address:localhost lc_id:%!s(int=117) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4048 port:%!s(int=4048) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4049) ip_address:localhost lc_id:%!s(int=118) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4049 port:%!s(int=4049) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4050) ip_address:localhost lc_id:%!s(int=119) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4050 port:%!s(int=4050) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4051) ip_address:localhost lc_id:%!s(int=120) log_enabled:%!s(int=0) model:Hikvision name:Emulator 4051 port:%!s(int=4051) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=10) ip_address:localhost lc_id:%!s(int=121) log_enabled:%!s(int=0) model:Dahua name:Emulador Dahua port:%!s(int=7075) status:stopped total:%!s(int=0)]]
+2025/08/19 15:21:01 INFO - 2025-08-19 15:21:01.247 - DEBUG: Total devices found: 18
+2025/08/19 15:21:01 INFO - 2025-08-19 15:21:01.248 - ##: paginatedDevices: [map[enabled:%!s(int=0) interval:%!s(int=30) ip_address:localhost lc_id:%!s(int=102) log_enabled:%!s(int=0) model:Hikvision name:Emulator Teste port:%!s(int=9090) status:stopped total:%!s(int=0)] map[enabled:%!s(int=0) interval:%!s(int=25) ip_address:localhost lc_id:%!s(int=103) log_enabled:%!s(int=0) model:Hikvision name:Emulador Hikvision 2 port:%!s(int=9091) status:stopped total:%!s(int=0)] map[enabled:%!s(int=0) interval:%!s(int=60) ip_address:localhost lc_id:%!s(int=105) log_enabled:%!s(int=0) model:Hikvision name:Emulador 3 port:%!s(int=9092) status:stopped total:%!s(int=0)] map[enabled:%!s(int=0) interval:%!s(int=120) ip_address:localhost lc_id:%!s(int=106) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4 port:%!s(int=9093) status:stopped total:%!s(int=0)] map[enabled:%!s(int=0) interval:%!s(int=200) ip_address:localhost lc_id:%!s(int=107) log_enabled:%!s(int=0) model:Hikvision name:Emulador 9095 port:%!s(int=9095) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=400) ip_address:localhost lc_id:%!s(int=109) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4040 port:%!s(int=4040) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=400) ip_address:localhost lc_id:%!s(int=110) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4041 port:%!s(int=4041) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4042) ip_address:localhost lc_id:%!s(int=111) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4042 port:%!s(int=4042) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4043) ip_address:localhost lc_id:%!s(int=112) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4043 port:%!s(int=4043) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4043) ip_address:localhost lc_id:%!s(int=113) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4044 port:%!s(int=4044) status:stopped total:%!s(int=0)]]
+2025/08/19 15:21:01 INFO - 2025-08-19 15:21:01.251 - HTTP GET / - 200 - 12.995618ms
+[GIN] 2025/08/19 - 15:21:01 | 200 |   13.415246ms |             ::1 | GET      "/?page=1&per_page=10"
+2025/08/19 15:21:01 INFO - 2025-08-19 15:21:01.349 - HTTP GET /.well-known/appspecific/com.chrome.devtools.json - 404 - 6.306µs
+[GIN] 2025/08/19 - 15:21:01 | 404 |     202.376µs |             ::1 | GET      "/.well-known/appspecific/com.chrome.devtools.json"
+2025/08/19 15:21:02 INFO - 2025-08-19 15:21:02.140 - SSE client connected
+2025/08/19 15:21:02 INFO - 2025-08-19 15:21:02.140 - SSE listener added successfully
+2025/08/19 15:21:02 INFO - 2025-08-19 15:21:02.333 - SSE client disconnected
+2025/08/19 15:21:02 INFO - 2025-08-19 15:21:02.333 - HTTP GET /events - 200 - 2.257521686s
+[GIN] 2025/08/19 - 15:21:02 | 200 |  2.257542029s |             ::1 | GET      "/events"

@@ -3,6 +3,7 @@ package emulator
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"sync"
 	"time"
 
@@ -708,4 +709,82 @@ func (m *Manager) GetPoolStats() map[string]interface{} {
 		"emulator_db": emulatorStats,
 		"timestamp":   time.Now(),
 	}
+}
+
+func (m *Manager) ListDevicesWithFilters(filters map[string]string) ([]*models.Device, error) {
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Construir query com filtros
+	query := `
+		SELECT local_controller_id, name, ip_address, port, model, status, enabled, 
+		       event_interval, total_users, log_enabled, type
+		FROM service.devices
+		WHERE 1=1
+	`
+	args := []interface{}{}
+	argIndex := 1
+
+	// Adicionar filtros condicionalmente
+	if filters["id"] != "" {
+		query += fmt.Sprintf(" AND local_controller_id = $%d", argIndex)
+		if id, err := strconv.Atoi(filters["id"]); err == nil {
+			args = append(args, id)
+			argIndex++
+		}
+	}
+
+	if filters["name"] != "" {
+		query += fmt.Sprintf(" AND LOWER(name) LIKE LOWER($%d)", argIndex)
+		args = append(args, "%"+filters["name"]+"%")
+		argIndex++
+	}
+
+	if filters["port"] != "" {
+		query += fmt.Sprintf(" AND port = $%d", argIndex)
+		if port, err := strconv.Atoi(filters["port"]); err == nil {
+			args = append(args, port)
+			argIndex++
+		}
+	}
+
+	query += " ORDER BY local_controller_id"
+
+	rows, err := m.ServiceDB.Query(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query devices with filters: %w", err)
+	}
+	defer rows.Close()
+
+	var devices []*models.Device
+	for rows.Next() {
+		device := &models.Device{}
+		var enabled, logEnabled int
+
+		err := rows.Scan(
+			&device.ID, &device.Name, &device.IPAddress, &device.Port,
+			&device.Model, &device.Status, &enabled, &device.EventInterval,
+			&device.TotalUsers, &logEnabled, &device.Type,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan device: %w", err)
+		}
+
+		device.Enabled = enabled
+		device.LogEnabled = logEnabled
+
+		// Verificar se o emulador está realmente rodando
+		if instance, exists := m.emulators[device.ID]; exists && instance.IsRunning() {
+			device.Status = "running"
+		} else {
+			device.Status = "stopped"
+		}
+
+		devices = append(devices, device)
+	}
+
+	return devices, nil
 }
