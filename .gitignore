@@ -1,3 +1,6 @@
 @PythonReference
 traces/
 /traces
+
+logs/
+.env

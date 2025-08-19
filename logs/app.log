@@ -1,20 +1,20 @@
-2025/08/19 15:04:23 INFO - 2025-08-19 15:04:23.944 - Starting Facial Emulator Service
-2025/08/19 15:04:23 INFO - 2025-08-19 15:04:23.944 - Validating database structure...
-2025/08/19 15:04:23 🔍 Validando estrutura do banco de dados...
-2025/08/19 15:04:23 ✅ Estrutura do banco está correta
-2025/08/19 15:04:23 INFO - 2025-08-19 15:04:23.968 - Database validation completed successfully
-2025/08/19 15:04:23 INFO - 2025-08-19 15:04:23.968 - Initializing database connections...
-2025/08/19 15:04:23 Não conseguiu contar dispositivos, usando estimativa padrão: ERROR: operator does not exist: integer = boolean (SQLSTATE 42883)
-2025/08/19 15:04:23 Creating adaptive pool for 50 estimated emulators
-2025/08/19 15:04:23 Adaptive pool created successfully
-2025/08/19 15:04:23 Não conseguiu contar dispositivos, usando estimativa padrão: ERROR: operator does not exist: integer = boolean (SQLSTATE 42883)
-2025/08/19 15:04:23 Creating adaptive emulator pool for 50 estimated emulators
-2025/08/19 15:04:23 INFO - 2025-08-19 15:04:23.996 - Testing database connections...
-2025/08/19 15:04:23 INFO - 2025-08-19 15:04:23.997 - All database connections successful
-2025/08/19 15:04:23 INFO - 2025-08-19 15:04:23.997 - Initializing emulator manager
-2025/08/19 15:04:24 INFO - 2025-08-19 15:04:24.002 - Refreshing device list from WXS database
-2025/08/19 15:04:24 INFO - 2025-08-19 15:04:24.002 - Starting watchdog system
-2025/08/19 15:04:24 INFO - 2025-08-19 15:04:24.003 - DEBUG: Found 18 controllers from WXS
+2025/08/19 15:38:47 INFO - 2025-08-19 15:38:47.710 - Starting Facial Emulator Service
+2025/08/19 15:38:47 INFO - 2025-08-19 15:38:47.711 - Validating database structure...
+2025/08/19 15:38:47 🔍 Validando estrutura do banco de dados...
+2025/08/19 15:38:47 ✅ Estrutura do banco está correta
+2025/08/19 15:38:47 INFO - 2025-08-19 15:38:47.739 - Database validation completed successfully
+2025/08/19 15:38:47 INFO - 2025-08-19 15:38:47.739 - Initializing database connections...
+2025/08/19 15:38:47 Não conseguiu contar dispositivos, usando estimativa padrão: ERROR: operator does not exist: integer = boolean (SQLSTATE 42883)
+2025/08/19 15:38:47 Creating adaptive pool for 50 estimated emulators
+2025/08/19 15:38:47 Adaptive pool created successfully
+2025/08/19 15:38:47 Não conseguiu contar dispositivos, usando estimativa padrão: ERROR: operator does not exist: integer = boolean (SQLSTATE 42883)
+2025/08/19 15:38:47 Creating adaptive emulator pool for 50 estimated emulators
+2025/08/19 15:38:47 INFO - 2025-08-19 15:38:47.771 - Testing database connections...
+2025/08/19 15:38:47 INFO - 2025-08-19 15:38:47.772 - All database connections successful
+2025/08/19 15:38:47 INFO - 2025-08-19 15:38:47.773 - Initializing emulator manager
+2025/08/19 15:38:47 INFO - 2025-08-19 15:38:47.776 - Refreshing device list from WXS database
+2025/08/19 15:38:47 INFO - 2025-08-19 15:38:47.776 - Starting watchdog system
+2025/08/19 15:38:47 INFO - 2025-08-19 15:38:47.780 - DEBUG: Found 18 controllers from WXS
 [GIN-debug] [WARNING] Creating an Engine instance with the Logger and Recovery middleware already attached.
 
 [GIN-debug] [WARNING] Running in "debug" mode. Switch to "release" mode in production.
@@ -51,163 +51,16 @@
 [GIN-debug] GET    /api/comparison           --> GoFacialEmulator/internal/handlers.(*Handler).getUserComparisons-fm (6 handlers)
 [GIN-debug] GET    /api/pool-stats           --> GoFacialEmulator/internal/handlers.(*Handler).getPoolStats-fm (6 handlers)
 [GIN-debug] GET    /health                   --> GoFacialEmulator/internal/handlers.(*Handler).healthCheck-fm (6 handlers)
-2025/08/19 15:04:24 INFO - 2025-08-19 15:04:24.032 - Starting HTTP server on 0.0.0.0:8080
-2025/08/19 15:04:25 INFO - 2025-08-19 15:04:25.374 - SSE client connected
-2025/08/19 15:04:25 INFO - 2025-08-19 15:04:25.374 - SSE listener added successfully
-2025/08/19 15:04:29 INFO - 2025-08-19 15:04:29.496 - ## Before MainPage, devices: [map[enabled:%!s(int=0) interval:%!s(int=30) ip_address:localhost lc_id:%!s(int=102) log_enabled:%!s(int=0) model:Hikvision name:Emulator Teste port:%!s(int=9090) status:stopped total:%!s(int=0)] map[enabled:%!s(int=0) interval:%!s(int=25) ip_address:localhost lc_id:%!s(int=103) log_enabled:%!s(int=0) model:Hikvision name:Emulador Hikvision 2 port:%!s(int=9091) status:stopped total:%!s(int=0)] map[enabled:%!s(int=0) interval:%!s(int=60) ip_address:localhost lc_id:%!s(int=105) log_enabled:%!s(int=0) model:Hikvision name:Emulador 3 port:%!s(int=9092) status:stopped total:%!s(int=0)] map[enabled:%!s(int=0) interval:%!s(int=120) ip_address:localhost lc_id:%!s(int=106) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4 port:%!s(int=9093) status:stopped total:%!s(int=0)] map[enabled:%!s(int=0) interval:%!s(int=200) ip_address:localhost lc_id:%!s(int=107) log_enabled:%!s(int=0) model:Hikvision name:Emulador 9095 port:%!s(int=9095) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=400) ip_address:localhost lc_id:%!s(int=109) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4040 port:%!s(int=4040) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=400) ip_address:localhost lc_id:%!s(int=110) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4041 port:%!s(int=4041) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4042) ip_address:localhost lc_id:%!s(int=111) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4042 port:%!s(int=4042) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4043) ip_address:localhost lc_id:%!s(int=112) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4043 port:%!s(int=4043) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4043) ip_address:localhost lc_id:%!s(int=113) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4044 port:%!s(int=4044) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4045) ip_address:localhost lc_id:%!s(int=114) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4045 port:%!s(int=4045) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4046) ip_address:localhost lc_id:%!s(int=115) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4046 port:%!s(int=4046) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4047) ip_address:localhost lc_id:%!s(int=116) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4047 port:%!s(int=4047) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4048) ip_address:localhost lc_id:%!s(int=117) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4048 port:%!s(int=4048) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4049) ip_address:localhost lc_id:%!s(int=118) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4049 port:%!s(int=4049) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4050) ip_address:localhost lc_id:%!s(int=119) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4050 port:%!s(int=4050) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4051) ip_address:localhost lc_id:%!s(int=120) log_enabled:%!s(int=0) model:Hikvision name:Emulator 4051 port:%!s(int=4051) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=10) ip_address:localhost lc_id:%!s(int=121) log_enabled:%!s(int=0) model:Dahua name:Emulador Dahua port:%!s(int=7075) status:stopped total:%!s(int=0)]]
-2025/08/19 15:04:29 INFO - 2025-08-19 15:04:29.496 - DEBUG: Total devices found: 18
-2025/08/19 15:04:29 INFO - 2025-08-19 15:04:29.502 - ##: paginatedDevices: [map[enabled:%!s(int=0) interval:%!s(int=30) ip_address:localhost lc_id:%!s(int=102) log_enabled:%!s(int=0) model:Hikvision name:Emulator Teste port:%!s(int=9090) status:stopped total:%!s(int=0)] map[enabled:%!s(int=0) interval:%!s(int=25) ip_address:localhost lc_id:%!s(int=103) log_enabled:%!s(int=0) model:Hikvision name:Emulador Hikvision 2 port:%!s(int=9091) status:stopped total:%!s(int=0)] map[enabled:%!s(int=0) interval:%!s(int=60) ip_address:localhost lc_id:%!s(int=105) log_enabled:%!s(int=0) model:Hikvision name:Emulador 3 port:%!s(int=9092) status:stopped total:%!s(int=0)] map[enabled:%!s(int=0) interval:%!s(int=120) ip_address:localhost lc_id:%!s(int=106) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4 port:%!s(int=9093) status:stopped total:%!s(int=0)] map[enabled:%!s(int=0) interval:%!s(int=200) ip_address:localhost lc_id:%!s(int=107) log_enabled:%!s(int=0) model:Hikvision name:Emulador 9095 port:%!s(int=9095) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=400) ip_address:localhost lc_id:%!s(int=109) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4040 port:%!s(int=4040) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=400) ip_address:localhost lc_id:%!s(int=110) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4041 port:%!s(int=4041) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4042) ip_address:localhost lc_id:%!s(int=111) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4042 port:%!s(int=4042) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4043) ip_address:localhost lc_id:%!s(int=112) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4043 port:%!s(int=4043) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4043) ip_address:localhost lc_id:%!s(int=113) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4044 port:%!s(int=4044) status:stopped total:%!s(int=0)]]
-2025/08/19 15:04:29 INFO - 2025-08-19 15:04:29.503 - HTTP GET / - 200 - 8.846323ms
-[GIN] 2025/08/19 - 15:04:29 | 200 |    9.050769ms |             ::1 | GET      "/?page=1&per_page=10"
-2025/08/19 15:04:29 INFO - 2025-08-19 15:04:29.511 - SSE client disconnected
-2025/08/19 15:04:29 INFO - 2025-08-19 15:04:29.511 - HTTP GET /events - 200 - 4.137116971s
-[GIN] 2025/08/19 - 15:04:29 | 200 |  4.137128708s |             ::1 | GET      "/events"
-2025/08/19 15:04:30 INFO - 2025-08-19 15:04:30.310 - SSE client connected
-2025/08/19 15:04:30 INFO - 2025-08-19 15:04:30.310 - SSE listener added successfully
-2025/08/19 15:04:30 INFO - 2025-08-19 15:04:30.716 - HTTP GET /favicon.ico - 404 - 3.512µs
-[GIN] 2025/08/19 - 15:04:30 | 404 |      84.907µs |             ::1 | GET      "/favicon.ico"
-2025/08/19 15:04:34 INFO - 2025-08-19 15:04:34.928 - ## Before MainPage, devices: [map[enabled:%!s(int=1) interval:%!s(int=4051) ip_address:localhost lc_id:%!s(int=120) log_enabled:%!s(int=0) model:Hikvision name:Emulator 4051 port:%!s(int=4051) status:stopped total:%!s(int=0)]]
-2025/08/19 15:04:34 INFO - 2025-08-19 15:04:34.929 - DEBUG: Total devices found: 1
-2025/08/19 15:04:34 INFO - 2025-08-19 15:04:34.929 - ##: paginatedDevices: [map[enabled:%!s(int=1) interval:%!s(int=4051) ip_address:localhost lc_id:%!s(int=120) log_enabled:%!s(int=0) model:Hikvision name:Emulator 4051 port:%!s(int=4051) status:stopped total:%!s(int=0)]]
-2025/08/19 15:04:34 INFO - 2025-08-19 15:04:34.933 - HTTP GET / - 200 - 8.532761ms
-[GIN] 2025/08/19 - 15:04:34 | 200 |    8.649367ms |             ::1 | GET      "/?id=120&page=1&per_page=10"
-2025/08/19 15:04:35 INFO - 2025-08-19 15:04:35.307 - SSE client connected
-2025/08/19 15:04:35 INFO - 2025-08-19 15:04:35.307 - SSE listener added successfully
-2025/08/19 15:04:35 INFO - 2025-08-19 15:04:35.405 - SSE client disconnected
-2025/08/19 15:04:35 INFO - 2025-08-19 15:04:35.405 - HTTP GET /events - 200 - 5.095510666s
-[GIN] 2025/08/19 - 15:04:35 | 200 |  5.095533566s |             ::1 | GET      "/events"
-🔄 Adjusting pool: 52 -> 2 connections (utilization: 1.9%, peak: 1)
-2025/08/19 15:10:26 INFO - 2025-08-19 15:10:26.430 - ## Before MainPage, devices: [map[enabled:%!s(int=1) interval:%!s(int=4051) ip_address:localhost lc_id:%!s(int=120) log_enabled:%!s(int=0) model:Hikvision name:Emulator 4051 port:%!s(int=4051) status:stopped total:%!s(int=0)]]
-2025/08/19 15:10:26 INFO - 2025-08-19 15:10:26.431 - DEBUG: Total devices found: 1
-2025/08/19 15:10:26 INFO - 2025-08-19 15:10:26.433 - ##: paginatedDevices: [map[enabled:%!s(int=1) interval:%!s(int=4051) ip_address:localhost lc_id:%!s(int=120) log_enabled:%!s(int=0) model:Hikvision name:Emulator 4051 port:%!s(int=4051) status:stopped total:%!s(int=0)]]
-2025/08/19 15:10:26 INFO - 2025-08-19 15:10:26.434 - HTTP GET / - 200 - 7.840839ms
-[GIN] 2025/08/19 - 15:10:26 | 200 |    7.885741ms |             ::1 | GET      "/?id=120&page=1&per_page=10"
-2025/08/19 15:10:26 INFO - 2025-08-19 15:10:26.447 - SSE client disconnected
-2025/08/19 15:10:26 INFO - 2025-08-19 15:10:26.447 - HTTP GET /events - 200 - 5m51.140223091s
-[GIN] 2025/08/19 - 15:10:26 | 200 |         5m51s |             ::1 | GET      "/events"
-2025/08/19 15:10:26 INFO - 2025-08-19 15:10:26.821 - SSE client connected
-2025/08/19 15:10:26 INFO - 2025-08-19 15:10:26.821 - SSE listener added successfully
-2025/08/19 15:10:27 INFO - 2025-08-19 15:10:27.129 - HTTP GET /favicon.ico - 404 - 49.869µs
-[GIN] 2025/08/19 - 15:10:27 | 404 |     198.325µs |             ::1 | GET      "/favicon.ico"
-2025/08/19 15:10:45 INFO - 2025-08-19 15:10:45.307 - HTTP GET /.well-known/appspecific/com.chrome.devtools.json - 404 - 73.07µs
-[GIN] 2025/08/19 - 15:10:45 | 404 |     263.186µs |             ::1 | GET      "/.well-known/appspecific/com.chrome.devtools.json"
-2025/08/19 15:14:25 INFO - 2025-08-19 15:14:25.720 - ## Before MainPage, devices: [map[enabled:%!s(int=1) interval:%!s(int=4051) ip_address:localhost lc_id:%!s(int=120) log_enabled:%!s(int=0) model:Hikvision name:Emulator 4051 port:%!s(int=4051) status:stopped total:%!s(int=0)]]
-2025/08/19 15:14:25 INFO - 2025-08-19 15:14:25.722 - DEBUG: Total devices found: 1
-2025/08/19 15:14:25 INFO - 2025-08-19 15:14:25.723 - ##: paginatedDevices: [map[enabled:%!s(int=1) interval:%!s(int=4051) ip_address:localhost lc_id:%!s(int=120) log_enabled:%!s(int=0) model:Hikvision name:Emulator 4051 port:%!s(int=4051) status:stopped total:%!s(int=0)]]
-2025/08/19 15:14:25 INFO - 2025-08-19 15:14:25.726 - HTTP GET / - 200 - 11.173736ms
-[GIN] 2025/08/19 - 15:14:25 | 200 |    11.34319ms |             ::1 | GET      "/?id=120&page=1&per_page=10"
-2025/08/19 15:14:25 INFO - 2025-08-19 15:14:25.740 - SSE client disconnected
-2025/08/19 15:14:25 INFO - 2025-08-19 15:14:25.740 - HTTP GET /events - 200 - 3m58.91927183s
-[GIN] 2025/08/19 - 15:14:25 | 200 |         3m58s |             ::1 | GET      "/events"
-2025/08/19 15:14:25 INFO - 2025-08-19 15:14:25.793 - HTTP GET /.well-known/appspecific/com.chrome.devtools.json - 404 - 5.581µs
-[GIN] 2025/08/19 - 15:14:25 | 404 |     232.073µs |             ::1 | GET      "/.well-known/appspecific/com.chrome.devtools.json"
-2025/08/19 15:14:26 INFO - 2025-08-19 15:14:26.531 - SSE client connected
-2025/08/19 15:14:26 INFO - 2025-08-19 15:14:26.532 - SSE listener added successfully
-2025/08/19 15:14:26 INFO - 2025-08-19 15:14:26.825 - HTTP GET /favicon.ico - 404 - 2.808µs
-[GIN] 2025/08/19 - 15:14:26 | 404 |     167.057µs |             ::1 | GET      "/favicon.ico"
-2025/08/19 15:15:29 INFO - 2025-08-19 15:15:29.511 - ## Before MainPage, devices: [map[enabled:%!s(int=1) interval:%!s(int=4051) ip_address:localhost lc_id:%!s(int=120) log_enabled:%!s(int=0) model:Hikvision name:Emulator 4051 port:%!s(int=4051) status:stopped total:%!s(int=0)]]
-2025/08/19 15:15:29 INFO - 2025-08-19 15:15:29.511 - DEBUG: Total devices found: 1
-2025/08/19 15:15:29 INFO - 2025-08-19 15:15:29.512 - ##: paginatedDevices: [map[enabled:%!s(int=1) interval:%!s(int=4051) ip_address:localhost lc_id:%!s(int=120) log_enabled:%!s(int=0) model:Hikvision name:Emulator 4051 port:%!s(int=4051) status:stopped total:%!s(int=0)]]
-2025/08/19 15:15:29 INFO - 2025-08-19 15:15:29.515 - HTTP GET / - 200 - 6.663547ms
-[GIN] 2025/08/19 - 15:15:29 | 200 |    6.780977ms |             ::1 | GET      "/?id=120&page=1&per_page=10"
-2025/08/19 15:15:29 INFO - 2025-08-19 15:15:29.530 - SSE client disconnected
-2025/08/19 15:15:29 INFO - 2025-08-19 15:15:29.530 - HTTP GET /events - 200 - 1m2.998540709s
-[GIN] 2025/08/19 - 15:15:29 | 200 |          1m2s |             ::1 | GET      "/events"
-2025/08/19 15:15:29 INFO - 2025-08-19 15:15:29.580 - HTTP GET /.well-known/appspecific/com.chrome.devtools.json - 404 - 4.067µs
-[GIN] 2025/08/19 - 15:15:29 | 404 |     110.153µs |             ::1 | GET      "/.well-known/appspecific/com.chrome.devtools.json"
-2025/08/19 15:15:30 INFO - 2025-08-19 15:15:30.385 - SSE client connected
-2025/08/19 15:15:30 INFO - 2025-08-19 15:15:30.385 - SSE listener added successfully
-2025/08/19 15:15:30 INFO - 2025-08-19 15:15:30.781 - HTTP GET /favicon.ico - 404 - 3.327µs
-[GIN] 2025/08/19 - 15:15:30 | 404 |     312.638µs |             ::1 | GET      "/favicon.ico"
-2025/08/19 15:18:06 INFO - 2025-08-19 15:18:06.582 - ## Before MainPage, devices: [map[enabled:%!s(int=1) interval:%!s(int=4051) ip_address:localhost lc_id:%!s(int=120) log_enabled:%!s(int=0) model:Hikvision name:Emulator 4051 port:%!s(int=4051) status:stopped total:%!s(int=0)]]
-2025/08/19 15:18:06 INFO - 2025-08-19 15:18:06.584 - DEBUG: Total devices found: 1
-2025/08/19 15:18:06 INFO - 2025-08-19 15:18:06.586 - ##: paginatedDevices: [map[enabled:%!s(int=1) interval:%!s(int=4051) ip_address:localhost lc_id:%!s(int=120) log_enabled:%!s(int=0) model:Hikvision name:Emulator 4051 port:%!s(int=4051) status:stopped total:%!s(int=0)]]
-2025/08/19 15:18:06 INFO - 2025-08-19 15:18:06.592 - HTTP GET / - 200 - 15.182402ms
-[GIN] 2025/08/19 - 15:18:06 | 200 |   15.360145ms |             ::1 | GET      "/?id=120&page=1&per_page=10"
-2025/08/19 15:18:06 INFO - 2025-08-19 15:18:06.608 - SSE client disconnected
-2025/08/19 15:18:06 INFO - 2025-08-19 15:18:06.609 - HTTP GET /events - 200 - 2m36.223354789s
-[GIN] 2025/08/19 - 15:18:06 | 200 |         2m36s |             ::1 | GET      "/events"
-2025/08/19 15:18:06 INFO - 2025-08-19 15:18:06.661 - HTTP GET /.well-known/appspecific/com.chrome.devtools.json - 404 - 8.765µs
-[GIN] 2025/08/19 - 15:18:06 | 404 |     151.761µs |             ::1 | GET      "/.well-known/appspecific/com.chrome.devtools.json"
-2025/08/19 15:18:07 INFO - 2025-08-19 15:18:07.725 - SSE client connected
-2025/08/19 15:18:07 INFO - 2025-08-19 15:18:07.726 - SSE listener added successfully
-2025/08/19 15:18:08 INFO - 2025-08-19 15:18:08.120 - HTTP GET /favicon.ico - 404 - 2.609µs
-[GIN] 2025/08/19 - 15:18:08 | 404 |     119.185µs |             ::1 | GET      "/favicon.ico"
-2025/08/19 15:20:05 INFO - 2025-08-19 15:20:05.438 - ## Before MainPage, devices: [map[enabled:%!s(int=1) interval:%!s(int=4051) ip_address:localhost lc_id:%!s(int=120) log_enabled:%!s(int=0) model:Hikvision name:Emulator 4051 port:%!s(int=4051) status:stopped total:%!s(int=0)]]
-2025/08/19 15:20:05 INFO - 2025-08-19 15:20:05.438 - DEBUG: Total devices found: 1
-2025/08/19 15:20:05 INFO - 2025-08-19 15:20:05.439 - ##: paginatedDevices: [map[enabled:%!s(int=1) interval:%!s(int=4051) ip_address:localhost lc_id:%!s(int=120) log_enabled:%!s(int=0) model:Hikvision name:Emulator 4051 port:%!s(int=4051) status:stopped total:%!s(int=0)]]
-2025/08/19 15:20:05 INFO - 2025-08-19 15:20:05.441 - HTTP GET / - 200 - 5.201487ms
-[GIN] 2025/08/19 - 15:20:05 | 200 |    5.401812ms |             ::1 | GET      "/?id=120&page=1&per_page=10"
-2025/08/19 15:20:05 INFO - 2025-08-19 15:20:05.453 - SSE client disconnected
-2025/08/19 15:20:05 INFO - 2025-08-19 15:20:05.453 - HTTP GET /events - 200 - 1m57.727496813s
-[GIN] 2025/08/19 - 15:20:05 | 200 |         1m57s |             ::1 | GET      "/events"
-2025/08/19 15:20:05 INFO - 2025-08-19 15:20:05.480 - HTTP GET /.well-known/appspecific/com.chrome.devtools.json - 404 - 5.394µs
-[GIN] 2025/08/19 - 15:20:05 | 404 |     186.241µs |             ::1 | GET      "/.well-known/appspecific/com.chrome.devtools.json"
-2025/08/19 15:20:06 INFO - 2025-08-19 15:20:06.741 - SSE client connected
-2025/08/19 15:20:06 INFO - 2025-08-19 15:20:06.741 - SSE listener added successfully
-2025/08/19 15:20:07 INFO - 2025-08-19 15:20:07.148 - HTTP GET /favicon.ico - 404 - 615.606µs
-[GIN] 2025/08/19 - 15:20:07 | 404 |     839.591µs |             ::1 | GET      "/favicon.ico"
-2025/08/19 15:20:27 INFO - 2025-08-19 15:20:27.035 - ## Before MainPage, devices: [map[enabled:%!s(int=1) interval:%!s(int=4051) ip_address:localhost lc_id:%!s(int=120) log_enabled:%!s(int=0) model:Hikvision name:Emulator 4051 port:%!s(int=4051) status:stopped total:%!s(int=0)]]
-2025/08/19 15:20:27 INFO - 2025-08-19 15:20:27.036 - DEBUG: Total devices found: 1
-2025/08/19 15:20:27 INFO - 2025-08-19 15:20:27.037 - ##: paginatedDevices: [map[enabled:%!s(int=1) interval:%!s(int=4051) ip_address:localhost lc_id:%!s(int=120) log_enabled:%!s(int=0) model:Hikvision name:Emulator 4051 port:%!s(int=4051) status:stopped total:%!s(int=0)]]
-2025/08/19 15:20:27 INFO - 2025-08-19 15:20:27.042 - HTTP GET / - 200 - 11.067186ms
-[GIN] 2025/08/19 - 15:20:27 | 200 |   11.304685ms |             ::1 | GET      "/?id=120&page=1&per_page=10"
-2025/08/19 15:20:27 INFO - 2025-08-19 15:20:27.059 - SSE client disconnected
-2025/08/19 15:20:27 INFO - 2025-08-19 15:20:27.059 - HTTP GET /events - 200 - 20.318810126s
-[GIN] 2025/08/19 - 15:20:27 | 200 | 20.318923083s |             ::1 | GET      "/events"
-2025/08/19 15:20:27 INFO - 2025-08-19 15:20:27.092 - HTTP GET /.well-known/appspecific/com.chrome.devtools.json - 404 - 5.82µs
-[GIN] 2025/08/19 - 15:20:27 | 404 |     147.168µs |             ::1 | GET      "/.well-known/appspecific/com.chrome.devtools.json"
-2025/08/19 15:20:28 INFO - 2025-08-19 15:20:28.121 - SSE client connected
-2025/08/19 15:20:28 INFO - 2025-08-19 15:20:28.121 - SSE listener added successfully
-2025/08/19 15:20:28 INFO - 2025-08-19 15:20:28.449 - HTTP GET /favicon.ico - 404 - 7.354µs
-[GIN] 2025/08/19 - 15:20:28 | 404 |      552.29µs |             ::1 | GET      "/favicon.ico"
-2025/08/19 15:20:48 INFO - 2025-08-19 15:20:48.013 - ## Before MainPage, devices: [map[enabled:%!s(int=1) interval:%!s(int=4051) ip_address:localhost lc_id:%!s(int=120) log_enabled:%!s(int=0) model:Hikvision name:Emulator 4051 port:%!s(int=4051) status:stopped total:%!s(int=0)]]
-2025/08/19 15:20:48 INFO - 2025-08-19 15:20:48.013 - DEBUG: Total devices found: 1
-2025/08/19 15:20:48 INFO - 2025-08-19 15:20:48.014 - ##: paginatedDevices: [map[enabled:%!s(int=1) interval:%!s(int=4051) ip_address:localhost lc_id:%!s(int=120) log_enabled:%!s(int=0) model:Hikvision name:Emulator 4051 port:%!s(int=4051) status:stopped total:%!s(int=0)]]
-2025/08/19 15:20:48 INFO - 2025-08-19 15:20:48.018 - HTTP GET / - 200 - 6.686647ms
-[GIN] 2025/08/19 - 15:20:48 | 200 |    6.810948ms |             ::1 | GET      "/?id=120&page=1&per_page=10"
-2025/08/19 15:20:48 INFO - 2025-08-19 15:20:48.028 - SSE client disconnected
-2025/08/19 15:20:48 INFO - 2025-08-19 15:20:48.028 - HTTP GET /events - 200 - 19.907061207s
-[GIN] 2025/08/19 - 15:20:48 | 200 | 19.907084203s |             ::1 | GET      "/events"
-2025/08/19 15:20:48 INFO - 2025-08-19 15:20:48.047 - HTTP GET /.well-known/appspecific/com.chrome.devtools.json - 404 - 5.428µs
-[GIN] 2025/08/19 - 15:20:48 | 404 |     215.334µs |             ::1 | GET      "/.well-known/appspecific/com.chrome.devtools.json"
-2025/08/19 15:20:49 INFO - 2025-08-19 15:20:49.031 - SSE client connected
-2025/08/19 15:20:49 INFO - 2025-08-19 15:20:49.031 - SSE listener added successfully
-2025/08/19 15:20:49 INFO - 2025-08-19 15:20:49.406 - HTTP GET /favicon.ico - 404 - 7.547µs
-[GIN] 2025/08/19 - 15:20:49 | 404 |     273.234µs |             ::1 | GET      "/favicon.ico"
-2025/08/19 15:20:55 INFO - 2025-08-19 15:20:55.197 - ## Before MainPage, devices: [map[enabled:%!s(int=1) interval:%!s(int=4051) ip_address:localhost lc_id:%!s(int=120) log_enabled:%!s(int=0) model:Hikvision name:Emulator 4051 port:%!s(int=4051) status:stopped total:%!s(int=0)]]
-2025/08/19 15:20:55 INFO - 2025-08-19 15:20:55.197 - DEBUG: Total devices found: 1
-2025/08/19 15:20:55 INFO - 2025-08-19 15:20:55.198 - ##: paginatedDevices: [map[enabled:%!s(int=1) interval:%!s(int=4051) ip_address:localhost lc_id:%!s(int=120) log_enabled:%!s(int=0) model:Hikvision name:Emulator 4051 port:%!s(int=4051) status:stopped total:%!s(int=0)]]
-2025/08/19 15:20:55 INFO - 2025-08-19 15:20:55.202 - HTTP GET / - 200 - 6.453489ms
-[GIN] 2025/08/19 - 15:20:55 | 200 |    6.619292ms |             ::1 | GET      "/?id=120&page=1&per_page=10"
-2025/08/19 15:20:55 INFO - 2025-08-19 15:20:55.216 - SSE client disconnected
-2025/08/19 15:20:55 INFO - 2025-08-19 15:20:55.217 - HTTP GET /events - 200 - 6.18551471s
-[GIN] 2025/08/19 - 15:20:55 | 200 |  6.185653773s |             ::1 | GET      "/events"
-2025/08/19 15:20:55 INFO - 2025-08-19 15:20:55.246 - HTTP GET /.well-known/appspecific/com.chrome.devtools.json - 404 - 9.844µs
-[GIN] 2025/08/19 - 15:20:55 | 404 |     281.667µs |             ::1 | GET      "/.well-known/appspecific/com.chrome.devtools.json"
-2025/08/19 15:20:55 INFO - 2025-08-19 15:20:55.862 - SSE client connected
-2025/08/19 15:20:55 INFO - 2025-08-19 15:20:55.862 - SSE listener added successfully
-2025/08/19 15:20:59 INFO - 2025-08-19 15:20:59.304 - ## Before MainPage, devices: [map[enabled:%!s(int=1) interval:%!s(int=400) ip_address:localhost lc_id:%!s(int=110) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4041 port:%!s(int=4041) status:stopped total:%!s(int=0)]]
-2025/08/19 15:20:59 INFO - 2025-08-19 15:20:59.304 - DEBUG: Total devices found: 1
-2025/08/19 15:20:59 INFO - 2025-08-19 15:20:59.306 - ##: paginatedDevices: [map[enabled:%!s(int=1) interval:%!s(int=400) ip_address:localhost lc_id:%!s(int=110) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4041 port:%!s(int=4041) status:stopped total:%!s(int=0)]]
-2025/08/19 15:20:59 INFO - 2025-08-19 15:20:59.311 - HTTP GET / - 200 - 7.568892ms
-[GIN] 2025/08/19 - 15:20:59 | 200 |    7.714259ms |             ::1 | GET      "/?id=110&page=1&per_page=10"
-2025/08/19 15:20:59 INFO - 2025-08-19 15:20:59.422 - HTTP GET /.well-known/appspecific/com.chrome.devtools.json - 404 - 7.048µs
-[GIN] 2025/08/19 - 15:20:59 | 404 |     194.845µs |             ::1 | GET      "/.well-known/appspecific/com.chrome.devtools.json"
-2025/08/19 15:21:00 INFO - 2025-08-19 15:21:00.075 - SSE client connected
-2025/08/19 15:21:00 INFO - 2025-08-19 15:21:00.076 - SSE listener added successfully
-2025/08/19 15:21:00 INFO - 2025-08-19 15:21:00.297 - SSE client disconnected
-2025/08/19 15:21:00 INFO - 2025-08-19 15:21:00.297 - HTTP GET /events - 200 - 4.434894749s
-[GIN] 2025/08/19 - 15:21:00 | 200 |  4.436632445s |             ::1 | GET      "/events"
-2025/08/19 15:21:01 INFO - 2025-08-19 15:21:01.246 - ## Before MainPage, devices: [map[enabled:%!s(int=0) interval:%!s(int=30) ip_address:localhost lc_id:%!s(int=102) log_enabled:%!s(int=0) model:Hikvision name:Emulator Teste port:%!s(int=9090) status:stopped total:%!s(int=0)] map[enabled:%!s(int=0) interval:%!s(int=25) ip_address:localhost lc_id:%!s(int=103) log_enabled:%!s(int=0) model:Hikvision name:Emulador Hikvision 2 port:%!s(int=9091) status:stopped total:%!s(int=0)] map[enabled:%!s(int=0) interval:%!s(int=60) ip_address:localhost lc_id:%!s(int=105) log_enabled:%!s(int=0) model:Hikvision name:Emulador 3 port:%!s(int=9092) status:stopped total:%!s(int=0)] map[enabled:%!s(int=0) interval:%!s(int=120) ip_address:localhost lc_id:%!s(int=106) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4 port:%!s(int=9093) status:stopped total:%!s(int=0)] map[enabled:%!s(int=0) interval:%!s(int=200) ip_address:localhost lc_id:%!s(int=107) log_enabled:%!s(int=0) model:Hikvision name:Emulador 9095 port:%!s(int=9095) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=400) ip_address:localhost lc_id:%!s(int=109) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4040 port:%!s(int=4040) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=400) ip_address:localhost lc_id:%!s(int=110) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4041 port:%!s(int=4041) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4042) ip_address:localhost lc_id:%!s(int=111) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4042 port:%!s(int=4042) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4043) ip_address:localhost lc_id:%!s(int=112) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4043 port:%!s(int=4043) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4043) ip_address:localhost lc_id:%!s(int=113) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4044 port:%!s(int=4044) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4045) ip_address:localhost lc_id:%!s(int=114) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4045 port:%!s(int=4045) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4046) ip_address:localhost lc_id:%!s(int=115) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4046 port:%!s(int=4046) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4047) ip_address:localhost lc_id:%!s(int=116) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4047 port:%!s(int=4047) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4048) ip_address:localhost lc_id:%!s(int=117) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4048 port:%!s(int=4048) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4049) ip_address:localhost lc_id:%!s(int=118) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4049 port:%!s(int=4049) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4050) ip_address:localhost lc_id:%!s(int=119) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4050 port:%!s(int=4050) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4051) ip_address:localhost lc_id:%!s(int=120) log_enabled:%!s(int=0) model:Hikvision name:Emulator 4051 port:%!s(int=4051) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=10) ip_address:localhost lc_id:%!s(int=121) log_enabled:%!s(int=0) model:Dahua name:Emulador Dahua port:%!s(int=7075) status:stopped total:%!s(int=0)]]
-2025/08/19 15:21:01 INFO - 2025-08-19 15:21:01.247 - DEBUG: Total devices found: 18
-2025/08/19 15:21:01 INFO - 2025-08-19 15:21:01.248 - ##: paginatedDevices: [map[enabled:%!s(int=0) interval:%!s(int=30) ip_address:localhost lc_id:%!s(int=102) log_enabled:%!s(int=0) model:Hikvision name:Emulator Teste port:%!s(int=9090) status:stopped total:%!s(int=0)] map[enabled:%!s(int=0) interval:%!s(int=25) ip_address:localhost lc_id:%!s(int=103) log_enabled:%!s(int=0) model:Hikvision name:Emulador Hikvision 2 port:%!s(int=9091) status:stopped total:%!s(int=0)] map[enabled:%!s(int=0) interval:%!s(int=60) ip_address:localhost lc_id:%!s(int=105) log_enabled:%!s(int=0) model:Hikvision name:Emulador 3 port:%!s(int=9092) status:stopped total:%!s(int=0)] map[enabled:%!s(int=0) interval:%!s(int=120) ip_address:localhost lc_id:%!s(int=106) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4 port:%!s(int=9093) status:stopped total:%!s(int=0)] map[enabled:%!s(int=0) interval:%!s(int=200) ip_address:localhost lc_id:%!s(int=107) log_enabled:%!s(int=0) model:Hikvision name:Emulador 9095 port:%!s(int=9095) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=400) ip_address:localhost lc_id:%!s(int=109) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4040 port:%!s(int=4040) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=400) ip_address:localhost lc_id:%!s(int=110) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4041 port:%!s(int=4041) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4042) ip_address:localhost lc_id:%!s(int=111) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4042 port:%!s(int=4042) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4043) ip_address:localhost lc_id:%!s(int=112) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4043 port:%!s(int=4043) status:stopped total:%!s(int=0)] map[enabled:%!s(int=1) interval:%!s(int=4043) ip_address:localhost lc_id:%!s(int=113) log_enabled:%!s(int=0) model:Hikvision name:Emulador 4044 port:%!s(int=4044) status:stopped total:%!s(int=0)]]
-2025/08/19 15:21:01 INFO - 2025-08-19 15:21:01.251 - HTTP GET / - 200 - 12.995618ms
-[GIN] 2025/08/19 - 15:21:01 | 200 |   13.415246ms |             ::1 | GET      "/?page=1&per_page=10"
-2025/08/19 15:21:01 INFO - 2025-08-19 15:21:01.349 - HTTP GET /.well-known/appspecific/com.chrome.devtools.json - 404 - 6.306µs
-[GIN] 2025/08/19 - 15:21:01 | 404 |     202.376µs |             ::1 | GET      "/.well-known/appspecific/com.chrome.devtools.json"
-2025/08/19 15:21:02 INFO - 2025-08-19 15:21:02.140 - SSE client connected
-2025/08/19 15:21:02 INFO - 2025-08-19 15:21:02.140 - SSE listener added successfully
-2025/08/19 15:21:02 INFO - 2025-08-19 15:21:02.333 - SSE client disconnected
-2025/08/19 15:21:02 INFO - 2025-08-19 15:21:02.333 - HTTP GET /events - 200 - 2.257521686s
-[GIN] 2025/08/19 - 15:21:02 | 200 |  2.257542029s |             ::1 | GET      "/events"
+2025/08/19 15:38:47 INFO - 2025-08-19 15:38:47.807 - Starting HTTP server on 0.0.0.0:8080
+2025/08/19 15:38:49 INFO - 2025-08-19 15:38:49.228 - SSE client connected
+2025/08/19 15:38:49 INFO - 2025-08-19 15:38:49.228 - SSE listener added successfully
+2025/08/19 15:38:50 INFO - 2025-08-19 15:38:50.871 - DEBUG: Filtered devices: 18, All devices: 18
+2025/08/19 15:38:50 INFO - 2025-08-19 15:38:50.874 - HTTP GET / - 200 - 4.969531ms
+[GIN] 2025/08/19 - 15:38:50 | 200 |    5.162244ms |             ::1 | GET      "/?page=1&per_page=10"
+2025/08/19 15:38:50 INFO - 2025-08-19 15:38:50.883 - SSE client disconnected
+2025/08/19 15:38:50 INFO - 2025-08-19 15:38:50.883 - HTTP GET /events - 200 - 1.655165683s
+[GIN] 2025/08/19 - 15:38:50 | 200 |   1.65527383s |             ::1 | GET      "/events"
+2025/08/19 15:38:51 INFO - 2025-08-19 15:38:51.349 - SSE client connected
+2025/08/19 15:38:51 INFO - 2025-08-19 15:38:51.349 - SSE listener added successfully
+2025/08/19 15:38:51 INFO - 2025-08-19 15:38:51.697 - HTTP GET /favicon.ico - 404 - 14.466µs
+[GIN] 2025/08/19 - 15:38:51 | 404 |     630.106µs |             ::1 | GET      "/favicon.ico"

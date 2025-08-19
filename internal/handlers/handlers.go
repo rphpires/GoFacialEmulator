@@ -75,6 +75,12 @@ func (h *Handler) loadTemplate(templateName string) *template.Template {
 		"gt":  func(a, b int) bool { return a > b },
 		"eq":  func(a, b interface{}) bool { return a == b },
 		"ne":  func(a, b interface{}) bool { return a != b },
+		"default": func(defaultValue interface{}, value interface{}) interface{} {
+			if value == nil {
+				return defaultValue
+			}
+			return value
+		},
 	}
 
 	baseFiles := []string{
@@ -168,7 +174,6 @@ func (h *Handler) corsMiddleware() gin.HandlerFunc {
 
 // Web Interface Handlers
 
-// mainPage gerencia a página principal - baseado no main_page() do Python
 func (h *Handler) mainPage(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "10"))
@@ -180,22 +185,25 @@ func (h *Handler) mainPage(c *gin.Context) {
 		"port": c.Query("port"),
 	}
 
-	devices, deviceStatusOk, err := h.getCurrentDevicesWithFilters(filters)
-	h.tracer.Info("## Before MainPage, devices: %s", devices)
+	// Dispositivos filtrados para a tabela
+	devices, _, err := h.getCurrentDevicesWithFilters(filters)
 	if err != nil {
 		h.tracer.Error("Failed to get current devices: %v", err)
 		c.HTML(http.StatusInternalServerError, "error.html", gin.H{"error": err.Error()})
 		return
 	}
 
-	h.tracer.Info("DEBUG: Total devices found: %d", len(devices))
-	_, comparisonStatusOk, err := h.getComparisonPageContent()
+	// Contadores baseados em TODOS os dispositivos (sem filtros)
+	allDevices, deviceStatusRunning, err := h.getCurrentDevices()
 	if err != nil {
-		h.tracer.Error("Failed to get comparison content: %v", err)
-		comparisonStatusOk = 0
+		h.tracer.Error("Failed to get all devices for counters: %v", err)
+		c.HTML(http.StatusInternalServerError, "error.html", gin.H{"error": err.Error()})
+		return
 	}
 
-	// Paginação
+	h.tracer.Info("DEBUG: Filtered devices: %d, All devices: %d", len(devices), len(allDevices))
+
+	// Paginação dos dispositivos filtrados
 	totalDevices := len(devices)
 	start := (page - 1) * perPage
 	end := start + perPage
@@ -210,16 +218,13 @@ func (h *Handler) mainPage(c *gin.Context) {
 
 	totalPages := (totalDevices + perPage - 1) / perPage
 
-	qntTotalEmulators := len(devices)
+	// Contadores baseados em TODOS os dispositivos
+	totalAllDevices := len(allDevices)
 	counterCards := map[string]interface{}{
-		"total":                   qntTotalEmulators,
-		"comparison_status_ok":    comparisonStatusOk,
-		"comparison_status_error": qntTotalEmulators - comparisonStatusOk,
-		"running":                 deviceStatusOk,
-		"stopped":                 qntTotalEmulators - deviceStatusOk,
+		"total":   totalAllDevices,
+		"running": deviceStatusRunning,
+		"stopped": totalAllDevices - deviceStatusRunning,
 	}
-
-	h.tracer.Info("##: paginatedDevices: %s", paginatedDevices)
 
 	context := gin.H{
 		"devices":       paginatedDevices,
@@ -227,7 +232,7 @@ func (h *Handler) mainPage(c *gin.Context) {
 		"total_pages":   totalPages,
 		"per_page":      perPage,
 		"counter_cards": counterCards,
-		"filters":       filters, // Passar filtros para o template
+		"filters":       filters,
 	}
 
 	tmpl := h.loadTemplate("web/templates/devices.html")
@@ -765,7 +770,6 @@ func (h *Handler) handleSSE(c *gin.Context) {
 	listener := h.manager.AddStatusListener()
 	defer h.manager.RemoveStatusListener(listener)
 
-	// ADICIONAR ESTE LOG:
 	h.tracer.Info("SSE listener added successfully")
 
 	// Canal para detectar desconexão do cliente
@@ -779,22 +783,24 @@ func (h *Handler) handleSSE(c *gin.Context) {
 				return
 			}
 
-			// ADICIONAR ESTE LOG:
 			h.tracer.Info("SSE received event: Device %d -> %s", event.DeviceID, event.Status)
 
-			// Obter contadores atualizados
-			devices, err := h.manager.ListDevices()
+			// Obter contadores atualizados de TODOS os dispositivos
+			allDevices, err := h.manager.ListDevices()
 			if err != nil {
 				h.tracer.Error("Failed to get devices for SSE: %v", err)
 				continue
 			}
 
 			runningCount := 0
-			for _, device := range devices {
+			for _, device := range allDevices {
 				if device.Status == "running" {
 					runningCount++
 				}
 			}
+
+			totalCount := len(allDevices)
+			stoppedCount := totalCount - runningCount
 
 			// Enviar evento SSE
 			data := map[string]interface{}{
@@ -802,8 +808,8 @@ func (h *Handler) handleSSE(c *gin.Context) {
 				"status":        event.Status,
 				"name":          event.Name,
 				"running_count": runningCount,
-				"stopped_count": len(devices) - runningCount,
-				"total_count":   len(devices),
+				"stopped_count": stoppedCount,
+				"total_count":   totalCount,
 			}
 
 			jsonData, err := json.Marshal(data)
@@ -812,7 +818,6 @@ func (h *Handler) handleSSE(c *gin.Context) {
 				continue
 			}
 
-			// ADICIONAR ESTE LOG:
 			h.tracer.Info("Sending SSE data: %s", string(jsonData))
 
 			// Formato SSE: data: {json}\n\n
@@ -833,7 +838,6 @@ func (h *Handler) handleSSE(c *gin.Context) {
 		}
 	}
 }
-
 func (h *Handler) getPoolStats(c *gin.Context) {
 	stats := h.manager.GetPoolStats()
 	c.JSON(http.StatusOK, stats)
