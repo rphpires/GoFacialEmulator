@@ -179,7 +179,7 @@ func (m *Manager) getDeviceType(model string) int {
 func (m *Manager) upsertDevice(ctx context.Context, device models.Device) error {
 	query := `
 		INSERT INTO service.devices (
-			local_controller_id, name, ip_address, port, model, enabled, type, 
+			local_controller_id, name, ip_address, port, model, enabled, type,
 			status, event_interval, total_users, log_enabled
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 		ON CONFLICT (local_controller_id) DO UPDATE SET
@@ -244,7 +244,7 @@ func (m *Manager) ListDevices() ([]models.Device, error) {
 	defer cancel()
 
 	query := `
-		SELECT local_controller_id, name, ip_address, port, model, enabled, type, 
+		SELECT local_controller_id, name, ip_address, port, model, enabled, type,
 		       status, event_interval, total_users, log_enabled
 		FROM service.devices
 		ORDER BY local_controller_id
@@ -268,7 +268,7 @@ func (m *Manager) ListDevices() ([]models.Device, error) {
 		}
 
 		// Atualizar status baseado no emulador real
-		m.Tracer.Info("Attempting to acquire RLock... ListDevices")
+		// m.Tracer.Info("Attempting to acquire RLock... ListDevices")
 		m.mutex.RLock()
 		if emulator, exists := m.emulators[device.ID]; exists && emulator.IsRunning() {
 			device.Status = "running"
@@ -276,7 +276,7 @@ func (m *Manager) ListDevices() ([]models.Device, error) {
 			device.Status = "stopped"
 		}
 		m.mutex.RUnlock()
-		m.Tracer.Info("RLock released: ListDevices")
+		// m.Tracer.Info("RLock released: ListDevices")
 
 		devices = append(devices, device)
 	}
@@ -290,7 +290,7 @@ func (m *Manager) GetDevice(id int) (models.Device, error) {
 	defer cancel()
 
 	query := `
-		SELECT local_controller_id, name, ip_address, port, model, enabled, type, 
+		SELECT local_controller_id, name, ip_address, port, model, enabled, type,
 		       status, event_interval, total_users, log_enabled
 		FROM service.devices
 		WHERE local_controller_id = $1
@@ -344,7 +344,7 @@ func (m *Manager) getDeviceUnsafe(id int) (models.Device, error) {
 	defer cancel()
 
 	query := `
-        SELECT local_controller_id, name, ip_address, port, model, enabled, type, 
+        SELECT local_controller_id, name, ip_address, port, model, enabled, type,
                status, event_interval, total_users, log_enabled
         FROM service.devices
         WHERE local_controller_id = $1
@@ -571,14 +571,12 @@ func (m *Manager) performHealthChecks() {
 
 // checkDeviceHealth verifica a saúde de um dispositivo - equivalente ao check_connection() e emulator_watchdog()
 func (m *Manager) checkDeviceHealth(device models.Device) {
-	m.Tracer.Info("Attempting to acquire RLock...checkDeviceHealth")
 	m.mutex.RLock()
 	emulator, exists := m.emulators[device.ID]
 	isRunning := exists && emulator.IsRunning()
 	m.mutex.RUnlock()
-	m.Tracer.Info("RLock released: checkDeviceHealth")
 
-	m.Tracer.Info("DeviceID=%d is running=%t", device.ID, isRunning)
+	// m.Tracer.Info("DeviceID=%d is running=%t", device.ID, isRunning)
 
 	watchdogInfo, exists := m.watchdog[device.ID]
 	if !exists {
@@ -704,7 +702,7 @@ func (m *Manager) notifyStatusChange(deviceID int, status string, deviceName str
 func (m *Manager) GetPoolStats() map[string]interface{} {
 	serviceStats := m.ServiceDB.GetStats()
 	emulatorStats := m.EmulatorDB.GetStats()
-	
+
 	return map[string]interface{}{
 		"service_db":  serviceStats,
 		"emulator_db": emulatorStats,
