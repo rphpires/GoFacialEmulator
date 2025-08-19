@@ -600,7 +600,11 @@ func (h *Handler) getCurrentDevices() ([]map[string]interface{}, int, error) {
 	deviceStatusRunning := 0
 
 	for _, device := range devices {
-		if device.Status == "running" {
+		// Determinar status considerando se está habilitado
+		status := device.Status
+		if device.Enabled == 0 {
+			status = "disabled"
+		} else if device.Status == "running" {
 			deviceStatusRunning++
 		}
 
@@ -611,7 +615,7 @@ func (h *Handler) getCurrentDevices() ([]map[string]interface{}, int, error) {
 			"port":        device.Port,
 			"log_enabled": device.LogEnabled,
 			"model":       device.Model,
-			"status":      device.Status,
+			"status":      status,
 			"enabled":     device.Enabled,
 			"interval":    device.EventInterval,
 			"total":       device.TotalUsers,
@@ -853,7 +857,11 @@ func (h *Handler) getCurrentDevicesWithFilters(filters map[string]string) ([]map
 	deviceStatusRunning := 0
 
 	for _, device := range devices {
-		if device.Status == "running" {
+		// Determinar status considerando se está habilitado
+		status := device.Status
+		if device.Enabled == 0 {
+			status = "disabled"
+		} else if device.Status == "running" {
 			deviceStatusRunning++
 		}
 
@@ -864,7 +872,7 @@ func (h *Handler) getCurrentDevicesWithFilters(filters map[string]string) ([]map
 			"port":        device.Port,
 			"log_enabled": device.LogEnabled,
 			"model":       device.Model,
-			"status":      device.Status,
+			"status":      status,
 			"enabled":     device.Enabled,
 			"interval":    device.EventInterval,
 			"total":       device.TotalUsers,

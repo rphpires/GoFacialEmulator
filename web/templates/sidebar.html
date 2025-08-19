@@ -1,115 +1,111 @@
-<div class="row flex-nowrap">
-  <div class="col-auto col-md-0 col-xl-0 px-0" style="background-color: rgb(255, 255, 255);">
-    <div class="d-flex flex-column align-items-center align-items-sm-start px-3 pt-2 text-white">
-      <button class="btn btn-dark d-block d-sm-none mb-3" type="button" data-bs-toggle="collapse"
-        data-bs-target="#menuCollapse" aria-expanded="false" aria-controls="menuCollapse">
-        <i class="bi bi-list fs-4"></i>
-      </button>
-      <div class="collapse d-sm-block" id="menuCollapse">
-        <ul class="nav flex-column align-items-start" id="menu">
-          <li>
-            <a href="/" 
-              class="nav-link px-0 align-middle" 
-              style="background: none; border: none; color: rgb(5, 5, 5); cursor: pointer; ">
-              <i class="bi bi-tablet fs-4"></i>
-              <span class="ms-1">Dispositivos</span>
-            </a>
-          </li>
-          <li>
-            <a href="/comparison" class="nav-link px-0 align-middle" style="background: none; border: none; color: rgb(5, 5, 5); cursor: pointer; ">
-              <i class="bi bi-arrow-left-right fs-4"></i>
-              <span class="ms-1">Comparação</span>
-            </a>
-          </li>
-          <li>
-            <button class="nav-link px-0 align-middle" style="background: none; border: none; color: green; cursor: pointer;" onclick="start_all_emulators()">
-              <i class="bi bi-play-circle fs-4" style="color: green;"></i>
-              <span class="ms-1">Iniciar Todos</span>
-            </button>
-          </li>
-          <li>
-            <button class="nav-link px-0 align-middle" style="background: none; border: none; color: rgb(245, 70, 70); cursor: pointer;" onclick="stop_all_emulators()">
-              <i class="bi bi-stop-circle fs-4" style="color: rgb(245, 70, 70);"></i>
-              <span class="ms-1">Parar Todos</span>
-            </button>
-          </li>
-          <li>
-            <a href="/refresh" class="nav-link px-0 align-middle">
-              <i class="bi bi-arrow-clockwise fs-4"></i>
-              <span class="ms-1">Refresh DB</span>
-            </a>
-          </li>
-          <li>
-            <!-- Button to trigger recreate operation -->
-            <!--button id="recreate-btn" class="btn btn-primary">Recreate Emulators</button-->
-          </li>
-        </ul>
-      </div>
-      <hr>
-    </div>
+<div class="col-auto col-md-3 col-xl-2 px-sm-2 px-0 bg-light" style="min-height: 100vh;">
+  <div class="d-flex flex-column align-items-start px-3 pt-2">
+    
+    <!-- Menu sempre visível em desktop, texto esconde em mobile -->
+    <ul class="nav flex-column w-100">
+      <li class="nav-item">
+        <a href="/" class="nav-link text-dark d-flex align-items-center">
+          <i class="bi bi-tablet me-2"></i>
+          <span class="d-none d-md-inline">Dispositivos</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a href="/comparison" class="nav-link text-dark d-flex align-items-center">
+          <i class="bi bi-arrow-left-right me-2"></i>
+          <span class="d-none d-md-inline">Comparação</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link text-success d-flex align-items-center w-100 border-0 bg-transparent" 
+                onclick="start_all_emulators()" 
+                title="Iniciar Todos">
+          <i class="bi bi-play-circle me-2"></i>
+          <span class="d-none d-md-inline">Iniciar Todos</span>
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link text-danger d-flex align-items-center w-100 border-0 bg-transparent" 
+                onclick="stop_all_emulators()"
+                title="Parar Todos">
+          <i class="bi bi-stop-circle me-2"></i>
+          <span class="d-none d-md-inline">Parar Todos</span>
+        </button>
+      </li>
+      <li class="nav-item">
+        <a href="/refresh" class="nav-link text-primary d-flex align-items-center" title="Refresh DB">
+          <i class="bi bi-arrow-clockwise me-2"></i>
+          <span class="d-none d-md-inline">Refresh DB</span>
+        </a>
+      </li>
+    </ul>
+    
+    <hr class="w-100 d-none d-md-block">
   </div>
+</div>
 
-
-  <script>
-    window.start_all_emulators = async () => {
-      const selectedDevicesLog = getSelectedDevicesLog();
-      try {
-        const response = await fetch('/start', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ devices: ["all"], enable_log: selectedDevicesLog }),  // Ajuste conforme necessário
-        });
-      } catch (error) {
-        console.error('Erro ao iniciar emuladores:', error);
-        alert('Erro ao iniciar emuladores.');
-      }
-    };
-    window.stop_all_emulators = async () => {
-      try {
-        const response = await fetch('/stop', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ devices: ["all"] }),  // Ajuste conforme necessário
-        });
-      } catch (error) {
-        console.error('Erro ao parar emuladores:', error);
-        alert('Erro ao parar emuladores.');
-      }
-    };
-
-    // Função para obter IDs dos dispositivos selecionados para habilitar o Log
-    function getSelectedDevicesLog() {
-      console.log("getSelectedDevicesLog")
-      const devicesLog = {};
-      const deviceCheckboxes = document.querySelectorAll('input.log-checkbox');
-
-      deviceCheckboxes.forEach((checkbox) => {
-        const row = checkbox.closest('tr'); // Acessa a linha da tabela
- 
-        if (row) {
-          // Encontre o elemento <td> com o ID 'port_no'
-          const portElement = row.querySelector('td#port_no');
-
-          if (portElement) {
-            // Pegue o valor do texto do <td>
-            const port = portElement.textContent.trim();
-
-            // Adicione o valor ao objeto devicesLog com base no estado do checkbox
-            devicesLog[port] = checkbox.checked;
-          }
-        }
+<script>
+  window.start_all_emulators = async () => {
+    try {
+      const response = await fetch('/start', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ devices: ["all"], enable_log: {} }),
       });
+      
+      if (response.ok) {
+        console.log('Todos os emuladores iniciados');
+      } else {
+        console.error('Falha ao iniciar emuladores');
+      }
+    } catch (error) {
+      console.error('Erro ao iniciar emuladores:', error);
+      alert('Erro ao iniciar emuladores.');
+    }
+  };
 
-      return devicesLog;
+  window.stop_all_emulators = async () => {
+    try {
+      const response = await fetch('/stop', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ devices: ["all"] }),
+      });
+      
+      if (response.ok) {
+        console.log('Todos os emuladores parados');
+      } else {
+        console.error('Falha ao parar emuladores');
+      }
+    } catch (error) {
+      console.error('Erro ao parar emuladores:', error);
+      alert('Erro ao parar emuladores.');
+    }
+  };
+</script>
+
+<style>
+  /* Melhorar aparência dos botões do sidebar */
+  .nav-link {
+    transition: background-color 0.2s ease;
+  }
+  
+  .nav-link:hover {
+    background-color: rgba(0,0,0,0.05) !important;
+  }
+  
+  /* Em telas pequenas, centralizar ícones */
+  @media (max-width: 767.98px) {
+    .col-auto.col-md-3.col-xl-2 {
+      max-width: 60px;
     }
     
-  </script>
-
-</document_content></document>
-</invoke>
-
-<function_calls>
+    .nav-link {
+      justify-content: center;
+      padding: 10px 5px;
+    }
+  }
+</style>

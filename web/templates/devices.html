@@ -119,13 +119,15 @@
           <td class="text-center">{{ .total }}</td>
           <td class="text-center">
             <a href="#" 
-              class="btn btn-outline-success btn-sm {{ if eq .status "running" }}btn-custom-disabled{{ end }}"
-              onclick="startSingleEmulator('{{.lc_id}}', document.getElementById('log_enabled_{{ .lc_id }}').checked)">
+              class="btn btn-outline-success btn-sm {{ if or (eq .status "running") (eq .status "disabled") }}btn-custom-disabled{{ end }}"
+              onclick="{{ if ne .status "disabled" }}startSingleEmulator('{{.lc_id}}', document.getElementById('log_enabled_{{ .lc_id }}').checked){{ end }}"
+              {{ if eq .status "disabled" }}title="Dispositivo desabilitado"{{ end }}>
                 <i class="bi bi-play-fill"></i>
             </a>
             <a href="#" 
-              class="btn btn-outline-danger btn-sm {{ if eq .status "stopped" }}btn-custom-disabled{{ end }}"
-              onclick="stopSingleEmulator('{{.lc_id}}')">
+              class="btn btn-outline-danger btn-sm {{ if or (eq .status "stopped") (eq .status "disabled") }}btn-custom-disabled{{ end }}"
+              onclick="{{ if ne .status "disabled" }}stopSingleEmulator('{{.lc_id}}'){{ end }}"
+              {{ if eq .status "disabled" }}title="Dispositivo desabilitado"{{ end }}>
                 <i class="bi bi-pause-fill"></i>
             </a>
           </td>
@@ -136,6 +138,10 @@
           {{ if eq .status "running" }}
           <td class="text-center">
             <span class="border border-success" style="padding: 5px; border-radius: 5px; color: #117529;">{{ .status }}</span>
+          </td>
+          {{ else if eq .status "disabled" }}
+          <td class="text-center">
+            <span class="border border-secondary" style="padding: 5px; border-radius: 5px; color: #6c757d;">{{ .status }}</span>
           </td>
           {{ else }}
           <td class="text-center">
