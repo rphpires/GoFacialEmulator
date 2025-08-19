@@ -92,16 +92,20 @@ func (db *WxsDB) GetLocalControllers() ([]map[string]interface{}, error) {
 	defer cancel()
 
 	query := `
-		SELECT 
-			LocalControllerID, 
-			LocalControllerName, 
-			IPAddress, 
-			BaseCommPort, 
-			LocalControllerEnabled,
-			LocalControllerType,
-			LocalControllerDescription 
-		FROM CfgHWLocalControllers
-		WHERE LocalControllerDescription LIKE 'emulator%'
+SELECT 
+	LocalControllerID, 
+	LocalControllerName, 
+	lc.IPAddress, 
+	lc.BaseCommPort, 
+	CASE 
+		WHEN ger.ControllerEnabled = 1 THEN LocalControllerEnabled
+		ELSE ger.ControllerEnabled
+	END AS LocalControllerEnabled,
+	LocalControllerType,
+	LocalControllerDescription 
+FROM CfgHWLocalControllers lc
+JOIN CfgHWControllers ger on ger.ControllerID = lc.SiteControllerID
+WHERE LocalControllerDescription LIKE 'emulator%'
 	`
 
 	rows, err := db.QueryContext(ctx, query)
