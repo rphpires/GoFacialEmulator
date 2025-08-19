@@ -1,5 +1,5 @@
 /**
- * Ultra-Clean Header JavaScript - Invenzi Emulators
+ * Ultra-Clean Header JavaScript - Facial Emulators
  * Seguindo tendências UX 2025: Micro-interações, performance, acessibilidade
  */
 

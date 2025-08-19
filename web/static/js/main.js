@@ -1,5 +1,5 @@
 /**
- * Main JavaScript - Invenzi Emulators
+ * Main JavaScript - Facial Emulators
  * Scripts gerais da aplicação
  */
 
@@ -30,7 +30,7 @@ document.addEventListener('DOMContentLoaded', function () {
  * Inicialização principal da aplicação
  */
 function initializeApp() {
-    console.log('Invenzi Emulators - Aplicação iniciada');
+    console.log('Facial Emulators - Aplicação iniciada');
 
     // Inicializar tooltips do Bootstrap
     initializeTooltips();
