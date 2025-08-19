@@ -27,7 +27,7 @@ emulator_db:
 # Configuração do banco de dados WXS (sistema externo)
 wxsDB:
   driver: "mssql"
-  host: "172.20.112.1"
+  host: "172.20.112.123"
   port: 1433
   database: "W_Access"
   username: "W-Access"
