@@ -1,0 +1,346 @@
+/* ========================================
+   Ultra-Clean Header Styles - Invenzi Emulators
+   Inspirado nas tendências UX 2025: Minimalismo, Espaço em branco, Tipografia limpa
+   ======================================== */
+
+.clean-header {
+    background: #fafbfc;
+    border-bottom: 1px solid #e1e5e9;
+    padding: 1rem 0;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+/* Efeito sutil ao scrollar */
+.clean-header.scrolled {
+    background: rgba(250, 251, 252, 0.95);
+    box-shadow: 0 2px 20px rgba(0, 0, 0, 0.08);
+}
+
+.navbar-brand {
+    font-weight: 500;
+    font-size: 1.25rem;
+    color: #1a202c !important;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: opacity 0.2s ease;
+    text-decoration: none;
+    letter-spacing: -0.025em;
+}
+
+.navbar-brand:hover {
+    opacity: 0.8;
+    color: #1a202c !important;
+}
+
+.brand-icon {
+    width: 28px;
+    height: 28px;
+    background: linear-gradient(135deg, #ff8c00 0%, #ff6b35 100%);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.brand-icon:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(255, 140, 0, 0.3);
+}
+
+.brand-icon i {
+    font-size: 0.9rem;
+    color: white;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+}
+
+/* Status Badge - Design ultra limpo */
+.status-badge {
+    background: #f7f8fa;
+    color: #4a5568;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid #e2e8f0;
+    transition: all 0.2s ease;
+}
+
+.status-badge:hover {
+    background: #edf2f7;
+    border-color: #cbd5e0;
+}
+
+.status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #10b981;
+    transition: background-color 0.3s ease;
+}
+
+/* Logo da empresa com design clean */
+.company-logo {
+    max-height: 36px;
+    max-width: 110px;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    background: white;
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.company-logo:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-color: #ff8c00;
+}
+
+.logo-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 80px;
+    max-width: 120px;
+    height: 40px;
+}
+
+.logo-fallback {
+    background: white;
+    color: #ff8c00;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.8rem;
+    letter-spacing: 0.5px;
+    transition: all 0.2s ease;
+    display: none;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.logo-fallback:hover {
+    background: #f7f8fa;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Botão de configurações minimalista */
+.settings-btn {
+    background: white;
+    border: 1px solid #e2e8f0;
+    color: #4a5568;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.settings-btn:hover {
+    background: #f7f8fa;
+    color: #ff8c00;
+    border-color: #ff8c00;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(255, 140, 0, 0.2);
+}
+
+.settings-btn i {
+    font-size: 0.9rem;
+}
+
+/* Separador visual sutil */
+.header-divider {
+    width: 1px;
+    height: 24px;
+    background: #e2e8f0;
+    margin: 0 8px;
+}
+
+/* ========================================
+   Micro-interações e animações sutis
+   ======================================== */
+
+@keyframes subtle-pulse {
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.05);
+    }
+}
+
+.status-dot.pulsing {
+    animation: subtle-pulse 2s ease-in-out infinite;
+}
+
+/* ========================================
+   Responsive Design - Mobile First
+   ======================================== */
+
+@media (max-width: 768px) {
+    .clean-header {
+        padding: 0.8rem 0;
+    }
+
+    .navbar-brand {
+        font-size: 1.1rem;
+    }
+
+    .brand-icon {
+        width: 24px;
+        height: 24px;
+    }
+
+    .brand-icon i {
+        font-size: 0.8rem;
+    }
+
+    .header-right {
+        gap: 16px;
+    }
+
+    .status-badge {
+        padding: 4px 8px;
+        font-size: 0.75rem;
+    }
+
+    .company-logo {
+        max-height: 28px;
+        max-width: 80px;
+        padding: 3px 6px;
+    }
+
+    .logo-container {
+        min-width: 60px;
+        max-width: 90px;
+        height: 32px;
+    }
+
+    .logo-fallback {
+        padding: 4px 8px;
+        font-size: 0.7rem;
+    }
+
+    .settings-btn {
+        width: 32px;
+        height: 32px;
+    }
+
+    .settings-btn i {
+        font-size: 0.8rem;
+    }
+
+    .header-divider {
+        display: none;
+    }
+}
+
+@media (max-width: 576px) {
+    .status-badge span {
+        display: none;
+    }
+
+    .status-badge {
+        padding: 6px;
+        border-radius: 50%;
+        width: 32px;
+        height: 32px;
+        justify-content: center;
+    }
+
+    .header-right {
+        gap: 12px;
+    }
+}
+
+/* ========================================
+   Estados de carregamento
+   ======================================== */
+
+.header-loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.header-loading * {
+    animation: subtle-pulse 1.5s ease-in-out infinite;
+}
+
+/* ========================================
+   Accessibility
+   ======================================== */
+
+@media (prefers-reduced-motion: reduce) {
+
+    .clean-header,
+    .navbar-brand,
+    .brand-icon,
+    .status-badge,
+    .company-logo,
+    .settings-btn {
+        transition: none;
+    }
+
+    .status-dot.pulsing {
+        animation: none;
+    }
+}
+
+/* Focus states para acessibilidade */
+.navbar-brand:focus,
+.settings-btn:focus {
+    outline: 2px solid #ff8c00;
+    outline-offset: 2px;
+}
+
+/* ========================================
+   Dark mode support (futuro)
+   ======================================== */
+
+@media (prefers-color-scheme: dark) {
+    .clean-header {
+        background: #1a202c;
+        border-bottom-color: #2d3748;
+    }
+
+    .navbar-brand {
+        color: #f7fafc !important;
+    }
+
+    .status-badge {
+        background: #2d3748;
+        color: #e2e8f0;
+        border-color: #4a5568;
+    }
+
+    .settings-btn {
+        background: #2d3748;
+        border-color: #4a5568;
+        color: #e2e8f0;
+    }
+}
