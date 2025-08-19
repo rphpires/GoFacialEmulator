@@ -570,19 +570,21 @@ func (m *Manager) performHealthChecks() {
 	}
 }
 
-// checkDeviceHealth verifica a saúde de um dispositivo - equivalente ao check_connection() e emulator_watchdog()
 func (m *Manager) checkDeviceHealth(device models.Device) {
 	m.mutex.RLock()
 	emulator, exists := m.emulators[device.ID]
 	isRunning := exists && emulator.IsRunning()
 	m.mutex.RUnlock()
 
-	// m.Tracer.Info("DeviceID=%d is running=%t", device.ID, isRunning)
-
 	watchdogInfo, exists := m.watchdog[device.ID]
 	if !exists {
 		watchdogInfo = &WatchdogInfo{FailureCount: 0, LastCheck: time.Now(), LastStatus: "unknown"}
 		m.watchdog[device.ID] = watchdogInfo
+	}
+
+	// ADICIONAR ESTA SEÇÃO - Atualizar total_users se emulador estiver rodando
+	if isRunning {
+		m.updateDeviceTotalUsers(device.ID, emulator)
 	}
 
 	// Verificar se está rodando quando deveria
@@ -596,24 +598,41 @@ func (m *Manager) checkDeviceHealth(device models.Device) {
 			m.Tracer.Info("Attempting to restart device %d after %d failures", device.ID, watchdogInfo.FailureCount)
 			if err := m.Start(device.ID); err != nil {
 				m.Tracer.Error("Failed to restart device %d: %v", device.ID, err)
-				// ADICIONAR ESTA LINHA: notificar falha na tela
 				go m.notifyStatusChange(device.ID, "error", device.Name)
 			} else {
 				watchdogInfo.FailureCount = 0
-				// A notificação de "running" já é feita na função Start()
 			}
 		}
 	} else if device.Status == "stopped" && isRunning {
-		// Parar se não deveria estar rodando
 		m.Tracer.Info("Device %d is running but should be stopped", device.ID)
 		m.Stop(device.ID)
-		// A notificação de "stopped" já é feita na função Stop()
 	} else {
-		// Tudo OK, resetar contador
 		watchdogInfo.FailureCount = 0
 	}
 
 	watchdogInfo.LastCheck = time.Now()
+}
+
+func (m *Manager) updateDeviceTotalUsers(deviceID int, emulator Emulator) {
+	// Obter total de usuários usando a interface comum
+	totalUsers, err := emulator.GetTotalUsers()
+	if err != nil {
+		// Log do erro mas não interromper o processo
+		m.Tracer.Error("Failed to get total users for device %d: %v", deviceID, err)
+		return
+	}
+
+	// Atualizar no banco (com timeout curto para não travar)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	_, err = m.ServiceDB.Exec(ctx,
+		"UPDATE service.devices SET total_users = $1 WHERE local_controller_id = $2",
+		totalUsers, deviceID)
+
+	if err != nil {
+		m.Tracer.Error("Failed to update total_users for device %d: %v", deviceID, err)
+	}
 }
 
 // Shutdown fecha o manager gracefully

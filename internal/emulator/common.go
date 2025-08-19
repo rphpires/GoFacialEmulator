@@ -22,6 +22,7 @@ type Emulator interface {
 	GetInfo() models.Device
 	GenerateEvent() error
 	GetType() string
+	GetTotalUsers() (int, error)
 }
 
 // EventGenerator define a interface para geradores de eventos

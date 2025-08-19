@@ -462,6 +462,10 @@ func (e *Emulator) sendDoorEvent(status string) error {
 	return e.sendEventToRemoteServer(body)
 }
 
+func (e *Emulator) GetTotalUsers() (int, error) {
+	return e.repo.GetTotalUsers()
+}
+
 // GetCleanPhotoBase64 retorna a string base64 limpa para uso
 func GetCleanPhotoBase64() string {
 	// Remove quebras de linha, espaços e caracteres de controle
