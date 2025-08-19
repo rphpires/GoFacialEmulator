@@ -2,5 +2,25 @@
 traces/
 /traces
 
-logs/
+emulator-service
+
+
+# Arquivos de ambiente e configuração sensível
 .env
+.env.*
+*.env
+
+# Logs e traces
+logs/
+traces/
+*.log
+*.trace
+
+# Binários compilados
+bin/
+dist/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib

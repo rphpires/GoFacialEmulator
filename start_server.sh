@@ -2,11 +2,26 @@
 
 echo "=== Iniciando GoFacialEmulator ==="
 
+# Ler senha sudo do arquivo .env se existir
+SUDO_PASSWORD=""
+if [[ -f ".env" ]]; then
+    SUDO_PASSWORD=$(grep "^SUDO_PASSWORD=" .env 2>/dev/null | cut -d'=' -f2- | tr -d "'" | tr -d '"')
+fi
+
+# Função para executar comando com sudo usando a senha
+run_sudo() {
+    if [[ -n "$SUDO_PASSWORD" ]]; then
+        echo "$SUDO_PASSWORD" | sudo -S "$@"
+    else
+        sudo "$@"
+    fi
+}
+
 # 1. Verificar PostgreSQL
 echo "1. Verificando PostgreSQL..."
-if ! sudo service postgresql status > /dev/null 2>&1; then
+if ! run_sudo service postgresql status > /dev/null 2>&1; then
     echo "Iniciando PostgreSQL..."
-    sudo service postgresql start
+    run_sudo service postgresql start
     sleep 2
 fi
 
@@ -42,4 +57,25 @@ echo ""
 
 # 6. Iniciar aplicação
 echo "Iniciando aplicação..."
-go run cmd/emulator-service/main.go 2>&1 | tee logs/app.log
+
+# Obter o caminho completo do Go
+GO_PATH=$(which go)
+if [[ -z "$GO_PATH" ]]; then
+    echo "❌ Erro: Go não encontrado no PATH"
+    exit 1
+fi
+
+# Compilar primeiro
+echo "Compilando aplicação..."
+mkdir -p bin
+if ! go build -o bin/emulator-service cmd/emulator-service/main.go; then
+    echo "❌ Erro na compilação"
+    exit 1
+fi
+
+# Executar o binário compilado com sudo
+if [[ -n "$SUDO_PASSWORD" ]]; then
+    echo "$SUDO_PASSWORD" | sudo -S ./bin/emulator-service 2>&1 | tee logs/app.log
+else
+    sudo ./bin/emulator-service 2>&1 | tee logs/app.log
+fi

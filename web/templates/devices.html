@@ -74,7 +74,7 @@
                   <i class="bi bi-search"></i> Filtrar
                 </button>
                 <button type="button" class="btn btn-outline-secondary" onclick="clearFilters()">
-                  <i class="bi bi-x-circle"></i> Limpar
+                  Limpar
                 </button>
               </div>
             </form>
@@ -112,7 +112,7 @@
               class="log-checkbox" 
               id="log_enabled_{{ .lc_id }}" 
               {{ if eq .log_enabled 1 }}checked{{ end }}
-              {{ if eq .status "running" }} disabled {{ end }}
+              {{ if or (eq .status "running") (eq .status "disabled") }} disabled {{ end }}
             />
           </td>
           <td class="text-center">{{ .interval }}</td>
@@ -356,6 +356,9 @@
         if (status === 'running') {
           statusClass = 'border-success';
           statusColor = '#117529';
+        } else if (status === 'disabled') {
+          statusClass = 'border-secondary';
+          statusColor = '#6c757d';
         } else if (status === 'error') {
           statusClass = 'border-warning';
           statusColor = '#856404';
@@ -382,6 +385,11 @@
           startButton.classList.add('btn-custom-disabled');
           stopButton.classList.remove('btn-custom-disabled');
           logCheckbox.disabled = true;
+        } else if (status === 'disabled') {
+          // Dispositivo desabilitado - todos os controles ficam desabilitados
+          startButton.classList.add('btn-custom-disabled');
+          stopButton.classList.add('btn-custom-disabled');
+          logCheckbox.disabled = true;
         } else {
           startButton.classList.remove('btn-custom-disabled');
           stopButton.classList.add('btn-custom-disabled');
@@ -389,7 +397,7 @@
         }
       }
     }
-    
+
     // Função para atualizar contadores no header
     function updateCounters(runningCount, stoppedCount, totalCount) {
       const runningCounter = document.querySelector('#counter_running');
