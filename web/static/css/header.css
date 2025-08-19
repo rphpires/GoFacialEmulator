@@ -94,8 +94,8 @@
 
 /* Logo da empresa com design clean */
 .company-logo {
-    max-height: 36px;
-    max-width: 110px;
+    max-height: 32px;
+    max-width: 100px;
     width: auto;
     height: auto;
     object-fit: contain;

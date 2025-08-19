@@ -6,16 +6,24 @@
         <div class="brand-icon">
           <i class="bi bi-cpu"></i>
         </div>
-        <span>Facial Emulators</span>
+        <span>Invenzi Emulators</span>
       </a>
 
       <!-- Header Right -->
       <div class="header-right">
-        <!-- Status do Sistema -->
-        <!--div class="status-badge" id="systemStatus">
+        <!-- Total de Emuladores -->
+        <div class="status-badge" id="totalBadge">
+          <span id="totalText"> Total: {{ .counter_cards.total | default 0 }} Emuladores </span>
+        </div>
+
+        <!-- Status dos Emuladores Ativos -->
+        <div class="status-badge" id="systemStatus">
           <div class="status-dot" id="statusDot"></div>
-          <span id="statusText">Online</span>
-        </div-->
+          <span id="statusText">{{ .counter_cards.running | default 0 }} Ativos</span>
+        </div>
+
+        <!-- Divider -->
+        <div class="header-divider"></div>
 
         <!-- Botão Configurações -->
         <a href="#" class="settings-btn" title="Configurações">
@@ -35,4 +43,13 @@
       </div>
     </div>
   </div>
+
+  <!-- Dados para JavaScript (hidden) -->
+  <script type="application/json" id="headerData">
+    {
+      "total": {{ .counter_cards.total | default 0 }},
+      "running": {{ .counter_cards.running | default 0 }},
+      "stopped": {{ .counter_cards.stopped | default 0 }}
+    }
+  </script>
 </nav>

@@ -28,9 +28,8 @@
       <!-- Sidebar -->
       {{ template "sidebar.html" . }}
       
-      <!-- Conteúdo principal -->
+      <!-- Conteúdo principal - Métricas removidas -->
       <div class="col py-3">
-        {{ template "metrics.html" . }}
         <main>
           {{ block "content" . }}
           {{ end }}
