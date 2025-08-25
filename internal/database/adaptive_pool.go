@@ -15,10 +15,11 @@ import (
 
 // AdaptivePool - Pool que se adapta automaticamente à carga
 type AdaptivePool struct {
-	pool    *pgxpool.Pool
-	metrics *PoolMetrics
-	config  *AdaptiveConfig
-	mu      sync.RWMutex
+	pool      *pgxpool.Pool
+	metrics   *PoolMetrics
+	config    *AdaptiveConfig
+	mu        sync.RWMutex
+	expanding int32 // Flag atômica para evitar expansões simultâneas
 }
 
 // PoolMetrics coleta estatísticas de uso
@@ -28,6 +29,7 @@ type PoolMetrics struct {
 	peakConnections  int32
 	lastAdjustment   time.Time
 	connectionsPeak  int32
+	expansions       int32 // Contador de expansões instantâneas
 }
 
 // AdaptiveConfig configuração do pool adaptativo
@@ -39,6 +41,7 @@ type AdaptiveConfig struct {
 	AdjustmentInterval time.Duration
 	ShrinkThreshold    float64 // % de uso abaixo do qual reduzir conexões
 	GrowthThreshold    float64 // % de uso acima do qual aumentar conexões
+	ExpansionStep      int32   // Quantas conexões adicionar na expansão instantânea
 }
 
 // NewAdaptivePool cria um pool que se adapta à carga
@@ -85,17 +88,50 @@ func calculateInitialConfig(emulatorCount int) *AdaptiveConfig {
 
 	return &AdaptiveConfig{
 		MinConns:           2,                       // Sempre manter pelo menos 2
-		BaseMaxConns:       max(5, estimatedPeak/2), // Começar conservador
+		BaseMaxConns:       max(5, estimatedPeak/3), // Começar mais conservador
 		MaxConns:           estimatedPeak,
 		AbsoluteMaxConns:   estimatedPeak * 2, // Buffer de segurança
 		AdjustmentInterval: 2 * time.Minute,
-		ShrinkThreshold:    0.3, // Se usar menos de 30%, reduzir
-		GrowthThreshold:    0.8, // Se usar mais de 80%, aumentar
+		ShrinkThreshold:    0.3,  // Se usar menos de 30%, reduzir
+		GrowthThreshold:    0.85, // Se usar mais de 85%, aumentar
+		ExpansionStep:      3,    // Adicionar 3 conexões por vez na expansão
 	}
 }
 
-// Implementar interface DBInterface
+// checkAndExpandIfNeeded verifica se precisa expandir instantaneamente
+func (ap *AdaptivePool) checkAndExpandIfNeeded() {
+	// Evitar expansões simultâneas
+	if !atomic.CompareAndSwapInt32(&ap.expanding, 0, 1) {
+		return
+	}
+	defer atomic.StoreInt32(&ap.expanding, 0)
+
+	stats := ap.pool.Stat()
+	currentMax := int32(stats.MaxConns())
+	acquired := int32(stats.AcquiredConns())
+	constructing := int32(stats.ConstructingConns())
+
+	// Se quase todas as conexões estão em uso e ainda temos espaço para crescer
+	totalInUse := acquired + constructing
+	utilization := float64(totalInUse) / float64(currentMax)
+
+	if utilization > 0.9 && currentMax < ap.config.AbsoluteMaxConns {
+		newMax := min(currentMax+ap.config.ExpansionStep, ap.config.AbsoluteMaxConns)
+
+		fmt.Printf("🚀 INSTANT EXPANSION: %d -> %d connections (utilization: %.1f%%, acquired: %d)\n",
+			currentMax, newMax, utilization*100, acquired)
+
+		// Expandir imediatamente
+		go ap.recreatePoolWithNewLimits(newMax)
+		atomic.AddInt32(&ap.metrics.expansions, 1)
+	}
+}
+
+// Implementar interface DBInterface com verificação de expansão
 func (ap *AdaptivePool) Query(ctx context.Context, query string, args ...interface{}) (pgx.Rows, error) {
+	// Verificar se precisa expandir antes da query
+	ap.checkAndExpandIfNeeded()
+
 	start := time.Now()
 	rows, err := ap.pool.Query(ctx, query, args...)
 	ap.recordQuery(time.Since(start))
@@ -103,6 +139,9 @@ func (ap *AdaptivePool) Query(ctx context.Context, query string, args ...interfa
 }
 
 func (ap *AdaptivePool) QueryRow(ctx context.Context, query string, args ...interface{}) pgx.Row {
+	// Verificar se precisa expandir antes da query
+	ap.checkAndExpandIfNeeded()
+
 	start := time.Now()
 	row := ap.pool.QueryRow(ctx, query, args...)
 	ap.recordQuery(time.Since(start))
@@ -110,6 +149,9 @@ func (ap *AdaptivePool) QueryRow(ctx context.Context, query string, args ...inte
 }
 
 func (ap *AdaptivePool) Exec(ctx context.Context, query string, args ...interface{}) (pgconn.CommandTag, error) {
+	// Verificar se precisa expandir antes da execução
+	ap.checkAndExpandIfNeeded()
+
 	start := time.Now()
 	tag, err := ap.pool.Exec(ctx, query, args...)
 	ap.recordQuery(time.Since(start))
@@ -117,6 +159,9 @@ func (ap *AdaptivePool) Exec(ctx context.Context, query string, args ...interfac
 }
 
 func (ap *AdaptivePool) Begin(ctx context.Context) (pgx.Tx, error) {
+	// Verificar se precisa expandir antes de iniciar transação
+	ap.checkAndExpandIfNeeded()
+
 	return ap.pool.Begin(ctx)
 }
 
@@ -144,19 +189,19 @@ func (ap *AdaptivePool) recordQuery(duration time.Duration) {
 	}
 }
 
-// startMonitoring inicia o monitoramento e ajuste automático
+// startMonitoring inicia o monitoramento e ajuste automático (para encolhimento)
 func (ap *AdaptivePool) startMonitoring() {
 	ticker := time.NewTicker(ap.config.AdjustmentInterval)
 	defer ticker.Stop()
 
 	for range ticker.C {
-		ap.adjustPoolSize()
+		ap.adjustPoolSizeDown() // Apenas para reduzir
 		ap.resetMetrics()
 	}
 }
 
-// adjustPoolSize ajusta o tamanho do pool baseado nas métricas
-func (ap *AdaptivePool) adjustPoolSize() {
+// adjustPoolSizeDown ajusta o pool para baixo baseado nas métricas
+func (ap *AdaptivePool) adjustPoolSizeDown() {
 	ap.mu.Lock()
 	defer ap.mu.Unlock()
 
@@ -171,29 +216,18 @@ func (ap *AdaptivePool) adjustPoolSize() {
 	// Calcular utilização como % do máximo atual
 	utilization := float64(peakUsed) / float64(currentMax)
 
-	var newMax int32
+	// Apenas encolher se utilização baixa e acima do mínimo
+	if utilization < ap.config.ShrinkThreshold && currentMax > ap.config.MinConns {
+		// Encolher: reduzir para pico + pequeno buffer, mas não menos que o mínimo
+		newMax := max(peakUsed+2, ap.config.MinConns)
 
-	switch {
-	case utilization > ap.config.GrowthThreshold && currentMax < ap.config.AbsoluteMaxConns:
-		// Crescer: aumentar em 50% ou até o pico + buffer
-		growth := max(currentMax+currentMax/2, peakUsed+2)
-		newMax = min(growth, ap.config.AbsoluteMaxConns)
+		// Aplicar mudança se significativa (diferença de pelo menos 2 conexões)
+		if currentMax-newMax >= 2 {
+			fmt.Printf("📉 SCHEDULED SHRINK: %d -> %d connections (utilization: %.1f%%, peak: %d)\n",
+				currentMax, newMax, utilization*100, peakUsed)
 
-	case utilization < ap.config.ShrinkThreshold && currentMax > ap.config.MinConns:
-		// Encolher: reduzir para pico + pequeno buffer
-		newMax = max(peakUsed+1, ap.config.MinConns)
-
-	default:
-		return // Não precisa ajustar
-	}
-
-	// Aplicar mudança se significativa (diferença de pelo menos 2 conexões)
-	if abs(newMax-currentMax) >= 2 {
-		fmt.Printf("🔄 Adjusting pool: %d -> %d connections (utilization: %.1f%%, peak: %d)\n",
-			currentMax, newMax, utilization*100, peakUsed)
-
-		// Recriar pool com nova configuração
-		ap.recreatePoolWithNewLimits(newMax)
+			ap.recreatePoolWithNewLimits(newMax)
+		}
 	}
 }
 
@@ -211,14 +245,7 @@ func max(a, b int32) int32 {
 	return b
 }
 
-func abs(a int32) int32 {
-	if a < 0 {
-		return -a
-	}
-	return a
-}
-
-// recreatePoolWithNewLimits recria o pool com novos limites
+// recreatePoolWithNewLimits recria o pool com novos limites (sem mutex, já protegido pelos callers)
 func (ap *AdaptivePool) recreatePoolWithNewLimits(newMax int32) {
 	// Obter configuração atual
 	oldConfig := ap.pool.Config()
@@ -262,5 +289,6 @@ func (ap *AdaptivePool) GetStats() map[string]interface{} {
 		"constructing_conns":    stats.ConstructingConns(),
 		"peak_connections":      atomic.LoadInt32(&ap.metrics.peakConnections),
 		"avg_query_duration_ms": atomic.LoadInt64(&ap.metrics.avgQueryDuration),
+		"instant_expansions":    atomic.LoadInt32(&ap.metrics.expansions),
 	}
 }
