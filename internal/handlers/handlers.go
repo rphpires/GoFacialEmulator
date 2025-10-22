@@ -140,6 +140,7 @@ func (h *Handler) setupAPIRoutes(router *gin.Engine) {
 		api.GET("/status", h.getSystemStatus)
 		api.GET("/comparison", h.getUserComparisons)
 		api.GET("/pool-stats", h.getPoolStats)
+		api.GET("/refresh-status", h.getRefreshStatus)
 	}
 }
 
@@ -320,11 +321,18 @@ func (h *Handler) stopEmulators(c *gin.Context) {
 func (h *Handler) refreshDevices(c *gin.Context) {
 	h.tracer.Info(">>> Refreshing database")
 
-	if err := h.manager.RefreshDevices(); err != nil {
-		h.tracer.Error("Failed to refresh devices: %v", err)
-	}
+	// Executar refresh em background (goroutine)
+	go func() {
+		if err := h.manager.RefreshDevices(); err != nil {
+			h.tracer.Error("Failed to refresh devices: %v", err)
+		}
+	}()
 
-	c.Redirect(http.StatusSeeOther, "/")
+	// Retornar imediatamente com sucesso
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Refresh iniciado em background",
+		"status":  "started",
+	})
 }
 
 // recreateEmulators recria executáveis (placeholder por enquanto)
@@ -880,4 +888,14 @@ func (h *Handler) getCurrentDevicesWithFilters(filters map[string]string) ([]map
 	}
 
 	return currentDevices, deviceStatusRunning, nil
+}
+
+// getRefreshStatus retorna o status da operação de refresh
+func (h *Handler) getRefreshStatus(c *gin.Context) {
+	inProgress := h.manager.IsRefreshInProgress()
+
+	c.JSON(http.StatusOK, gin.H{
+		"in_progress": inProgress,
+		"completed":   !inProgress,
+	})
 }

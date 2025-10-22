@@ -32,6 +32,10 @@ type Manager struct {
 
 	statusListeners []StatusChangeListener
 	listenersMutex  sync.RWMutex
+
+	// Controle de refresh em andamento
+	refreshInProgress bool
+	refreshMutex      sync.RWMutex
 }
 
 // WatchdogInfo armazena informações de monitoramento
@@ -101,6 +105,18 @@ func (m *Manager) Initialize() error {
 
 // RefreshDevices atualiza a lista de dispositivos do WXS - equivalente ao refresh_configured_devices()
 func (m *Manager) RefreshDevices() error {
+	// Marcar refresh como em andamento
+	m.refreshMutex.Lock()
+	m.refreshInProgress = true
+	m.refreshMutex.Unlock()
+
+	// Garantir que ao final, marca como concluído
+	defer func() {
+		m.refreshMutex.Lock()
+		m.refreshInProgress = false
+		m.refreshMutex.Unlock()
+	}()
+
 	m.Tracer.Info("Refreshing device list from WXS database")
 
 	// Obter controladores do WXS
@@ -138,6 +154,13 @@ func (m *Manager) RefreshDevices() error {
 	}
 
 	return nil
+}
+
+// IsRefreshInProgress verifica se há um refresh em andamento
+func (m *Manager) IsRefreshInProgress() bool {
+	m.refreshMutex.RLock()
+	defer m.refreshMutex.RUnlock()
+	return m.refreshInProgress
 }
 
 func (m *Manager) mapControllerToDevice(controller map[string]interface{}) models.Device {

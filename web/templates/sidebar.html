@@ -32,10 +32,15 @@
         </button>
       </li>
       <li class="nav-item">
-        <a href="/refresh" class="nav-link text-primary d-flex align-items-center" title="Refresh DB">
-          <i class="bi bi-arrow-clockwise me-2"></i>
+        <button id="refresh-db-btn" class="nav-link text-primary d-flex align-items-center w-100 border-0 bg-transparent"
+                onclick="refreshDatabase()"
+                title="Refresh DB">
+          <i class="bi bi-arrow-clockwise me-2" id="refresh-db-icon"></i>
           <span class="d-none d-md-inline">Refresh DB</span>
-        </a>
+          <span id="refresh-spinner" class="ms-2 spinner-border spinner-border-sm text-warning" role="status" style="display: none;">
+            <span class="visually-hidden">Sincronizando...</span>
+          </span>
+        </button>
       </li>
     </ul>
     
@@ -74,7 +79,7 @@
         },
         body: JSON.stringify({ devices: ["all"] }),
       });
-      
+
       if (response.ok) {
         console.log('Todos os emuladores parados');
       } else {
@@ -83,6 +88,102 @@
     } catch (error) {
       console.error('Erro ao parar emuladores:', error);
       alert('Erro ao parar emuladores.');
+    }
+  };
+
+  window.refreshDatabase = async () => {
+    // Criar e exibir modal informativo
+    const modalHtml = `
+      <div class="modal fade" id="refreshDbModal" tabindex="-1" aria-labelledby="refreshDbModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title" id="refreshDbModalLabel">
+                <i class="bi bi-info-circle text-primary me-2"></i>
+                Sincronização com W-Access
+              </h5>
+            </div>
+            <div class="modal-body">
+              <p>Esta operação irá sincronizar o serviço com a base de dados do <strong>W-Access</strong>.</p>
+              <p class="mb-0">Os dispositivos disponíveis e suas configurações serão atualizados.</p>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-primary" data-bs-dismiss="modal" onclick="executeRefresh()">OK</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Remover modal anterior se existir
+    const existingModal = document.getElementById('refreshDbModal');
+    if (existingModal) {
+      existingModal.remove();
+    }
+
+    // Adicionar modal ao DOM
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    // Exibir modal
+    const modal = new bootstrap.Modal(document.getElementById('refreshDbModal'));
+    modal.show();
+  };
+
+  window.executeRefresh = async () => {
+    const btn = document.getElementById('refresh-db-btn');
+    const spinner = document.getElementById('refresh-spinner');
+
+    // Desabilitar botão e mostrar badge de warning
+    btn.disabled = true;
+    spinner.style.display = 'inline-block';
+
+    try {
+      const response = await fetch('/refresh', {
+        method: 'GET',
+      });
+
+      if (response.ok) {
+        console.log('Database refresh iniciado em background');
+
+        // Polling para verificar quando a operação terminou
+        const checkCompletion = setInterval(async () => {
+          try {
+            const statusResponse = await fetch('/api/refresh-status');
+            const statusData = await statusResponse.json();
+
+            if (statusData.completed) {
+              clearInterval(checkCompletion);
+
+              // Restaurar botão e esconder spinner
+              btn.disabled = false;
+              spinner.style.display = 'none';
+
+              console.log('Database refresh concluído');
+            }
+          } catch (error) {
+            console.error('Erro ao verificar status:', error);
+          }
+        }, 1000); // Verificar a cada 1 segundo
+
+        // Timeout de segurança (60 segundos)
+        setTimeout(() => {
+          clearInterval(checkCompletion);
+          btn.disabled = false;
+          spinner.style.display = 'none';
+          console.log('Timeout na verificação de status - operação pode ainda estar em andamento');
+        }, 60000);
+
+      } else {
+        console.error('Falha ao iniciar refresh do database');
+        btn.disabled = false;
+        spinner.style.display = 'none';
+        alert('Erro ao iniciar atualização do database.');
+      }
+    } catch (error) {
+      console.error('Erro ao iniciar refresh:', error);
+      btn.disabled = false;
+      spinner.style.display = 'none';
+      alert('Erro ao iniciar atualização do database.');
     }
   };
 </script>

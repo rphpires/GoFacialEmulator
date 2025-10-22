@@ -24,3 +24,6 @@ dist/
 *.dll
 *.so
 *.dylib
+
+
+CLAUDE.md
