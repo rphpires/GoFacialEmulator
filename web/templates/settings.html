@@ -1,0 +1,226 @@
+{{ define "title" }}Configurações - Facial Emulator Service{{ end }}
+
+{{ define "content" }}
+<div class="container-fluid px-4">
+  <div class="row">
+    <div class="col-12">
+      <h2 class="mb-4">
+        <i class="bi bi-gear me-2"></i>
+        Configurações do Sistema
+      </h2>
+    </div>
+  </div>
+
+  <!-- Configurações W-Access -->
+  <div class="row mb-4">
+    <div class="col-lg-8 col-xl-6">
+      <div class="card shadow-sm">
+        <div class="card-header bg-primary text-black">
+          <h5 class="mb-0">
+            <i class="bi bi-database me-2"></i>
+            Conexão com W-Access (SQL Server)
+          </h5>
+        </div>
+        <div class="card-body">
+          <form id="wxsSettingsForm">
+            <div class="mb-3">
+              <label for="wxsHost" class="form-label">Host / IP Address</label>
+              <input type="text" class="form-control" id="wxsHost" name="host"
+                     value="{{ .wxs_settings.Host }}" required>
+            </div>
+
+            <div class="mb-3">
+              <label for="wxsPort" class="form-label">Porta</label>
+              <input type="number" class="form-control" id="wxsPort" name="port"
+                     value="{{ .wxs_settings.Port }}" required>
+            </div>
+
+            <div class="mb-3">
+              <label for="wxsDatabase" class="form-label">Database</label>
+              <input type="text" class="form-control" id="wxsDatabase" name="database"
+                     value="{{ .wxs_settings.Database }}" required>
+            </div>
+
+            <div class="mb-3">
+              <label for="wxsUsername" class="form-label">Username</label>
+              <input type="text" class="form-control" id="wxsUsername" name="username"
+                     value="{{ .wxs_settings.Username }}" required>
+            </div>
+
+            <div class="mb-3">
+              <label for="wxsPassword" class="form-label">Password</label>
+              <div class="input-group">
+                <input type="password" class="form-control" id="wxsPassword" name="password"
+                       value="{{ .wxs_settings.Password }}" required>
+                <button class="btn btn-outline-secondary" type="button" id="togglePassword">
+                  <i class="bi bi-eye" id="togglePasswordIcon"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="d-flex gap-2">
+              <button type="submit" class="btn btn-success">
+                <i class="bi bi-save me-1"></i>
+                Salvar
+              </button>
+              <a href="/" class="btn btn-secondary">
+                <i class="bi bi-x-circle me-1"></i>
+                Cancelar
+              </a>
+              <button type="button" class="btn btn-outline-secondary" id="testConnectionBtn">
+                Testar Conexão
+              </button>
+            </div>
+          </form>
+
+          <!-- Resultado do teste -->
+          <div id="testResult" class="mt-3" style="display: none;">
+            <div class="alert" id="testResultAlert" role="alert"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Informações sobre PostgreSQL -->
+  <div class="row">
+    <div class="col-lg-8 col-xl-6">
+      <div class="card shadow-sm border-secondary">
+        <div class="card-header bg-secondary text-black">
+          <h5 class="mb-0">
+            <i class="bi bi-info-circle me-2"></i>
+            Banco de Dados do Serviço (PostgreSQL)
+          </h5>
+        </div>
+        <div class="card-body">
+          <p class="mb-0">
+            As configurações do banco de dados PostgreSQL (service_db e emulator_db)
+            são definidas no arquivo <code>configs/config.yaml</code> e não podem ser alteradas
+            através desta interface.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Toggle mostrar/ocultar senha
+  document.getElementById('togglePassword').addEventListener('click', function() {
+    const passwordInput = document.getElementById('wxsPassword');
+    const icon = document.getElementById('togglePasswordIcon');
+
+    if (passwordInput.type === 'password') {
+      passwordInput.type = 'text';
+      icon.classList.remove('bi-eye');
+      icon.classList.add('bi-eye-slash');
+    } else {
+      passwordInput.type = 'password';
+      icon.classList.remove('bi-eye-slash');
+      icon.classList.add('bi-eye');
+    }
+  });
+
+  // Testar conexão
+  document.getElementById('testConnectionBtn').addEventListener('click', async function() {
+    const btn = this;
+    const resultDiv = document.getElementById('testResult');
+    const resultAlert = document.getElementById('testResultAlert');
+
+    // Desabilitar botão e mostrar loading
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Testando...';
+
+    // Coletar dados do formulário
+    const formData = {
+      host: document.getElementById('wxsHost').value,
+      port: parseInt(document.getElementById('wxsPort').value),
+      database: document.getElementById('wxsDatabase').value,
+      username: document.getElementById('wxsUsername').value,
+      password: document.getElementById('wxsPassword').value
+    };
+
+    try {
+      const response = await fetch('/api/settings/test-wxs-connection', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(formData)
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        resultAlert.className = 'alert alert-success';
+        resultAlert.innerHTML = '<i class="bi bi-check-circle me-2"></i>Conexão bem-sucedida!';
+      } else {
+        resultAlert.className = 'alert alert-danger';
+        resultAlert.innerHTML = '<i class="bi bi-x-circle me-2"></i>Falha na conexão: ' + result.error;
+      }
+    } catch (error) {
+      resultAlert.className = 'alert alert-danger';
+      resultAlert.innerHTML = '<i class="bi bi-x-circle me-2"></i>Erro ao testar conexão: ' + error.message;
+    }
+
+    // Mostrar resultado
+    resultDiv.style.display = 'block';
+
+    // Restaurar botão
+    btn.disabled = false;
+    btn.innerHTML = 'Testar Conexão';
+  });
+
+  // Salvar configurações
+  document.getElementById('wxsSettingsForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const submitBtn = this.querySelector('button[type="submit"]');
+    const resultDiv = document.getElementById('testResult');
+    const resultAlert = document.getElementById('testResultAlert');
+
+    // Desabilitar botão e mostrar loading
+    const originalBtnContent = submitBtn.innerHTML;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Salvando...';
+
+    const formData = {
+      host: document.getElementById('wxsHost').value,
+      port: parseInt(document.getElementById('wxsPort').value),
+      database: document.getElementById('wxsDatabase').value,
+      username: document.getElementById('wxsUsername').value,
+      password: document.getElementById('wxsPassword').value
+    };
+
+    try {
+      const response = await fetch('/api/settings/wxs', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(formData)
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        resultAlert.className = 'alert alert-success';
+        resultAlert.innerHTML = '<i class="bi bi-check-circle me-2"></i>Configurações salvas e conexão reiniciada com sucesso!';
+      } else {
+        resultAlert.className = 'alert alert-danger';
+        resultAlert.innerHTML = '<i class="bi bi-x-circle me-2"></i>Erro ao salvar: ' + result.error;
+      }
+    } catch (error) {
+      resultAlert.className = 'alert alert-danger';
+      resultAlert.innerHTML = '<i class="bi bi-x-circle me-2"></i>Erro ao salvar: ' + error.message;
+    }
+
+    // Mostrar resultado
+    resultDiv.style.display = 'block';
+
+    // Restaurar botão
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = originalBtnContent;
+  });
+</script>
+{{ end }}

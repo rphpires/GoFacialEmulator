@@ -9,6 +9,7 @@ import (
 	"text/template"
 	"time"
 
+	"GoFacialEmulator/internal/config"
 	"GoFacialEmulator/internal/database"
 	"GoFacialEmulator/internal/emulator"
 	"GoFacialEmulator/internal/trace"
@@ -111,6 +112,9 @@ func (h *Handler) setupWebRoutes(router *gin.Engine) {
 	router.GET("/comparison", h.comparisonPage)
 	router.GET("/comparison_refresh", h.comparisonRefresh)
 
+	// Página de configurações
+	router.GET("/settings", h.settingsPage)
+
 	router.GET("/events", h.handleSSE)
 }
 
@@ -141,6 +145,13 @@ func (h *Handler) setupAPIRoutes(router *gin.Engine) {
 		api.GET("/comparison", h.getUserComparisons)
 		api.GET("/pool-stats", h.getPoolStats)
 		api.GET("/refresh-status", h.getRefreshStatus)
+
+		// Configurações
+		settings := api.Group("/settings")
+		{
+			settings.POST("/test-wxs-connection", h.testWxsConnection)
+			settings.POST("/wxs", h.saveWxsSettings)
+		}
 	}
 }
 
@@ -897,5 +908,134 @@ func (h *Handler) getRefreshStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"in_progress": inProgress,
 		"completed":   !inProgress,
+	})
+}
+
+// settingsPage exibe a página de configurações
+func (h *Handler) settingsPage(c *gin.Context) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Carregar configurações WXS do banco
+	wxsSettings, err := h.serviceDB.GetWxsSettings(ctx)
+	if err != nil {
+		h.tracer.Error("Failed to load WXS settings: %v", err)
+		c.HTML(http.StatusInternalServerError, "error.html", gin.H{
+			"error": "Erro ao carregar configurações",
+		})
+		return
+	}
+
+	tmpl := h.loadTemplate("web/templates/settings.html")
+	tmpl.ExecuteTemplate(c.Writer, "base.html", gin.H{
+		"wxs_settings": wxsSettings,
+	})
+}
+
+// testWxsConnection testa a conexão com o WXS
+func (h *Handler) testWxsConnection(c *gin.Context) {
+	var settings database.WxsSettings
+	if err := c.ShouldBindJSON(&settings); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Dados inválidos: " + err.Error(),
+		})
+		return
+	}
+
+	// Testar conexão
+	err := database.TestWxsConnection(&settings)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Conexão bem-sucedida",
+	})
+}
+
+// saveWxsSettings salva as configurações WXS e reconecta
+func (h *Handler) saveWxsSettings(c *gin.Context) {
+	var settings database.WxsSettings
+	if err := c.ShouldBindJSON(&settings); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Dados inválidos: " + err.Error(),
+		})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Salvar no banco
+	err := h.serviceDB.SaveWxsSettings(ctx, &settings)
+	if err != nil {
+		h.tracer.Error("Failed to save WXS settings: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Erro ao salvar configurações: " + err.Error(),
+		})
+		return
+	}
+
+	// Reconectar com as novas configurações
+	h.tracer.Info("Reconnecting to WXS with new settings...")
+
+	// Fechar conexão antiga se existir
+	if h.wxsDB != nil {
+		h.wxsDB.Close()
+	}
+
+	// Criar nova conexão
+	cfg := config.DatabaseConfig{
+		Host:     settings.Host,
+		Port:     settings.Port,
+		Database: settings.Database,
+		Username: settings.Username,
+		Password: settings.Password,
+		Driver:   "mssql",
+	}
+
+	newWxsDB, err := database.NewWxsDB(cfg)
+	if err != nil {
+		h.tracer.Error("Failed to reconnect to WXS: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Configurações salvas, mas falha ao reconectar: " + err.Error(),
+		})
+		return
+	}
+
+	// Testar a nova conexão
+	testCtx, testCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer testCancel()
+
+	if err := newWxsDB.Ping(testCtx); err != nil {
+		newWxsDB.Close()
+		h.tracer.Error("New WXS connection ping failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Configurações salvas, mas falha no ping: " + err.Error(),
+		})
+		return
+	}
+
+	// Atualizar a conexão no handler
+	h.wxsDB = newWxsDB
+
+	// Atualizar a conexão no manager também
+	h.manager.WxsDB = newWxsDB
+
+	h.tracer.Info("WXS connection updated successfully")
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Configurações salvas e conexão reiniciada com sucesso",
 	})
 }

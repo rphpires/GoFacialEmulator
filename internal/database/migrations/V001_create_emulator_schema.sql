@@ -39,6 +39,18 @@ CREATE TABLE IF NOT EXISTS service.users_comparison (
     UNIQUE(local_controller_id)
 );
 
+-- Tabela de configurações do WXS (W-Access)
+CREATE TABLE IF NOT EXISTS service.wxs_settings (
+    id SERIAL PRIMARY KEY,
+    host TEXT NOT NULL,
+    port INTEGER NOT NULL,
+    database TEXT NOT NULL,
+    username TEXT NOT NULL,
+    password TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- ========================================
 -- EMULATOR SCHEMA (equivalente ao EMULATOR_DB_CREATION_STRING do Python)
 -- ========================================
@@ -178,6 +190,11 @@ INSERT INTO emulator.device_settings (device_id, cfg_id, value)
 VALUES (0, 'RemoteServer', '127.0.0.1') 
 ON CONFLICT (device_id, cfg_id) DO NOTHING;
 
-INSERT INTO emulator.device_settings (device_id, cfg_id, value) 
-VALUES (0, 'RemotePort', '15502') 
+INSERT INTO emulator.device_settings (device_id, cfg_id, value)
+VALUES (0, 'RemotePort', '15502')
 ON CONFLICT (device_id, cfg_id) DO NOTHING;
+
+-- Configuração padrão do WXS (será atualizada pela interface)
+INSERT INTO service.wxs_settings (host, port, database, username, password)
+SELECT '172.20.112.1', 1433, 'W_Access', 'W-Access', 'db_W-X-S@Wellcare924_'
+WHERE NOT EXISTS (SELECT 1 FROM service.wxs_settings LIMIT 1);

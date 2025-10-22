@@ -22,7 +22,7 @@ type WxsDB struct {
 // NewWxsDB cria uma nova instância do WxsDB para SQL Server
 func NewWxsDB(cfg config.DatabaseConfig) (*WxsDB, error) {
 	// Connection string para SQL Server
-	connString := fmt.Sprintf("server=%s;port=%d;database=%s;user id=%s;password=%s;encrypt=disable;connection timeout=30",
+	connString := fmt.Sprintf("server=%s;port=%d;database=%s;user id=%s;password=%s;encrypt=disable;connection timeout=10",
 		cfg.Host, cfg.Port, cfg.Database, cfg.Username, cfg.Password)
 
 	db, err := sql.Open("mssql", connString)
@@ -35,14 +35,9 @@ func NewWxsDB(cfg config.DatabaseConfig) (*WxsDB, error) {
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(time.Hour)
 
-	// Testar conexão
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	if err := db.PingContext(ctx); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("erro ao testar conexão com WXS SQL Server: %w", err)
-	}
+	// NÃO fazer ping aqui - deixar para o caller decidir
+	// Se o servidor não estiver disponível, o ping vai travar a inicialização
+	// O ping será feito no main.go após a criação
 
 	return &WxsDB{
 		db:     db,

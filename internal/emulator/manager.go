@@ -117,6 +117,11 @@ func (m *Manager) RefreshDevices() error {
 		m.refreshMutex.Unlock()
 	}()
 
+	// Verificar se WxsDB está disponível
+	if m.WxsDB == nil {
+		return fmt.Errorf("WxsDB não está disponível - não é possível atualizar dispositivos")
+	}
+
 	m.Tracer.Info("Refreshing device list from WXS database")
 
 	// Obter controladores do WXS

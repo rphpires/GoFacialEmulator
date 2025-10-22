@@ -78,6 +78,7 @@ func (v *DatabaseValidator) validateDatabaseStructure(ctx context.Context) (bool
 		"service": {
 			"devices",          // Main no Python
 			"users_comparison", // UsersCount no Python
+			"wxs_settings",     // Configurações de conexão WXS
 		},
 		"emulator": {
 			"device_settings",   // DeviceSettings no Python

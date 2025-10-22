@@ -69,7 +69,6 @@ func GetWxsDB(cfg config.DatabaseConfig) (*WxsDB, error) {
 		wxsDB, err = NewWxsDB(cfg)
 		if err != nil {
 			log.Printf("Erro ao criar WxsDB: %v", err)
-			return
 		}
 	})
 

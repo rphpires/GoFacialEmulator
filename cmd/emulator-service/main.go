@@ -43,16 +43,52 @@ func main() {
 		log.Fatalf("Failed to get EmulatorDB: %v", err)
 	}
 
-	wxsDB, err := database.GetWxsDB(cfg.WxsDB)
+	// Carregar configurações WXS do banco de dados
+	tracer.Info("Loading WXS configuration from database...")
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	wxsSettings, err := serviceDB.GetWxsSettings(ctx)
+	var wxsDB *database.WxsDB
+
 	if err != nil {
-		log.Fatalf("Failed to get WxsDB: %v", err)
+		tracer.Warning("Failed to load WXS settings from database: %v", err)
+		tracer.Info("Falling back to config.yaml for WXS settings")
+
+		// Usar configurações do config.yaml como fallback
+		wxsDB, err = database.GetWxsDB(cfg.WxsDB)
+		if err != nil {
+			tracer.Warning("Failed to connect to WxsDB using config.yaml: %v", err)
+			tracer.Info("Service will continue without WxsDB connection")
+			wxsDB = nil
+		} else {
+			tracer.Info("WxsDB connected successfully using config.yaml")
+		}
+	} else {
+		// Usar configurações do banco de dados
+		tracer.Info("Using WXS settings from database: %s:%d/%s", wxsSettings.Host, wxsSettings.Port, wxsSettings.Database)
+
+		wxsCfg := config.DatabaseConfig{
+			Host:     wxsSettings.Host,
+			Port:     wxsSettings.Port,
+			Database: wxsSettings.Database,
+			Username: wxsSettings.Username,
+			Password: wxsSettings.Password,
+			Driver:   "mssql",
+		}
+
+		wxsDB, err = database.NewWxsDB(wxsCfg)
+		if err != nil {
+			tracer.Warning("Failed to connect to WxsDB using database settings: %v", err)
+			tracer.Info("Service will continue without WxsDB connection")
+			wxsDB = nil
+		} else {
+			tracer.Info("WxsDB connected successfully using database settings")
+		}
 	}
 
 	// Testar conexões
 	tracer.Info("Testing database connections...")
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
 
 	if err := serviceDB.Ping(ctx); err != nil {
 		log.Fatalf("ServiceDB connection test failed: %v", err)
@@ -62,11 +98,13 @@ func main() {
 		log.Fatalf("EmulatorDB connection test failed: %v", err)
 	}
 
-	if err := wxsDB.Ping(ctx); err != nil {
-		tracer.Warning("WxsDB connection test failed (WXS may be unavailable): %v", err)
-		// Não falhar aqui pois WXS pode estar indisponível temporariamente
-	} else {
-		tracer.Info("All database connections successful")
+	// Testar WxsDB apenas se conectou
+	if wxsDB != nil {
+		if err := wxsDB.Ping(ctx); err != nil {
+			tracer.Warning("WxsDB ping failed (WXS may be temporarily unavailable): %v", err)
+		} else {
+			tracer.Info("All database connections successful")
+		}
 	}
 
 	// Inicializar manager de emuladores
