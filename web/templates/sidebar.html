@@ -1,54 +1,132 @@
-<div class="col-auto col-md-3 col-xl-2 px-sm-2 px-0 bg-light" style="min-height: 100vh;">
-  <div class="d-flex flex-column align-items-start px-3 pt-2">
-    
+<div class="col-auto px-0 bg-light" style="min-height: 100vh; transition: width 0.3s ease;" id="sidebar">
+  <div class="d-flex flex-column align-items-start px-2 pt-2">
+
+    <!-- Botão para expandir/compactar sidebar -->
+    <div class="w-100 mb-2 d-flex" id="toggleBtnContainer">
+      <button id="toggleSidebarBtn" class="btn btn-sm sidebar-toggle-btn" onclick="toggleSidebar()" title="Expandir menu">
+        <i class="bi bi-list fs-5" id="toggleSidebarIcon"></i>
+      </button>
+    </div>
+
     <!-- Menu sempre visível em desktop, texto esconde em mobile -->
     <ul class="nav flex-column w-100">
       <li class="nav-item">
-        <a href="/" class="nav-link text-dark d-flex align-items-center">
-          <i class="bi bi-tablet me-2"></i>
-          <span class="d-none d-md-inline">Dispositivos</span>
+        <a href="/" class="nav-link text-dark d-flex align-items-center p-2 sidebar-link">
+          <i class="bi bi-tablet fs-5 sidebar-icon"></i>
+          <span class="sidebar-text ms-2">Dispositivos</span>
         </a>
       </li>
       <li class="nav-item">
-        <a href="/comparison" class="nav-link text-dark d-flex align-items-center">
-          <i class="bi bi-arrow-left-right me-2"></i>
-          <span class="d-none d-md-inline">Comparação</span>
+        <a href="/comparison" class="nav-link text-dark d-flex align-items-center p-2 sidebar-link">
+          <i class="bi bi-arrow-left-right fs-5 sidebar-icon"></i>
+          <span class="sidebar-text ms-2">Comparação</span>
         </a>
       </li>
       <li class="nav-item">
-        <button class="nav-link text-success d-flex align-items-center w-100 border-0 bg-transparent" 
-                onclick="start_all_emulators()" 
+        <button class="nav-link text-success d-flex align-items-center w-100 border-0 bg-transparent p-2 sidebar-link"
+                onclick="start_all_emulators()"
                 title="Iniciar Todos">
-          <i class="bi bi-play-circle me-2"></i>
-          <span class="d-none d-md-inline">Iniciar Todos</span>
+          <i class="bi bi-play-circle fs-5 sidebar-icon"></i>
+          <span class="sidebar-text ms-2">Iniciar Todos</span>
         </button>
       </li>
       <li class="nav-item">
-        <button class="nav-link text-danger d-flex align-items-center w-100 border-0 bg-transparent" 
+        <button class="nav-link text-danger d-flex align-items-center w-100 border-0 bg-transparent p-2 sidebar-link"
                 onclick="stop_all_emulators()"
                 title="Parar Todos">
-          <i class="bi bi-stop-circle me-2"></i>
-          <span class="d-none d-md-inline">Parar Todos</span>
+          <i class="bi bi-stop-circle fs-5 sidebar-icon"></i>
+          <span class="sidebar-text ms-2">Parar Todos</span>
         </button>
       </li>
-      <li class="nav-item">
-        <button id="refresh-db-btn" class="nav-link text-primary d-flex align-items-center w-100 border-0 bg-transparent"
+      <li class="nav-item position-relative">
+        <button id="refresh-db-btn" class="nav-link text-primary d-flex align-items-center w-100 border-0 bg-transparent p-2 sidebar-link"
                 onclick="refreshDatabase()"
                 title="Refresh DB">
-          <i class="bi bi-arrow-clockwise me-2" id="refresh-db-icon"></i>
-          <span class="d-none d-md-inline">Refresh DB</span>
+          <i class="bi bi-arrow-clockwise fs-5 sidebar-icon" id="refresh-db-icon"></i>
+          <span class="sidebar-text ms-2">Refresh DB</span>
           <span id="refresh-spinner" class="ms-2 spinner-border spinner-border-sm text-warning" role="status" style="display: none;">
             <span class="visually-hidden">Sincronizando...</span>
           </span>
         </button>
       </li>
     </ul>
-    
-    <hr class="w-100 d-none d-md-block">
   </div>
 </div>
 
 <script>
+  // Função para expandir/compactar sidebar
+  let sidebarExpanded = false;
+
+  function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const icon = document.getElementById('toggleSidebarIcon');
+    const toggleBtnContainer = document.getElementById('toggleBtnContainer');
+    const sidebarTexts = document.querySelectorAll('.sidebar-text');
+    const sidebarLinks = document.querySelectorAll('.sidebar-link');
+
+    sidebarExpanded = !sidebarExpanded;
+
+    if (sidebarExpanded) {
+      // Expandir
+      sidebar.style.width = '200px';
+      icon.className = 'bi bi-chevron-double-left fs-5';
+      toggleBtnContainer.style.justifyContent = 'flex-end';
+
+      // Ajustar alinhamento dos links antes de mostrar textos
+      sidebarLinks.forEach(link => {
+        link.style.justifyContent = 'flex-start';
+      });
+
+      // Mostrar textos com delay para animação suave
+      setTimeout(() => {
+        sidebarTexts.forEach(text => {
+          text.style.display = 'inline';
+          text.style.opacity = '1';
+        });
+      }, 150);
+    } else {
+      // Compactar - fade out dos textos primeiro
+      sidebarTexts.forEach(text => {
+        text.style.opacity = '0';
+      });
+
+      // Aguardar fade out completar antes de esconder
+      setTimeout(() => {
+        sidebarTexts.forEach(text => {
+          text.style.display = 'none';
+        });
+      }, 200);
+
+      // Reduzir largura e ajustar elementos imediatamente (em paralelo com fade)
+      sidebar.style.width = '60px';
+      icon.className = 'bi bi-list fs-5';
+      toggleBtnContainer.style.justifyContent = 'center';
+
+      // Centralizar ícones
+      sidebarLinks.forEach(link => {
+        link.style.justifyContent = 'center';
+      });
+    }
+  }
+
+  // Inicializar sidebar compactado
+  document.addEventListener('DOMContentLoaded', function() {
+    const sidebar = document.getElementById('sidebar');
+    const toggleBtnContainer = document.getElementById('toggleBtnContainer');
+    const sidebarTexts = document.querySelectorAll('.sidebar-text');
+    const sidebarLinks = document.querySelectorAll('.sidebar-link');
+
+    sidebar.style.width = '60px';
+    toggleBtnContainer.style.justifyContent = 'center';
+    sidebarTexts.forEach(text => {
+      text.style.display = 'none';
+      text.style.opacity = '0';
+    });
+    sidebarLinks.forEach(link => {
+      link.style.justifyContent = 'center';
+    });
+  });
+
   window.start_all_emulators = async () => {
     try {
       const response = await fetch('/start', {
@@ -193,20 +271,38 @@
   .nav-link {
     transition: background-color 0.2s ease;
   }
-  
+
   .nav-link:hover {
     background-color: rgba(0,0,0,0.05) !important;
   }
-  
-  /* Em telas pequenas, centralizar ícones */
-  @media (max-width: 767.98px) {
-    .col-auto.col-md-3.col-xl-2 {
-      max-width: 60px;
-    }
-    
-    .nav-link {
-      justify-content: center;
-      padding: 10px 5px;
-    }
+
+  /* Botão toggle do sidebar */
+  .sidebar-toggle-btn {
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    padding: 4px 8px;
+    background-color: white;
+    transition: all 0.2s ease;
+  }
+
+  .sidebar-toggle-btn:hover {
+    background-color: #f8f9fa;
+    border-color: #adb5bd;
+  }
+
+  /* Transições suaves para textos do sidebar */
+  .sidebar-text {
+    transition: opacity 0.2s ease;
+    white-space: nowrap;
+    opacity: 0;
+  }
+
+  .sidebar-link {
+    transition: justify-content 0.3s ease;
+  }
+
+  /* Transição suave do container do botão toggle */
+  #toggleBtnContainer {
+    transition: justify-content 0.3s ease;
   }
 </style>
