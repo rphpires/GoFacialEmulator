@@ -1,0 +1,50 @@
+# Git
+.git
+.gitignore
+.github
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Documentação
+*.md
+docs/
+descrição AI.txt
+
+# Build artifacts
+bin/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Logs e traces
+logs/
+traces/
+*.log
+
+# Testes
+testes/
+*_test.go
+
+# Environment
+.env
+.env.local
+.env.development
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Scripts
+*.sh
+*.bat
+
+# Dados temporários
+tmp/
+temp/

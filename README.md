@@ -75,7 +75,50 @@ GoFacialEmulator/
 
 ## 🛠️ Instalação e Configuração
 
-### 1. Pré-requisitos
+### Opção 1: Docker (Recomendado)
+
+A maneira mais rápida e simples de executar o projeto:
+
+```bash
+# Iniciar aplicação e banco de dados
+docker compose up -d
+
+# Acessar
+http://localhost:8080
+```
+
+#### Documentação Docker Disponível:
+
+Escolha o guia adequado ao seu nível de conhecimento:
+
+- **[GUIA-INSTALACAO-DOCKER.md](GUIA-INSTALACAO-DOCKER.md)** - Guia completo passo-a-passo para iniciantes
+  - Instalação do Docker em Windows/Linux/Mac
+  - Explicações detalhadas de cada etapa
+  - Solução de problemas comuns
+  - Perfeito para quem nunca usou Docker
+
+- **[CHECKLIST-INSTALACAO.md](CHECKLIST-INSTALACAO.md)** - Checklist rápido visual
+  - Lista de verificação para marcar
+  - Comandos prontos para copiar
+  - Fluxograma de troubleshooting
+
+- **[DIAGRAMA-DOCKER.md](DIAGRAMA-DOCKER.md)** - Documentação visual
+  - Diagramas da arquitetura
+  - Fluxogramas de processos
+  - Mapas de comunicação entre containers
+
+- **[QUICKSTART-DOCKER.md](QUICKSTART-DOCKER.md)** - Início rápido (3 passos)
+  - Para quem já conhece Docker
+  - Comandos essenciais
+
+- **[DOCKER.md](DOCKER.md)** - Documentação técnica completa
+  - Configurações avançadas
+  - Produção e segurança
+  - Backup e restore
+
+### Opção 2: Instalação Manual
+
+#### 1. Pré-requisitos
 
 ```bash
 # Go 1.21+
@@ -85,7 +128,7 @@ go version
 psql --version
 ```
 
-### 2. Configuração
+#### 2. Configuração
 
 ```bash
 # Clonar projeto
@@ -100,7 +143,7 @@ cp .env.example .env
 go mod tidy
 ```
 
-### 3. Configuração do Banco
+#### 3. Configuração do Banco
 
 ```bash
 # Criar banco PostgreSQL
@@ -109,7 +152,7 @@ createdb facial_emulator
 # As migrações são executadas automaticamente na inicialização
 ```
 
-### 4. Executar
+#### 4. Executar
 
 ```bash
 # Desenvolvimento

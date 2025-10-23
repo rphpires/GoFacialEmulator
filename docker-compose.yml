@@ -1,0 +1,66 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: facial-emulator-db
+    environment:
+      POSTGRES_USER: emulator
+      POSTGRES_PASSWORD: emulator123
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker-init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - facial-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U emulator"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: facial-emulator-app
+    environment:
+      # Configuração do servidor
+      SERVER_HOST: "0.0.0.0"
+      SERVER_PORT: "8080"
+
+      # Configuração do PostgreSQL (service_db)
+      PG_HOST: postgres
+      PG_PORT: "5432"
+      PG_USER: emulator
+      PG_PASSWORD: emulator123
+      PG_DATABASE: service_db
+
+      # Configuração do PostgreSQL (emulator_db)
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_USER: emulator
+      DB_PASSWORD: emulator123
+      DB_DATABASE: emulator_db
+    ports:
+      - "8080:8080"
+      # Portas para emuladores (descomente se precisar acesso externo)
+      # - "9000-9100:9000-9100"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - facial-network
+    restart: unless-stopped
+    volumes:
+      - ./logs:/app/logs
+      - ./traces:/app/traces
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  facial-network:
+    driver: bridge
