@@ -106,7 +106,7 @@ environment:
 ### Portas Expostas
 
 - **8080**: Interface web e API
-- **9000-9100**: Range de portas para emuladores de dispositivos
+- **4000-4999**: Range de portas para emuladores de dispositivos (1000 emuladores possíveis)
 - **5432**: PostgreSQL (opcional, para acesso externo)
 
 ## Volumes Persistentes

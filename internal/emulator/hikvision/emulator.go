@@ -88,8 +88,9 @@ func (e *Emulator) Start() error {
 	e.SetupRoutes(router)
 
 	// Inicia o servidor HTTP
-	addr := fmt.Sprintf("%s:%d", e.device.IPAddress, e.device.Port)
-	e.tracer.Info("Starting Hikvision HTTP server on %s", addr)
+	// Usar 0.0.0.0 para aceitar conexões de qualquer interface (necessário para Docker)
+	addr := fmt.Sprintf("0.0.0.0:%d", e.device.Port)
+	e.tracer.Info("Starting Hikvision HTTP server on %s (device: %s)", addr, e.device.IPAddress)
 
 	e.server = &http.Server{
 		Addr:    addr,
@@ -551,6 +552,9 @@ func (e *Emulator) handleEventStream(c *gin.Context) {
 	c.Writer.Header().Set("Connection", "keep-alive")
 	c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
 	c.Writer.Flush()
+
+	// 	// Configurar headers para streaming
+	// c.Writer.Header().Set("Content-Type", "text/event-stream")
 
 	// Inicializar contadores
 	heartbeatCounter := time.Now()

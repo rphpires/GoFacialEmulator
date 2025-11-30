@@ -45,8 +45,8 @@ services:
       DB_DATABASE: emulator_db
     ports:
       - "8080:8080"
-      # Portas para emuladores (descomente se precisar acesso externo)
-      # - "9000-9100:9000-9100"
+      # Portas para emuladores (range: 4000-4999 = 1000 emuladores possíveis)
+      - "4000-4999:4000-4999"
     depends_on:
       postgres:
         condition: service_healthy

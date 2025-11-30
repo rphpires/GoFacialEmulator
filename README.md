@@ -116,52 +116,31 @@ Escolha o guia adequado ao seu nível de conhecimento:
   - Produção e segurança
   - Backup e restore
 
-### Opção 2: Instalação Manual
+### Opção 2: Deploy em Servidor (Linux/Windows)
 
-#### 1. Pré-requisitos
+Execute o script de deploy automático que faz TUDO:
 
+**Linux:**
 ```bash
-# Go 1.21+
-go version
-
-# PostgreSQL 12+
-psql --version
+chmod +x deploy.sh
+./deploy.sh
 ```
 
-#### 2. Configuração
-
-```bash
-# Clonar projeto
-git clone <repo>
-cd GoFacialEmulator
-
-# Configurar variáveis de ambiente
-cp .env.example .env
-# Editar .env com suas configurações
-
-# Instalar dependências
-go mod tidy
+**Windows:**
+```cmd
+deploy.bat
 ```
 
-#### 3. Configuração do Banco
+O script faz automaticamente:
+- ✅ Verifica/instala PostgreSQL
+- ✅ Cria usuário `emulator` e bancos `service_db`, `emulator_db`
+- ✅ Configura schemas e permissões
+- ✅ Gera arquivo `.env`
+- ✅ Compila a aplicação
 
-```bash
-# Criar banco PostgreSQL
-createdb facial_emulator
+**Configuração personalizada:** Edite as variáveis no início do arquivo `deploy.sh` ou `deploy.bat` antes de executar.
 
-# As migrações são executadas automaticamente na inicialização
-```
-
-#### 4. Executar
-
-```bash
-# Desenvolvimento
-go run cmd/main.go
-
-# Produção
-go build -o facial_emulator cmd/main.go
-./facial_emulator
-```
+**Nota**: As tabelas são criadas automaticamente na primeira execução pelo [validator.go](internal/database/validator.go).
 
 ## 🔧 Configuração (.env)
 

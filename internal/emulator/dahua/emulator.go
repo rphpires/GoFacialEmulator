@@ -86,8 +86,9 @@ func (e *Emulator) Start() error {
 	e.SetupRoutes(router)
 
 	// Inicia o servidor HTTP
-	addr := fmt.Sprintf("%s:%d", e.device.IPAddress, e.device.Port)
-	e.tracer.Info("Starting Dahua HTTP server on %s", addr)
+	// Usar 0.0.0.0 para aceitar conexões de qualquer interface (necessário para Docker)
+	addr := fmt.Sprintf("0.0.0.0:%d", e.device.Port)
+	e.tracer.Info("Starting Dahua HTTP server on %s (device: %s)", addr, e.device.IPAddress)
 
 	e.server = &http.Server{
 		Addr:    addr,
