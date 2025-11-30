@@ -22,6 +22,7 @@ type WxsDB struct {
 // NewWxsDB cria uma nova instância do WxsDB para SQL Server
 func NewWxsDB(cfg config.DatabaseConfig) (*WxsDB, error) {
 	// Connection string para SQL Server
+	fmt.Println("## WXS Host: ", cfg.Host)
 	connString := fmt.Sprintf("server=%s;port=%d;database=%s;user id=%s;password=%s;encrypt=disable;connection timeout=30",
 		cfg.Host, cfg.Port, cfg.Database, cfg.Username, cfg.Password)
 

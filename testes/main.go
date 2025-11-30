@@ -92,8 +92,8 @@ func main() {
 
 	http.HandleFunc("/cgi-bin/snapManager.cgi", server.snapManagerHandler)
 
-	log.Println("Servidor iniciado na porta 8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	log.Println("Servidor iniciado na porta 7070")
+	log.Fatal(http.ListenAndServe(":7070", nil))
 }
 
 // Estrutura Dahua e seus métodos (implementação simplificada)

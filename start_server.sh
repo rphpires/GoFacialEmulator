@@ -48,8 +48,8 @@ mkdir -p logs traces
 WSL_IP=$(ip addr show eth0 | grep "inet " | awk '{print $2}' | cut -d/ -f1)
 echo ""
 echo "=== Aplicação iniciando ==="
-echo "URL Local:   http://localhost:8080"
-echo "URL Windows: http://$WSL_IP:8080"
+echo "URL Local:   http://localhost:7070"
+echo "URL Windows: http://$WSL_IP:7070"
 echo ""
 echo "Para parar: Ctrl+C"
 echo "Logs serão salvos em: logs/app.log"

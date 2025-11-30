@@ -141,15 +141,15 @@ WXS_SCHEMA=dbo
 
 # Servidor HTTP
 SERVER_HOST=0.0.0.0
-SERVER_PORT=8080
+SERVER_PORT=7070
 ```
 
 ## 🌐 APIs Disponíveis
 
 ### Interface Web
 
-- `http://localhost:8080/` - Dashboard principal
-- `http://localhost:8080/comparison` - Comparação de dados
+- `http://localhost:7070/` - Dashboard principal
+- `http://localhost:7070/comparison` - Comparação de dados
 
 ### API REST
 
