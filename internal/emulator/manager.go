@@ -646,20 +646,32 @@ func (m *Manager) updateDeviceTotalUsers(deviceID int, emulator Emulator) {
 	totalUsers, err := emulator.GetTotalUsers()
 	if err != nil {
 		// Log do erro mas não interromper o processo
-		m.Tracer.Error("Failed to get total users for device %d: %v", deviceID, err)
+		m.Tracer.Error("[WATCHDOG] Failed to get total users for device %d: %v", deviceID, err)
 		return
 	}
+
+	// Log para rastreamento
+	m.Tracer.Info("[WATCHDOG] Device %d: Updating total_users to %d", deviceID, totalUsers)
 
 	// Atualizar no banco (com timeout curto para não travar)
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	_, err = m.ServiceDB.Exec(ctx,
-		"UPDATE service.devices SET total_users = $1 WHERE local_controller_id = $2",
+	result, err := m.ServiceDB.Exec(ctx,
+		"UPDATE service.devices SET total_users = $1, updated_at = NOW() WHERE local_controller_id = $2",
 		totalUsers, deviceID)
 
 	if err != nil {
-		m.Tracer.Error("Failed to update total_users for device %d: %v", deviceID, err)
+		m.Tracer.Error("[WATCHDOG] Failed to update total_users for device %d: %v", deviceID, err)
+		return
+	}
+
+	// Verificar se a linha foi atualizada
+	rowsAffected := result.RowsAffected()
+	if rowsAffected == 0 {
+		m.Tracer.Warning("[WATCHDOG] Device %d: No rows updated (device may not exist in database)", deviceID)
+	} else {
+		m.Tracer.Info("[WATCHDOG] Device %d: Successfully updated total_users=%d", deviceID, totalUsers)
 	}
 }
 

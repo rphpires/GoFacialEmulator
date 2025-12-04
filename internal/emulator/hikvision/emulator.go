@@ -27,6 +27,7 @@ type Emulator struct {
 	stopChan         chan struct{}
 	macAddress       string
 	deleteInProgress bool
+	startTime        *time.Time // Timestamp de quando o emulador foi iniciado
 
 	// Configurações do servidor remoto
 	remoteServer    string
@@ -105,6 +106,10 @@ func (e *Emulator) Start() error {
 	}()
 
 	e.running = true
+
+	// Registrar horário de início
+	now := time.Now()
+	e.startTime = &now
 
 	// Inicia o gerador de eventos se configurado
 	if e.device.EventInterval > 0 {

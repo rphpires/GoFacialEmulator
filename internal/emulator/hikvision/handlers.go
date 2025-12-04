@@ -83,24 +83,46 @@ func (e *Emulator) SetupRoutes(router *gin.Engine) {
 	router.GET(eventURL+"/httpHosts", e.handleGetHttpHosts)
 	router.PUT(eventURL+"/httpHosts", e.handlePutHttpHosts)
 	router.GET(eventURL+"/alertStream", e.handleGetAlertStream)
+
+	// =========================== Status (Custom) ====================
+	router.GET("/status", e.handleGetStatus)
+	router.GET("/health", e.handleGetStatus) // Alias
 }
 
 // ====================== STATUS HANDLERS ======================
 
 func (e *Emulator) handleGetStatus(c *gin.Context) {
-	e.tracer.Info("/emulator/get-status: connect")
+	e.tracer.Info("[STATUS] Status request received")
 
 	currentTime := time.Now().Format("2006-01-02 15:04:05")
-	count, _ := e.repo.GetTotalUsers()
+	count, err := e.repo.GetTotalUsers()
 
-	c.JSON(http.StatusOK, gin.H{
-		"CurrentDatetime": currentTime,
-		"TotalUsers":      count,
-		"Status":          e.GetStatus(),
-		"Model":           "Hikvision",
-		"MacAddress":      e.macAddress,
-		"Version":         "1.0.0",
-	})
+	uptime := int64(0)
+	if e.startTime != nil {
+		uptime = int64(time.Since(*e.startTime).Seconds())
+	}
+
+	response := gin.H{
+		"device_id":       e.device.ID,
+		"device_name":     e.device.Name,
+		"port":            e.device.Port,
+		"model":           "Hikvision",
+		"status":          e.GetStatus(),
+		"is_running":      e.IsRunning(),
+		"total_users":     count,
+		"uptime_seconds":  uptime,
+		"current_time":    currentTime,
+		"mac_address":     e.macAddress,
+		"version":         "1.0.0",
+		"event_interval":  e.device.EventInterval,
+	}
+
+	if err != nil {
+		response["total_users_error"] = err.Error()
+		e.tracer.Error("[STATUS] Failed to get total users: %v", err)
+	}
+
+	c.JSON(http.StatusOK, response)
 }
 
 // ====================== ACCESS CONTROL HANDLERS ======================
@@ -344,9 +366,14 @@ func (e *Emulator) handlePostUserRecord(c *gin.Context) {
 	}
 
 	if err := e.repo.AddUser(user); err != nil {
+		e.tracer.Error("[USER_SYNC] Failed to add user: employeeNo=%s, name=%s, error=%v", user.EmployeeNo, user.Name, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
+	// Obter total atualizado
+	totalUsers, _ := e.repo.GetTotalUsers()
+	e.tracer.Info("[USER_SYNC] User added successfully: employeeNo=%s, name=%s, total_users=%d", user.EmployeeNo, user.Name, totalUsers)
 
 	c.JSON(http.StatusOK, gin.H{
 		"statusCode":    1,
