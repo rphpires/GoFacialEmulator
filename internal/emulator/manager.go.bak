@@ -346,7 +346,7 @@ func (m *Manager) GetDevice(id int) (models.Device, error) {
 	m.Tracer.Info("GetDevice founded in DB ID=%d", device.ID)
 	// Atualizar status baseado no emulador real
 	m.Tracer.Info("About to acquire RLock for device %d", device.ID)
-	m.emulatorMutex.RLock()
+	m.mutex.RLock()
 	m.Tracer.Info("RLock acquired successfully")
 	// if emulator, exists := m.emulators[device.ID]; exists && emulator.IsRunning() {
 	// 	device.Status = "running"
@@ -368,7 +368,7 @@ func (m *Manager) GetDevice(id int) (models.Device, error) {
 		device.Status = "stopped"
 	}
 
-	m.emulatorMutex.RUnlock()
+	m.mutex.RUnlock()
 	m.Tracer.Info("RLock released: GetDevice")
 
 	m.Tracer.Info("Device with ID=%d was founded, Status=%s", id, device.Status)
@@ -408,8 +408,8 @@ func (m *Manager) getDeviceUnsafe(id int) (models.Device, error) {
 
 // Start inicia um emulador específico - equivalente ao start_emulators() do Python
 func (m *Manager) Start(id int) error {
-	m.emulatorMutex.Lock()
-	defer m.emulatorMutex.Unlock()
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
 
 	// Verificar se já está rodando
 	if emulator, exists := m.emulators[id]; exists && emulator.IsRunning() {
@@ -464,13 +464,11 @@ func (m *Manager) Start(id int) error {
 		}
 	}()
 
-	// Resetar contador de falhas do watchdog (com proteção)
-	m.watchdogMutex.Lock()
+	// Resetar contador de falhas do watchdog
 	if info, exists := m.watchdog[id]; exists {
 		info.FailureCount = 0
 		info.LastStatus = "running"
 	}
-	m.watchdogMutex.Unlock()
 
 	m.Tracer.Info("Started emulator for device %d (%s)", id, device.Name)
 
@@ -494,8 +492,8 @@ func (m *Manager) createEmulator(device models.Device) (Emulator, error) {
 
 // Stop para um emulador específico
 func (m *Manager) Stop(id int) error {
-	m.emulatorMutex.Lock()
-	defer m.emulatorMutex.Unlock()
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
 
 	emulator, exists := m.emulators[id]
 	if !exists || !emulator.IsRunning() {
@@ -526,13 +524,11 @@ func (m *Manager) Stop(id int) error {
 	// Remover do mapa
 	delete(m.emulators, id)
 
-	// Atualizar watchdog (com proteção)
-	m.watchdogMutex.Lock()
+	// Atualizar watchdog
 	if info, exists := m.watchdog[id]; exists {
 		info.LastStatus = "stopped"
 		info.FailureCount = 0
 	}
-	m.watchdogMutex.Unlock()
 
 	m.Tracer.Info("Stopped emulator for device %d", id)
 
@@ -647,8 +643,8 @@ func (m *Manager) StartAll() error {
 
 // StopAll para todos os emuladores
 func (m *Manager) StopAll() {
-	m.emulatorMutex.Lock()
-	defer m.emulatorMutex.Unlock()
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
 
 	for id, emulator := range m.emulators {
 		if emulator.IsRunning() {
@@ -701,58 +697,46 @@ func (m *Manager) performHealthChecks() {
 }
 
 func (m *Manager) checkDeviceHealth(device models.Device) {
-	// Ler status do emulador
-	m.emulatorMutex.RLock()
+	m.mutex.RLock()
 	emulator, exists := m.emulators[device.ID]
 	isRunning := exists && emulator.IsRunning()
-	m.emulatorMutex.RUnlock()
+	m.mutex.RUnlock()
 
-	// Atualizar total_users se emulador estiver rodando (ANTES de acessar watchdog)
-	if isRunning && emulator != nil {
-		m.updateDeviceTotalUsers(device.ID, emulator)
-	}
-
-	// Acessar watchdog com proteção de mutex
-	m.watchdogMutex.Lock()
 	watchdogInfo, exists := m.watchdog[device.ID]
 	if !exists {
 		watchdogInfo = &WatchdogInfo{FailureCount: 0, LastCheck: time.Now(), LastStatus: "unknown"}
 		m.watchdog[device.ID] = watchdogInfo
 	}
 
+	// ADICIONAR ESTA SEÇÃO - Atualizar total_users se emulador estiver rodando
+	if isRunning {
+		m.updateDeviceTotalUsers(device.ID, emulator)
+	}
+
 	// Verificar se está rodando quando deveria
 	if device.Status == "running" && !isRunning {
 		watchdogInfo.FailureCount++
-		failureCount := watchdogInfo.FailureCount
-		m.watchdogMutex.Unlock() // Liberar lock ANTES de operações bloqueantes
-
 		m.Tracer.Warning("Device %d (%s) should be running but isn't (failures: %d)",
-			device.ID, device.Name, failureCount)
+			device.ID, device.Name, watchdogInfo.FailureCount)
 
 		// Tentar reiniciar após 3 falhas
-		if failureCount >= 3 {
-			m.Tracer.Info("Attempting to restart device %d after %d failures", device.ID, failureCount)
+		if watchdogInfo.FailureCount >= 3 {
+			m.Tracer.Info("Attempting to restart device %d after %d failures", device.ID, watchdogInfo.FailureCount)
 			if err := m.Start(device.ID); err != nil {
 				m.Tracer.Error("Failed to restart device %d: %v", device.ID, err)
 				go m.notifyStatusChange(device.ID, "error", device.Name)
 			} else {
-				// Resetar contador após sucesso
-				m.watchdogMutex.Lock()
-				if info, ok := m.watchdog[device.ID]; ok {
-					info.FailureCount = 0
-				}
-				m.watchdogMutex.Unlock()
+				watchdogInfo.FailureCount = 0
 			}
 		}
 	} else if device.Status == "stopped" && isRunning {
-		m.watchdogMutex.Unlock() // Liberar lock ANTES de Stop()
 		m.Tracer.Info("Device %d is running but should be stopped", device.ID)
 		m.Stop(device.ID)
 	} else {
 		watchdogInfo.FailureCount = 0
-		watchdogInfo.LastCheck = time.Now()
-		m.watchdogMutex.Unlock()
 	}
+
+	watchdogInfo.LastCheck = time.Now()
 }
 
 func (m *Manager) updateDeviceTotalUsers(deviceID int, emulator Emulator) {
@@ -885,8 +869,8 @@ func (m *Manager) GetPoolStats() map[string]interface{} {
 }
 
 func (m *Manager) ListDevicesWithFilters(filters map[string]string) ([]*models.Device, error) {
-	m.emulatorMutex.RLock()
-	defer m.emulatorMutex.RUnlock()
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

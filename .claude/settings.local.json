@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(docker-compose down:*)"
+      "Bash(docker-compose down:*)",
+      "Bash(go build:*)",
+      "Bash(cd:*)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []

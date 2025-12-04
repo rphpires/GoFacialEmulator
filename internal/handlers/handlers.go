@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"runtime"
 	"strconv"
 	"text/template"
 	"time"
@@ -12,6 +13,7 @@ import (
 	"GoFacialEmulator/internal/config"
 	"GoFacialEmulator/internal/database"
 	"GoFacialEmulator/internal/emulator"
+	"GoFacialEmulator/internal/monitoring"
 	"GoFacialEmulator/internal/trace"
 
 	"github.com/gin-gonic/gin"
@@ -20,20 +22,67 @@ import (
 
 // Handler gerencia todas as rotas HTTP - baseado no EmulatorService.py
 type Handler struct {
-	manager   *emulator.Manager
-	serviceDB *database.AdaptivePool
-	wxsDB     *database.WxsDB
-	tracer    *trace.Tracer
-	upgrader  websocket.Upgrader
+	manager       *emulator.Manager
+	serviceDB     *database.AdaptivePool
+	wxsDB         *database.WxsDB
+	tracer        *trace.Tracer
+	upgrader      websocket.Upgrader
+	healthMonitor *monitoring.HealthMonitor
+	metrics       *monitoring.Metrics
 }
 
 // NewHandler cria uma nova instância de Handler
 func NewHandler(manager *emulator.Manager, serviceDB *database.AdaptivePool, wxsDB *database.WxsDB, tracer *trace.Tracer) *Handler {
+	// Criar sistema de monitoramento
+	healthMonitor := monitoring.NewHealthMonitor()
+	metrics := monitoring.NewMetrics()
+
+	// Registrar health checkers
+	healthMonitor.RegisterChecker(monitoring.NewDatabaseHealthChecker(
+		"service_db",
+		func(ctx context.Context) error { return serviceDB.Ping(ctx) },
+		func() map[string]interface{} { return serviceDB.GetStats() },
+	))
+
+	healthMonitor.RegisterChecker(monitoring.NewDatabaseHealthChecker(
+		"emulator_db",
+		func(ctx context.Context) error { return manager.EmulatorDB.Ping(ctx) },
+		func() map[string]interface{} { return manager.EmulatorDB.GetStats() },
+	))
+
+	if wxsDB != nil {
+		healthMonitor.RegisterChecker(monitoring.NewDatabaseHealthChecker(
+			"wxs_db",
+			func(ctx context.Context) error { return wxsDB.Ping(ctx) },
+			func() map[string]interface{} { return map[string]interface{}{"connected": true} },
+		))
+	}
+
+	healthMonitor.RegisterChecker(monitoring.NewEmulatorHealthChecker(
+		func() ([]map[string]interface{}, error) {
+			devices, err := manager.ListDevices()
+			if err != nil {
+				return nil, err
+			}
+			result := make([]map[string]interface{}, len(devices))
+			for i, d := range devices {
+				result[i] = map[string]interface{}{
+					"id":     d.ID,
+					"status": d.Status,
+					"name":   d.Name,
+				}
+			}
+			return result, nil
+		},
+	))
+
 	return &Handler{
-		manager:   manager,
-		serviceDB: serviceDB,
-		wxsDB:     wxsDB,
-		tracer:    tracer,
+		manager:       manager,
+		serviceDB:     serviceDB,
+		wxsDB:         wxsDB,
+		tracer:        tracer,
+		healthMonitor: healthMonitor,
+		metrics:       metrics,
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {
 				return true // Permitir todas as origens em desenvolvimento
@@ -44,12 +93,13 @@ func NewHandler(manager *emulator.Manager, serviceDB *database.AdaptivePool, wxs
 
 // Router configura e retorna o router HTTP
 func (h *Handler) Router() http.Handler {
-	router := gin.Default()
+	// Criar router sem middlewares padrão (vamos adicionar os nossos)
+	router := gin.New()
 
-	// Configurar middleware
-	router.Use(h.loggingMiddleware())
-	router.Use(gin.Recovery())
-	router.Use(h.corsMiddleware())
+	// Configurar middlewares na ordem correta
+	router.Use(monitoring.RecoveryMiddleware(h.metrics, h.tracer))  // Primeiro: Recovery
+	router.Use(monitoring.MetricsMiddleware(h.metrics, h.tracer))   // Segundo: Métricas
+	router.Use(h.corsMiddleware())                                   // Terceiro: CORS
 
 	// Servir arquivos estáticos
 	router.Static("/static", "./web/static")
@@ -60,8 +110,8 @@ func (h *Handler) Router() http.Handler {
 	// Rotas da API REST
 	h.setupAPIRoutes(router)
 
-	// Rota de saúde
-	router.GET("/health", h.healthCheck)
+	// Rotas de monitoramento
+	h.setupMonitoringRoutes(router)
 
 	return router
 }
@@ -116,6 +166,25 @@ func (h *Handler) setupWebRoutes(router *gin.Engine) {
 	router.GET("/settings", h.settingsPage)
 
 	router.GET("/events", h.handleSSE)
+}
+
+// setupMonitoringRoutes configura rotas de monitoramento e observabilidade
+func (h *Handler) setupMonitoringRoutes(router *gin.Engine) {
+	monitoring := router.Group("/monitoring")
+	{
+		// Health check avançado
+		monitoring.GET("/health", h.advancedHealthCheck)
+		monitoring.GET("/health/quick", h.quickHealthCheck)
+
+		// Métricas
+		monitoring.GET("/metrics", h.getMetrics)
+		monitoring.GET("/metrics/endpoints", h.getEndpointMetrics)
+		monitoring.GET("/metrics/errors", h.getTopErrors)
+
+		// Debug e diagnóstico
+		monitoring.GET("/debug/goroutines", h.getGoroutineCount)
+		monitoring.GET("/debug/memory", h.getMemoryStats)
+	}
 }
 
 // setupAPIRoutes configura rotas da API
@@ -1037,5 +1106,103 @@ func (h *Handler) saveWxsSettings(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "Configurações salvas e conexão reiniciada com sucesso",
+	})
+}
+
+// ====================================================================
+// Monitoring and Observability Handlers
+// ====================================================================
+
+// advancedHealthCheck retorna health check detalhado de todos os componentes
+func (h *Handler) advancedHealthCheck(c *gin.Context) {
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
+	defer cancel()
+
+	result := h.healthMonitor.CheckAll(ctx)
+
+	// Status HTTP baseado no status geral
+	status := result["status"].(monitoring.HealthStatus)
+	httpStatus := http.StatusOK
+	if status == monitoring.HealthStatusUnhealthy {
+		httpStatus = http.StatusServiceUnavailable
+	} else if status == monitoring.HealthStatusDegraded {
+		httpStatus = http.StatusOK // 200 mas com aviso
+	}
+
+	c.JSON(httpStatus, result)
+}
+
+// quickHealthCheck retorna health check rápido (usa cache)
+func (h *Handler) quickHealthCheck(c *gin.Context) {
+	result := h.healthMonitor.QuickCheck()
+
+	status := result["status"].(monitoring.HealthStatus)
+	httpStatus := http.StatusOK
+	if status == monitoring.HealthStatusUnhealthy {
+		httpStatus = http.StatusServiceUnavailable
+	}
+
+	c.JSON(httpStatus, result)
+}
+
+// getMetrics retorna snapshot completo das métricas
+func (h *Handler) getMetrics(c *gin.Context) {
+	snapshot := h.metrics.GetSnapshot()
+	c.JSON(http.StatusOK, snapshot)
+}
+
+// getEndpointMetrics retorna métricas detalhadas por endpoint
+func (h *Handler) getEndpointMetrics(c *gin.Context) {
+	snapshot := h.metrics.GetSnapshot()
+	endpoints := snapshot["endpoints"]
+
+	c.JSON(http.StatusOK, gin.H{
+		"endpoints": endpoints,
+		"timestamp": time.Now().UTC(),
+	})
+}
+
+// getTopErrors retorna endpoints com mais erros
+func (h *Handler) getTopErrors(c *gin.Context) {
+	limit := 10
+	if limitStr := c.Query("limit"); limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 {
+			limit = l
+		}
+	}
+
+	topErrors := h.metrics.GetTopErrorEndpoints(limit)
+
+	c.JSON(http.StatusOK, gin.H{
+		"top_errors": topErrors,
+		"limit":      limit,
+		"timestamp":  time.Now().UTC(),
+	})
+}
+
+// getGoroutineCount retorna contagem de goroutines
+func (h *Handler) getGoroutineCount(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{
+		"goroutines": runtime.NumGoroutine(),
+		"timestamp":  time.Now().UTC(),
+	})
+}
+
+// getMemoryStats retorna estatísticas de memória
+func (h *Handler) getMemoryStats(c *gin.Context) {
+	var memStats runtime.MemStats
+	runtime.ReadMemStats(&memStats)
+
+	c.JSON(http.StatusOK, gin.H{
+		"alloc_mb":       memStats.Alloc / 1024 / 1024,
+		"total_alloc_mb": memStats.TotalAlloc / 1024 / 1024,
+		"sys_mb":         memStats.Sys / 1024 / 1024,
+		"num_gc":         memStats.NumGC,
+		"gc_pause_ms":    float64(memStats.PauseNs[(memStats.NumGC+255)%256]) / 1000000,
+		"heap_alloc_mb":  memStats.HeapAlloc / 1024 / 1024,
+		"heap_sys_mb":    memStats.HeapSys / 1024 / 1024,
+		"heap_idle_mb":   memStats.HeapIdle / 1024 / 1024,
+		"heap_inuse_mb":  memStats.HeapInuse / 1024 / 1024,
+		"timestamp":      time.Now().UTC(),
 	})
 }

@@ -130,3 +130,28 @@ func ValidateIPAddress(ip string) bool {
 func ValidatePort(port int) bool {
 	return port > 0 && port <= 65535
 }
+
+// IsPortAvailable verifica se uma porta está disponível para uso
+func IsPortAvailable(port int) bool {
+	addr := fmt.Sprintf(":%d", port)
+	listener, err := net.Listen("tcp", addr)
+	if err != nil {
+		return false
+	}
+	listener.Close()
+	return true
+}
+
+// WaitForPortToBecomeAvailable aguarda até que uma porta esteja disponível
+func WaitForPortToBecomeAvailable(port int, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+
+	for time.Now().Before(deadline) {
+		if IsPortAvailable(port) {
+			return nil
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	return fmt.Errorf("timeout waiting for port %d to become available", port)
+}

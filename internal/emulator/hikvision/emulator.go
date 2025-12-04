@@ -84,8 +84,18 @@ func (e *Emulator) Start() error {
 
 	e.tracer.Info("Starting Hikvision emulator: %s", e.device.Name)
 
-	// Configura o router
-	router := gin.Default()
+	// Verificar se a porta está disponível antes de tentar iniciar
+	if !utils.IsPortAvailable(e.device.Port) {
+		e.tracer.Warning("Port %d is not immediately available, waiting up to 3 seconds...", e.device.Port)
+		if err := utils.WaitForPortToBecomeAvailable(e.device.Port, 3*time.Second); err != nil {
+			return fmt.Errorf("port %d is already in use: %w", e.device.Port, err)
+		}
+	}
+
+	// Configura o router (modo release para melhor performance)
+	gin.SetMode(gin.ReleaseMode)
+	router := gin.New()
+	router.Use(gin.Recovery())
 	e.SetupRoutes(router)
 
 	// Inicia o servidor HTTP
@@ -94,16 +104,31 @@ func (e *Emulator) Start() error {
 	e.tracer.Info("Starting Hikvision HTTP server on %s (device: %s)", addr, e.device.IPAddress)
 
 	e.server = &http.Server{
-		Addr:    addr,
-		Handler: router,
+		Addr:         addr,
+		Handler:      router,
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 30 * time.Second,
+		IdleTimeout:  60 * time.Second,
 	}
+
+	// Canal para capturar erro de inicialização
+	startErrChan := make(chan error, 1)
 
 	// Inicia o servidor em uma goroutine
 	go func() {
 		if err := e.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			e.tracer.Error("Failed to start Hikvision server: %v", err)
+			startErrChan <- err
 		}
 	}()
+
+	// Aguardar um pequeno momento para garantir que o servidor iniciou ou falhou
+	select {
+	case err := <-startErrChan:
+		return fmt.Errorf("failed to start HTTP server: %w", err)
+	case <-time.After(200 * time.Millisecond):
+		// Servidor iniciou sem erros imediatos
+	}
 
 	e.running = true
 
