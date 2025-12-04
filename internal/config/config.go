@@ -235,9 +235,9 @@ func DefaultConfig() *Config {
 
 	return &Config{
 		Server: ServerConfig{
-			Address: ":8080",
+			Address: ":7070",
 			Host:    "localhost",
-			Port:    8080,
+			Port:    7070,
 		},
 		ServiceDB:  postgresConfig,
 		EmulatorDB: postgresConfig, // Mesmo banco

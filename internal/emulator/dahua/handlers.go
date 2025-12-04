@@ -41,6 +41,7 @@ func (e *Emulator) SetupRoutes(router *gin.Engine) {
 
 	// ======================== SnapManager (Streaming) ========================
 	router.GET("/cgi-bin/snapManager.cgi", e.handleSnapManager)
+	// TODO: Add endpoint: /cgi-bin/eventManager.cgi
 }
 
 // ====================== STATUS HANDLERS ======================
@@ -103,7 +104,7 @@ func (e *Emulator) handleConfigManager(c *gin.Context) {
 	switch action {
 	case "getConfig":
 		name := c.Query("name")
-		if name == "NETWORK" || name == "network" {
+		if name == "NETWORK" || name == "network" || name == "Network" {
 			deviceReturn := fmt.Sprintf(`table.Network.eth0.PhysicalAddress=%s
 table.Network.eth0.SubnetMask=255.255.248.0`, e.macAddress)
 
@@ -115,7 +116,7 @@ table.Network.eth0.SubnetMask=255.255.248.0`, e.macAddress)
 		}
 
 	case "setConfig":
-		e.tracer.Info("SetConfig: %+v", c.Request.URL.Query())
+		e.tracer.Info("################# SetConfig: %+v", c.Request.URL.Query())
 
 		// Extrair configurações do servidor remoto
 		if address := c.Query("PictureHttpUpload.UploadServerList[0].Address"); address != "" {

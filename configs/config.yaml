@@ -1,6 +1,6 @@
 server:
   host: "0.0.0.0"
-  port: 8080
+  port: 7070
 
 service_db:
   driver: "postgres"
@@ -27,7 +27,7 @@ emulator_db:
 # Configuração do banco de dados WXS (sistema externo)
 wxsDB:
   driver: "mssql"
-  host: "172.20.112.1"
+  host: "172.16.17.67\\W_ACCESS"
   port: 1433
   database: "W_Access"
   username: "W-Access"
