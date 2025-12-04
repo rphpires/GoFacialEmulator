@@ -87,14 +87,14 @@ func calculateInitialConfig(emulatorCount int) *AdaptiveConfig {
 	estimatedPeak := int32(emulatorCount*2 + 5)
 
 	return &AdaptiveConfig{
-		MinConns:           2,                       // Sempre manter pelo menos 2
-		BaseMaxConns:       max(5, estimatedPeak/3), // Começar mais conservador
-		MaxConns:           estimatedPeak,
-		AbsoluteMaxConns:   estimatedPeak * 2, // Buffer de segurança
+		MinConns:           5,                       // Manter mais conexões mínimas
+		BaseMaxConns:       estimatedPeak,           // Iniciar com capacidade total para evitar contenção
+		MaxConns:           estimatedPeak * 2,       // Permitir expansão se necessário
+		AbsoluteMaxConns:   estimatedPeak * 3,       // Mais margem para picos
 		AdjustmentInterval: 2 * time.Minute,
 		ShrinkThreshold:    0.3,  // Se usar menos de 30%, reduzir
 		GrowthThreshold:    0.85, // Se usar mais de 85%, aumentar
-		ExpansionStep:      3,    // Adicionar 3 conexões por vez na expansão
+		ExpansionStep:      10,   // Expandir mais rápido (10 em vez de 3)
 	}
 }
 

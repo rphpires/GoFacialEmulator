@@ -40,6 +40,9 @@ type Manager struct {
 	// Controle de refresh em andamento com atomic
 	refreshInProgress atomic.Bool
 
+	// Controle de pausa do watchdog
+	watchdogPaused atomic.Bool
+
 	// Cache para ListDevices com TTL
 	devicesCache       []models.Device
 	devicesCacheMutex  sync.RWMutex
@@ -453,16 +456,15 @@ func (m *Manager) Start(id int) error {
 	// Armazenar emulador ANTES de atualizar banco (para garantir consistência)
 	m.emulators[id] = emulator
 
-	// Atualizar status no banco (não bloquear se falhar)
-	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-		defer cancel()
+	// Atualizar status no banco SINCRONAMENTE durante startup para evitar race conditions
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
-		_, err := m.ServiceDB.Exec(ctx, "UPDATE service.devices SET status = 'running' WHERE local_controller_id = $1", id)
-		if err != nil {
-			m.Tracer.Error("Failed to update device status in DB for device %d: %v", id, err)
-		}
-	}()
+	_, err = m.ServiceDB.Exec(ctx, "UPDATE service.devices SET status = 'running' WHERE local_controller_id = $1", id)
+	if err != nil {
+		m.Tracer.Error("Failed to update device status in DB for device %d: %v", id, err)
+		// Não falhar, mas logar - emulador já está rodando em memória
+	}
 
 	// Resetar contador de falhas do watchdog (com proteção)
 	m.watchdogMutex.Lock()
@@ -545,6 +547,18 @@ func (m *Manager) Stop(id int) error {
 
 // StartAll inicia todos os emuladores habilitados com controle de concorrência e retry
 func (m *Manager) StartAll() error {
+	// Pausar watchdog durante inicialização massiva
+	m.Tracer.Info("Pausing watchdog during mass startup")
+	m.watchdogPaused.Store(true)
+	defer func() {
+		// Aguardar 15 segundos após startup para estabilização antes de retomar watchdog
+		go func() {
+			time.Sleep(15 * time.Second)
+			m.watchdogPaused.Store(false)
+			m.Tracer.Info("Watchdog resumed after startup stabilization")
+		}()
+	}()
+
 	devices, err := m.ListDevices()
 	if err != nil {
 		return fmt.Errorf("failed to list devices: %w", err)
@@ -563,14 +577,14 @@ func (m *Manager) StartAll() error {
 		return nil
 	}
 
-	m.Tracer.Info("Starting %d emulators with controlled concurrency", len(devicesToStart))
+	m.Tracer.Info("Starting %d emulators with controlled concurrency (watchdog paused)", len(devicesToStart))
 
-	// Configurações balanceadas para rapidez + robustez
+	// Configurações otimizadas para inicialização massiva
 	const (
-		maxConcurrent = 10               // Máximo de emuladores iniciando simultaneamente
-		delayBetween  = 500 * time.Millisecond  // Delay mínimo entre batches
-		maxRetries    = 2                // Máximo de 2 tentativas por dispositivo
-		retryDelay    = 2 * time.Second  // Delay base para retry
+		maxConcurrent = 20                        // Aumentado para 20 emuladores simultâneos
+		delayBetween  = 200 * time.Millisecond    // Delay reduzido entre batches
+		maxRetries    = 3                         // Aumentado para 3 tentativas
+		retryDelay    = 1 * time.Second           // Retry mais rápido
 	)
 
 	// Semáforo para controlar concorrência
@@ -689,6 +703,12 @@ func (m *Manager) startWatchdog() {
 
 // performHealthChecks realiza verificações de saúde - equivalente ao refresh_device_status()
 func (m *Manager) performHealthChecks() {
+	// Pular health checks se watchdog estiver pausado
+	if m.watchdogPaused.Load() {
+		m.Tracer.Info("Watchdog paused, skipping health checks")
+		return
+	}
+
 	devices, err := m.ListDevices()
 	if err != nil {
 		m.Tracer.Error("Failed to list devices for health check: %v", err)

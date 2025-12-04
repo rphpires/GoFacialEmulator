@@ -79,6 +79,15 @@ func (e *Emulator) Start() error {
 		return fmt.Errorf("emulator already running")
 	}
 
+	// Recriar stopChan se já foi fechado (permite restart)
+	select {
+	case <-e.stopChan:
+		e.stopChan = make(chan struct{})
+		e.tracer.Info("Recreated stopChan for device %s", e.device.Name)
+	default:
+		// Canal ainda está aberto, ok
+	}
+
 	e.tracer.Info("Starting Dahua emulator: %s", e.device.Name)
 
 	// Verificar se a porta está disponível antes de tentar iniciar
