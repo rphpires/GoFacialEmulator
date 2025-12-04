@@ -34,7 +34,7 @@ type Emulator struct {
 }
 
 // NewEmulator cria uma nova instância do emulador Dahua
-func NewEmulator(db *database.AdaptivePool, device models.Device, tracer *trace.Tracer) *Emulator {
+func NewEmulator(db database.DBInterface, device models.Device, tracer *trace.Tracer) *Emulator {
 	tracer.Info("Initializing Dahua emulator model: %s v1.1", device.Name)
 
 	repo := NewRepository(db, device.ID)

@@ -38,14 +38,14 @@ const (
 
 // Repository gerencia operações de banco específicas do Dahua
 type Repository struct {
-	db       *database.AdaptivePool
+	db       database.DBInterface // Pode ser AdaptivePool ou DualPoolManager
 	deviceID int
 	cache    *cache.SimpleCache
 	timeout  time.Duration
 }
 
 // NewRepository cria um novo repositório Dahua
-func NewRepository(db *database.AdaptivePool, deviceID int) *Repository {
+func NewRepository(db database.DBInterface, deviceID int) *Repository {
 	return &Repository{
 		db:       db,
 		deviceID: deviceID,
@@ -54,11 +54,23 @@ func NewRepository(db *database.AdaptivePool, deviceID int) *Repository {
 	}
 }
 
+// getWriteContext cria contexto para operações de escrita com EmulatorID
+func (r *Repository) getWriteContext() (context.Context, context.CancelFunc) {
+	ctx, cancel := r.getWriteContext()
+	ctx = database.WithEmulatorID(ctx, r.deviceID)
+	return ctx, cancel
+}
+
+// getReadContext cria contexto para operações de leitura (sem EmulatorID)
+func (r *Repository) getReadContext() (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.Background(), r.timeout)
+}
+
 // ====================== SETTINGS ======================
 
 // GetSetting obtém uma configuração do dispositivo
 func (r *Repository) GetSetting(key string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
+	ctx, cancel := r.getWriteContext()
 	defer cancel()
 
 	var value string
@@ -83,7 +95,7 @@ func (r *Repository) GetSetting(key string) (string, error) {
 
 // SetSetting define uma configuração do dispositivo
 func (r *Repository) SetSetting(key, value string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
+	ctx, cancel := r.getWriteContext()
 	defer cancel()
 
 	_, err := r.db.Exec(ctx,
@@ -104,7 +116,7 @@ func (r *Repository) GetTotalUsers() (int, error) {
 	}
 
 	// Cache miss - buscar no banco
-	ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
+	ctx, cancel := r.getWriteContext()
 	defer cancel()
 
 	var count int
@@ -120,7 +132,7 @@ func (r *Repository) GetTotalUsers() (int, error) {
 
 // CountItems otimizado - uma única query
 func (r *Repository) CountItems() (*CountItems, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
+	ctx, cancel := r.getWriteContext()
 	defer cancel()
 
 	counts := &CountItems{}
@@ -141,7 +153,7 @@ func (r *Repository) CountItems() (*CountItems, error) {
 
 // CheckIfCardExists verifica se um cartão já existe
 func (r *Repository) CheckIfCardExists(cardNo string, userID int) (bool, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
+	ctx, cancel := r.getWriteContext()
 	defer cancel()
 
 	var count int
@@ -157,7 +169,7 @@ func (r *Repository) CheckIfCardExists(cardNo string, userID int) (bool, error) 
 
 // GetNextRecNo obtém o próximo RecNo disponível
 func (r *Repository) GetNextRecNo() (int, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
+	ctx, cancel := r.getWriteContext()
 	defer cancel()
 
 	var recNo int
@@ -173,7 +185,7 @@ func (r *Repository) GetNextRecNo() (int, error) {
 
 // AddCard adiciona um novo cartão
 func (r *Repository) AddCard(cardName string, userID int, cardNo string, validDateStart, validDateEnd time.Time) (int, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
+	ctx, cancel := r.getWriteContext()
 	defer cancel()
 
 	// Verificar se já existe
@@ -206,7 +218,7 @@ func (r *Repository) AddCard(cardName string, userID int, cardNo string, validDa
 
 // RemoveCard remove um cartão pelo RecNo
 func (r *Repository) RemoveCard(recNo int) error {
-	ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
+	ctx, cancel := r.getWriteContext()
 	defer cancel()
 
 	_, err := r.db.Exec(ctx,
@@ -223,7 +235,7 @@ func (r *Repository) RemoveCard(recNo int) error {
 
 // FindCard encontra cartões por UserID - retorna formato Dahua
 func (r *Repository) FindCard(userID int) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
+	ctx, cancel := r.getWriteContext()
 	defer cancel()
 
 	rows, err := r.db.Query(ctx,
@@ -258,7 +270,7 @@ func (r *Repository) FindCard(userID int) (string, error) {
 
 // GetCards retorna cartões com paginação - formato Dahua
 func (r *Repository) GetCards(count, offset int) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
+	ctx, cancel := r.getWriteContext()
 	defer cancel()
 
 	rows, err := r.db.Query(ctx,
@@ -347,7 +359,7 @@ records[%d].ValidDateStart=%s
 
 // CheckIfFaceExists verifica se uma face já existe para o usuário
 func (r *Repository) CheckIfFaceExists(userID int) (bool, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
+	ctx, cancel := r.getWriteContext()
 	defer cancel()
 
 	var count int
@@ -362,7 +374,7 @@ func (r *Repository) CheckIfFaceExists(userID int) (bool, error) {
 
 // AddFace adiciona uma nova face
 func (r *Repository) AddFace(userID int, md5 string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
+	ctx, cancel := r.getWriteContext()
 	defer cancel()
 
 	_, err := r.db.Exec(ctx,
@@ -381,7 +393,7 @@ func (r *Repository) AddFace(userID int, md5 string) error {
 
 // RemoveFace remove uma face
 func (r *Repository) RemoveFace(userID int) error {
-	ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
+	ctx, cancel := r.getWriteContext()
 	defer cancel()
 
 	_, err := r.db.Exec(ctx,
@@ -398,7 +410,7 @@ func (r *Repository) RemoveFace(userID int) error {
 
 // FindRemoteFaces retorna informações para busca de faces
 func (r *Repository) FindRemoteFaces() (*FindFaceResponse, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
+	ctx, cancel := r.getWriteContext()
 	defer cancel()
 
 	var count int
@@ -416,7 +428,7 @@ func (r *Repository) FindRemoteFaces() (*FindFaceResponse, error) {
 
 // GetRemoteFaces retorna faces com paginação
 func (r *Repository) GetRemoteFaces(count, offset int) (*GetFaceResponse, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
+	ctx, cancel := r.getWriteContext()
 	defer cancel()
 
 	rows, err := r.db.Query(ctx,
@@ -452,7 +464,7 @@ func (r *Repository) GetRemoteFaces(count, offset int) (*GetFaceResponse, error)
 
 // GetRandomCard retorna um cartão aleatório para geração de eventos - com cache
 func (r *Repository) GetRandomCard() (cardName, cardNo string, userID int, err error) {
-	ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
+	ctx, cancel := r.getWriteContext()
 	defer cancel()
 
 	err = r.db.QueryRow(ctx, queryRandomCard, r.deviceID).Scan(&cardName, &cardNo, &userID)

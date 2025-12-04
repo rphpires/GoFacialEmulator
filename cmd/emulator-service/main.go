@@ -48,7 +48,7 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	wxsSettings, err := serviceDB.GetWxsSettings(ctx)
+	wxsSettings, err := database.GetWxsSettingsFromDB(ctx, serviceDB)
 	var wxsDB *database.WxsDB
 
 	if err != nil {

@@ -17,8 +17,8 @@ import (
 
 // Manager gerencia todos os emuladores - baseado no EmulatorService.py
 type Manager struct {
-	ServiceDB  *database.AdaptivePool
-	EmulatorDB *database.AdaptivePool
+	ServiceDB  database.DBInterface // Pode ser AdaptivePool ou DualPoolManager
+	EmulatorDB database.DBInterface // Pode ser AdaptivePool ou DualPoolManager
 	WxsDB      *database.WxsDB
 	Tracer     *trace.Tracer
 
@@ -65,7 +65,7 @@ type StatusChangeEvent struct {
 type StatusChangeListener chan StatusChangeEvent
 
 // NewManager cria um novo gerenciador de emuladores
-func NewManager(serviceDB *database.AdaptivePool, emulatorDB *database.AdaptivePool, wxsDB *database.WxsDB, tracer *trace.Tracer) *Manager {
+func NewManager(serviceDB database.DBInterface, emulatorDB database.DBInterface, wxsDB *database.WxsDB, tracer *trace.Tracer) *Manager {
 	return &Manager{
 		ServiceDB:      serviceDB,
 		EmulatorDB:     emulatorDB,
@@ -894,14 +894,24 @@ func (m *Manager) notifyStatusChange(deviceID int, status string, deviceName str
 }
 
 func (m *Manager) GetPoolStats() map[string]interface{} {
-	serviceStats := m.ServiceDB.GetStats()
-	emulatorStats := m.EmulatorDB.GetStats()
-
-	return map[string]interface{}{
-		"service_db":  serviceStats,
-		"emulator_db": emulatorStats,
-		"timestamp":   time.Now(),
+	stats := map[string]interface{}{
+		"timestamp": time.Now(),
 	}
+
+	// Tentar obter stats de DualPoolManager primeiro, senão AdaptivePool
+	if dpm, ok := m.ServiceDB.(*database.DualPoolManager); ok {
+		stats["service_db"] = dpm.GetStats()
+	} else if ap, ok := m.ServiceDB.(*database.AdaptivePool); ok {
+		stats["service_db"] = ap.GetStats()
+	}
+
+	if dpm, ok := m.EmulatorDB.(*database.DualPoolManager); ok {
+		stats["emulator_db"] = dpm.GetStats()
+	} else if ap, ok := m.EmulatorDB.(*database.AdaptivePool); ok {
+		stats["emulator_db"] = ap.GetStats()
+	}
+
+	return stats
 }
 
 func (m *Manager) ListDevicesWithFilters(filters map[string]string) ([]*models.Device, error) {

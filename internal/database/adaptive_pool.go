@@ -48,7 +48,11 @@ type AdaptiveConfig struct {
 func NewAdaptivePool(dbURL string, emulatorCount int) (*AdaptivePool, error) {
 	// Calcular configuração inicial baseada no número de emuladores
 	config := calculateInitialConfig(emulatorCount)
+	return NewAdaptivePoolWithCustomConfig(dbURL, config)
+}
 
+// NewAdaptivePoolWithCustomConfig cria pool com configuração customizada
+func NewAdaptivePoolWithCustomConfig(dbURL string, config *AdaptiveConfig) (*AdaptivePool, error) {
 	poolConfig, err := pgxpool.ParseConfig(dbURL)
 	if err != nil {
 		return nil, err

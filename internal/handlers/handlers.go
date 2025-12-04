@@ -15,6 +15,7 @@ import (
 	"GoFacialEmulator/internal/emulator"
 	"GoFacialEmulator/internal/monitoring"
 	"GoFacialEmulator/internal/trace"
+	"GoFacialEmulator/internal/utils"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -23,7 +24,7 @@ import (
 // Handler gerencia todas as rotas HTTP - baseado no EmulatorService.py
 type Handler struct {
 	manager       *emulator.Manager
-	serviceDB     *database.AdaptivePool
+	serviceDB     database.DBInterface // Pode ser AdaptivePool ou DualPoolManager
 	wxsDB         *database.WxsDB
 	tracer        *trace.Tracer
 	upgrader      websocket.Upgrader
@@ -32,7 +33,7 @@ type Handler struct {
 }
 
 // NewHandler cria uma nova instância de Handler
-func NewHandler(manager *emulator.Manager, serviceDB *database.AdaptivePool, wxsDB *database.WxsDB, tracer *trace.Tracer) *Handler {
+func NewHandler(manager *emulator.Manager, serviceDB database.DBInterface, wxsDB *database.WxsDB, tracer *trace.Tracer) *Handler {
 	// Criar sistema de monitoramento
 	healthMonitor := monitoring.NewHealthMonitor()
 	metrics := monitoring.NewMetrics()
@@ -41,13 +42,27 @@ func NewHandler(manager *emulator.Manager, serviceDB *database.AdaptivePool, wxs
 	healthMonitor.RegisterChecker(monitoring.NewDatabaseHealthChecker(
 		"service_db",
 		func(ctx context.Context) error { return serviceDB.Ping(ctx) },
-		func() map[string]interface{} { return serviceDB.GetStats() },
+		func() map[string]interface{} {
+			if dpm, ok := serviceDB.(*database.DualPoolManager); ok {
+				return dpm.GetStats()
+			} else if ap, ok := serviceDB.(*database.AdaptivePool); ok {
+				return ap.GetStats()
+			}
+			return map[string]interface{}{"status": "unknown"}
+		},
 	))
 
 	healthMonitor.RegisterChecker(monitoring.NewDatabaseHealthChecker(
 		"emulator_db",
 		func(ctx context.Context) error { return manager.EmulatorDB.Ping(ctx) },
-		func() map[string]interface{} { return manager.EmulatorDB.GetStats() },
+		func() map[string]interface{} {
+			if dpm, ok := manager.EmulatorDB.(*database.DualPoolManager); ok {
+				return dpm.GetStats()
+			} else if ap, ok := manager.EmulatorDB.(*database.AdaptivePool); ok {
+				return ap.GetStats()
+			}
+			return map[string]interface{}{"status": "unknown"}
+		},
 	))
 
 	if wxsDB != nil {
@@ -180,6 +195,8 @@ func (h *Handler) setupMonitoringRoutes(router *gin.Engine) {
 		monitoring.GET("/metrics", h.getMetrics)
 		monitoring.GET("/metrics/endpoints", h.getEndpointMetrics)
 		monitoring.GET("/metrics/errors", h.getTopErrors)
+		monitoring.GET("/metrics/database", h.getDatabaseMetrics)
+		monitoring.GET("/metrics/circuit-breakers", h.getCircuitBreakerMetrics)
 
 		// Debug e diagnóstico
 		monitoring.GET("/debug/goroutines", h.getGoroutineCount)
@@ -986,7 +1003,7 @@ func (h *Handler) settingsPage(c *gin.Context) {
 	defer cancel()
 
 	// Carregar configurações WXS do banco
-	wxsSettings, err := h.serviceDB.GetWxsSettings(ctx)
+	wxsSettings, err := database.GetWxsSettingsFromDB(ctx, h.serviceDB)
 	if err != nil {
 		h.tracer.Error("Failed to load WXS settings: %v", err)
 		c.HTML(http.StatusInternalServerError, "error.html", gin.H{
@@ -1043,7 +1060,7 @@ func (h *Handler) saveWxsSettings(c *gin.Context) {
 	defer cancel()
 
 	// Salvar no banco
-	err := h.serviceDB.SaveWxsSettings(ctx, &settings)
+	err := database.SaveWxsSettingsFromDB(ctx, h.serviceDB, &settings)
 	if err != nil {
 		h.tracer.Error("Failed to save WXS settings: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -1204,5 +1221,21 @@ func (h *Handler) getMemoryStats(c *gin.Context) {
 		"heap_idle_mb":   memStats.HeapIdle / 1024 / 1024,
 		"heap_inuse_mb":  memStats.HeapInuse / 1024 / 1024,
 		"timestamp":      time.Now().UTC(),
+	})
+}
+
+// getDatabaseMetrics retorna métricas dos pools de banco de dados
+func (h *Handler) getDatabaseMetrics(c *gin.Context) {
+	stats := h.manager.GetPoolStats()
+	c.JSON(http.StatusOK, stats)
+}
+
+// getCircuitBreakerMetrics retorna métricas dos circuit breakers HTTP
+func (h *Handler) getCircuitBreakerMetrics(c *gin.Context) {
+	factory := utils.GetHTTPClientFactory()
+	metrics := factory.GetMetricsForAllEmulators()
+	c.JSON(http.StatusOK, gin.H{
+		"circuit_breakers": metrics,
+		"timestamp":        time.Now().UTC(),
 	})
 }

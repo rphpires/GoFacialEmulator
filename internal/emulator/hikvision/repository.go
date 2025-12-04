@@ -35,13 +35,13 @@ const (
 )
 
 type Repository struct {
-	db       *database.AdaptivePool
+	db       database.DBInterface // Pode ser AdaptivePool ou DualPoolManager
 	deviceID int
 	cache    *cache.SimpleCache
 	timeout  time.Duration
 }
 
-func NewRepository(db *database.AdaptivePool, deviceID int) *Repository {
+func NewRepository(db database.DBInterface, deviceID int) *Repository {
 	return &Repository{
 		db:       db,
 		deviceID: deviceID,
@@ -50,11 +50,23 @@ func NewRepository(db *database.AdaptivePool, deviceID int) *Repository {
 	}
 }
 
+// getWriteContext cria contexto para operações de escrita com EmulatorID
+func (r *Repository) getWriteContext() (context.Context, context.CancelFunc) {
+	ctx, cancel := r.getWriteContext()
+	ctx = database.WithEmulatorID(ctx, r.deviceID)
+	return ctx, cancel
+}
+
+// getReadContext cria contexto para operações de leitura (sem EmulatorID)
+func (r *Repository) getReadContext() (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.Background(), r.timeout)
+}
+
 // ====================== SETTINGS ======================
 
 // GetSetting obtém uma configuração do dispositivo
 func (r *Repository) GetSetting(key string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
+	ctx, cancel := r.getWriteContext()
 	defer cancel()
 
 	var value string
@@ -79,7 +91,7 @@ func (r *Repository) GetSetting(key string) (string, error) {
 
 // SetSetting define uma configuração do dispositivo
 func (r *Repository) SetSetting(key, value string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
+	ctx, cancel := r.getWriteContext()
 	defer cancel()
 
 	_, err := r.db.Exec(ctx,
@@ -99,7 +111,7 @@ func (r *Repository) GetTotalUsers() (int, error) {
 	}
 
 	// Cache miss - buscar no banco
-	ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
+	ctx, cancel := r.getWriteContext()
 	defer cancel()
 
 	var count int
@@ -114,7 +126,7 @@ func (r *Repository) GetTotalUsers() (int, error) {
 }
 
 func (r *Repository) CountItems() (*CountItems, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
+	ctx, cancel := r.getWriteContext()
 	defer cancel()
 
 	counts := &CountItems{}
@@ -135,7 +147,7 @@ func (r *Repository) CountItems() (*CountItems, error) {
 
 // CheckIfUserExists verifica se um usuário já existe
 func (r *Repository) CheckIfUserExists(employeeNo string) (bool, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
+	ctx, cancel := r.getWriteContext()
 	defer cancel()
 
 	var count int
@@ -150,7 +162,8 @@ func (r *Repository) CheckIfUserExists(employeeNo string) (bool, error) {
 
 // AddUser adiciona um novo usuário
 func (r *Repository) AddUser(user *User) error {
-	ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
+	// Usar contexto de escrita para garantir ordem de operações
+	ctx, cancel := r.getWriteContext()
 	defer cancel()
 
 	// Verificar se já existe
@@ -176,7 +189,7 @@ func (r *Repository) AddUser(user *User) error {
 
 // UpdateUser atualiza um usuário existente
 func (r *Repository) UpdateUser(user *User) error {
-	ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
+	ctx, cancel := r.getWriteContext()
 	defer cancel()
 
 	_, err := r.db.Exec(ctx,
@@ -193,7 +206,7 @@ func (r *Repository) UpdateUser(user *User) error {
 }
 
 func (r *Repository) DeleteUser(employeeNo string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
+	ctx, cancel := r.getWriteContext()
 	defer cancel()
 
 	// Usar transação para garantir consistência
@@ -248,7 +261,7 @@ func (r *Repository) DeleteUser(employeeNo string) error {
 
 // GetUsers retorna usuários com paginação
 func (r *Repository) GetUsers(limit, offset int) ([]*User, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
+	ctx, cancel := r.getWriteContext()
 	defer cancel()
 
 	rows, err := r.db.Query(ctx,
@@ -281,7 +294,7 @@ func (r *Repository) GetUsers(limit, offset int) ([]*User, error) {
 
 // CheckIfCardExists verifica se um cartão já existe
 func (r *Repository) CheckIfCardExists(employeeNo, cardNo string) (bool, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
+	ctx, cancel := r.getWriteContext()
 	defer cancel()
 
 	var count int
@@ -297,7 +310,7 @@ func (r *Repository) CheckIfCardExists(employeeNo, cardNo string) (bool, error) 
 
 // AddCard adiciona um novo cartão
 func (r *Repository) AddCard(card *Card) error {
-	ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
+	ctx, cancel := r.getWriteContext()
 	defer cancel()
 
 	// Verificar se já existe
@@ -323,7 +336,7 @@ func (r *Repository) AddCard(card *Card) error {
 
 // GetCards retorna cartões com paginação
 func (r *Repository) GetCards(limit, offset int) ([]*Card, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
+	ctx, cancel := r.getWriteContext()
 	defer cancel()
 
 	rows, err := r.db.Query(ctx,
@@ -355,7 +368,7 @@ func (r *Repository) GetCards(limit, offset int) ([]*Card, error) {
 
 // CheckIfFaceExists verifica se uma face já existe para o usuário
 func (r *Repository) CheckIfFaceExists(userID string) (bool, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
+	ctx, cancel := r.getWriteContext()
 	defer cancel()
 
 	var count int
@@ -370,7 +383,7 @@ func (r *Repository) CheckIfFaceExists(userID string) (bool, error) {
 
 // AddFace adiciona uma nova face
 func (r *Repository) AddFace(userID, photoData string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
+	ctx, cancel := r.getWriteContext()
 	defer cancel()
 
 	// Verificar se já existe
@@ -392,7 +405,7 @@ func (r *Repository) AddFace(userID, photoData string) error {
 
 // UpdateFace atualiza uma face existente
 func (r *Repository) UpdateFace(userID, photoData string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
+	ctx, cancel := r.getWriteContext()
 	defer cancel()
 
 	_, err := r.db.Exec(ctx,
@@ -406,7 +419,7 @@ func (r *Repository) UpdateFace(userID, photoData string) error {
 
 // DeleteFace remove uma face
 func (r *Repository) DeleteFace(userID string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
+	ctx, cancel := r.getWriteContext()
 	defer cancel()
 
 	_, err := r.db.Exec(ctx,
@@ -418,7 +431,7 @@ func (r *Repository) DeleteFace(userID string) error {
 
 // GetFace retorna os dados de uma face específica
 func (r *Repository) GetFace(userID string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
+	ctx, cancel := r.getWriteContext()
 	defer cancel()
 
 	var photoData string
@@ -431,7 +444,7 @@ func (r *Repository) GetFace(userID string) (string, error) {
 
 // GetFaces retorna faces com paginação
 func (r *Repository) GetFaces(limit, offset int) ([]*Face, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
+	ctx, cancel := r.getWriteContext()
 	defer cancel()
 
 	rows, err := r.db.Query(ctx,
@@ -467,7 +480,7 @@ func (r *Repository) GetFaces(limit, offset int) ([]*Face, error) {
 // ====================== UTILITY OPERATIONS ======================
 
 func (r *Repository) GetRandomUserAndCard() (name, cardNo, employeeNo string, err error) {
-	ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
+	ctx, cancel := r.getWriteContext()
 	defer cancel()
 
 	err = r.db.QueryRow(ctx, queryRandomUserCard, r.deviceID).Scan(&name, &cardNo, &employeeNo)
