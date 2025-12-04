@@ -56,7 +56,7 @@ func NewRepository(db database.DBInterface, deviceID int) *Repository {
 
 // getWriteContext cria contexto para operações de escrita com EmulatorID
 func (r *Repository) getWriteContext() (context.Context, context.CancelFunc) {
-	ctx, cancel := r.getWriteContext()
+	ctx, cancel := context.WithTimeout(context.Background(), r.timeout)
 	ctx = database.WithEmulatorID(ctx, r.deviceID)
 	return ctx, cancel
 }
