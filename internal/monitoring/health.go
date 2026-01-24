@@ -217,18 +217,6 @@ func (hm *HealthMonitor) updateCache(results map[string]ComponentHealth) {
 	hm.cacheExpiry = time.Now().Add(hm.cacheDuration)
 }
 
-// GetMetrics retorna métricas do monitor
-func (hm *HealthMonitor) GetMetrics() map[string]interface{} {
-	lastCheck := hm.lastCheckTime.Load().(time.Time)
-
-	return map[string]interface{}{
-		"total_checks":   hm.totalChecks.Load(),
-		"total_failures": hm.totalFailures.Load(),
-		"last_check":     lastCheck,
-		"uptime_seconds": time.Since(lastCheck).Seconds(),
-	}
-}
-
 // DatabaseHealthChecker verifica a saúde da conexão com banco de dados
 type DatabaseHealthChecker struct {
 	name    string

@@ -42,11 +42,6 @@ type Manager struct {
 
 	// Controle de pausa do watchdog
 	watchdogPaused atomic.Bool
-
-	// Cache para ListDevices com TTL
-	devicesCache       []models.Device
-	devicesCacheMutex  sync.RWMutex
-	devicesCacheExpiry time.Time
 }
 
 // WatchdogInfo armazena informações de monitoramento

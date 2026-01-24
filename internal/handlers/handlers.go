@@ -15,7 +15,6 @@ import (
 	"GoFacialEmulator/internal/emulator"
 	"GoFacialEmulator/internal/monitoring"
 	"GoFacialEmulator/internal/trace"
-	"GoFacialEmulator/internal/utils"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -196,7 +195,6 @@ func (h *Handler) setupMonitoringRoutes(router *gin.Engine) {
 		monitoring.GET("/metrics/endpoints", h.getEndpointMetrics)
 		monitoring.GET("/metrics/errors", h.getTopErrors)
 		monitoring.GET("/metrics/database", h.getDatabaseMetrics)
-		monitoring.GET("/metrics/circuit-breakers", h.getCircuitBreakerMetrics)
 
 		// Debug e diagnóstico
 		monitoring.GET("/debug/goroutines", h.getGoroutineCount)
@@ -238,20 +236,6 @@ func (h *Handler) setupAPIRoutes(router *gin.Engine) {
 			settings.POST("/test-wxs-connection", h.testWxsConnection)
 			settings.POST("/wxs", h.saveWxsSettings)
 		}
-	}
-}
-
-// middlewares
-func (h *Handler) loggingMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		start := time.Now()
-		c.Next()
-		latency := time.Since(start)
-		h.tracer.Info("HTTP %s %s - %d - %v",
-			c.Request.Method,
-			c.Request.URL.Path,
-			c.Writer.Status(),
-			latency)
 	}
 }
 
@@ -669,28 +653,6 @@ func (h *Handler) getUserComparisons(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"comparisons": comparisons,
 		"count":       len(comparisons),
-	})
-}
-
-// healthCheck verifica saúde do sistema
-func (h *Handler) healthCheck(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	// Verificar conexão com banco de dados
-	err := h.serviceDB.Ping(ctx)
-	if err != nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{
-			"status": "unhealthy",
-			"error":  "database connection failed",
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"status":    "healthy",
-		"timestamp": time.Now().UTC(),
-		"version":   "1.0.0",
 	})
 }
 
@@ -1228,14 +1190,4 @@ func (h *Handler) getMemoryStats(c *gin.Context) {
 func (h *Handler) getDatabaseMetrics(c *gin.Context) {
 	stats := h.manager.GetPoolStats()
 	c.JSON(http.StatusOK, stats)
-}
-
-// getCircuitBreakerMetrics retorna métricas dos circuit breakers HTTP
-func (h *Handler) getCircuitBreakerMetrics(c *gin.Context) {
-	factory := utils.GetHTTPClientFactory()
-	metrics := factory.GetMetricsForAllEmulators()
-	c.JSON(http.StatusOK, gin.H{
-		"circuit_breakers": metrics,
-		"timestamp":        time.Now().UTC(),
-	})
 }

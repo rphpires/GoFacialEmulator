@@ -15,7 +15,7 @@ DB_HOST="${DB_HOST:-localhost}"
 DB_PORT="${DB_PORT:-5432}"
 DB_USER="${DB_USER:-emulator}"
 DB_PASSWORD="${DB_PASSWORD:-emulator123}"
-DB_SERVICE="${DB_SERVICE:-service_db}"
+DB_SERVICE="${DB_SERVICE:-emulator_db}"
 DB_EMULATOR="${DB_EMULATOR:-emulator_db}"
 
 # Para modo native: usuário superuser do PostgreSQL

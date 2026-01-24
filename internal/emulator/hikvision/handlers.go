@@ -103,18 +103,18 @@ func (e *Emulator) handleGetStatus(c *gin.Context) {
 	}
 
 	response := gin.H{
-		"device_id":       e.device.ID,
-		"device_name":     e.device.Name,
-		"port":            e.device.Port,
-		"model":           "Hikvision",
-		"status":          e.GetStatus(),
-		"is_running":      e.IsRunning(),
-		"total_users":     count,
-		"uptime_seconds":  uptime,
-		"current_time":    currentTime,
-		"mac_address":     e.macAddress,
-		"version":         "1.0.0",
-		"event_interval":  e.device.EventInterval,
+		"device_id":      e.device.ID,
+		"device_name":    e.device.Name,
+		"port":           e.device.Port,
+		"model":          "Hikvision",
+		"status":         e.GetStatus(),
+		"is_running":     e.IsRunning(),
+		"total_users":    count,
+		"uptime_seconds": uptime,
+		"current_time":   currentTime,
+		"mac_address":    e.macAddress,
+		"version":        "1.0.0",
+		"event_interval": e.device.EventInterval,
 	}
 
 	if err != nil {
@@ -129,7 +129,7 @@ func (e *Emulator) handleGetStatus(c *gin.Context) {
 
 func (e *Emulator) handleGetAcsCfg(c *gin.Context) {
 	localAuth, _ := e.repo.GetSetting("LocalAuthentication")
-	remoteCheckDoorEnabled := localAuth == "1"
+	remoteCheckDoorEnabled := localAuth == ""
 
 	c.JSON(http.StatusOK, gin.H{
 		"AcsCfg": gin.H{

@@ -4,7 +4,12 @@
       "Bash(docker-compose down:*)",
       "Bash(go build:*)",
       "Bash(cd:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(tree /F \"C:\\\\Personal Development\\\\Personal-Projects\\\\GoFacialEmulator\\\\internal\")",
+      "Bash(go install:*)",
+      "Bash(staticcheck:*)",
+      "Bash(deadcode:*)",
+      "Bash(go vet:*)"
     ],
     "deny": [],
     "ask": []

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
@@ -18,10 +19,15 @@ import (
 )
 
 func main() {
+	// Flag para arquivo de configuração
+	configPath := flag.String("config", "configs/config.yaml", "Path to config file")
+	flag.Parse()
+
 	tracer := trace.NewTracer()
 	tracer.Info("Starting Facial Emulator Service")
+	tracer.Info("Using config file: %s", *configPath)
 
-	cfg, err := config.Load("configs/config.yaml")
+	cfg, err := config.Load(*configPath)
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}

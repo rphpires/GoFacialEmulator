@@ -28,7 +28,6 @@ type PoolMetrics struct {
 	avgQueryDuration int64 // em milliseconds
 	peakConnections  int32
 	lastAdjustment   time.Time
-	connectionsPeak  int32
 	expansions       int32 // Contador de expansões instantâneas
 }
 

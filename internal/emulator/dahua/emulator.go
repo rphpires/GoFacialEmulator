@@ -241,78 +241,102 @@ func (e *Emulator) startEventGenerator() {
 	}
 }
 
-// generateRandomEvent gera um evento aleatório para streaming local
-func (e *Emulator) generateRandomEvent() ([]byte, error) {
-	e.tracer.Info("Generating random event for streaming")
-
+func (e *Emulator) generateRandomEventParts() ([]byte, []byte, error) {
 	// Verificar se autenticação local está ativada
 	localAuth, err := e.repo.GetSetting("LocalAuthentication")
-	if err != nil || localAuth != "1" {
-		return nil, nil // Não gerar evento se não for modo local
+	if err != nil {
+		e.tracer.Error("[DEBUG] Failed to get LocalAuthentication setting: %v", err)
+		return nil, nil, nil
+	}
+
+	e.tracer.Info("LocalAuthentication value: '%s' (expected '1' for local mode)", localAuth)
+	if localAuth != "1" {
+		e.tracer.Warning("[DEBUG] LocalAuthentication is not '1', skipping event generation (value: '%s')", localAuth)
+		return nil, nil, nil // Não gerar evento se não for modo local
 	}
 
 	// Buscar um cartão aleatório
 	cardName, cardNo, userID, err := e.repo.GetRandomCard()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get random card: %w", err)
+		e.tracer.Error("Failed to get random card: %v", err)
+		return nil, nil, fmt.Errorf("failed to get random card: %w", err)
 	}
-	e.tracer.Info("Generating random event for CardNumber: %s, CardName: %s, UserID: %d", cardNo, cardName, userID)
+	e.tracer.Info("Random card fetched - CardNumber: %s, CardName: %s, UserID: %d", cardNo, cardName, userID)
 
-	// Gerar evento no formato Dahua (texto simples)
-	eventText := fmt.Sprintf(`Events[0].Alive=100
-Events[0].CardName=%s
-Events[0].CardNo=%s
-Events[0].CardType=0
-Events[0].CreateTime=%d
-Events[0].Door=0
-Events[0].ErrorCode=0
-Events[0].EventBaseInfo.Action=Pulse
-Events[0].EventBaseInfo.Code=AccessControl
-Events[0].EventBaseInfo.Index=0
-Events[0].FaceIndex=0
-Events[0].ImageInfo[0].Height=384
-Events[0].ImageInfo[0].Length=15225
-Events[0].ImageInfo[0].Offset=0
-Events[0].ImageInfo[0].Type=1
-Events[0].ImageInfo[0].Width=640
-Events[0].ImageInfo[1].Height=420
-Events[0].ImageInfo[1].Length=21710
-Events[0].ImageInfo[1].Offset=15225
-Events[0].ImageInfo[1].Type=0
-Events[0].ImageInfo[1].Width=360
-Events[0].ImageInfo[2].Height=608
-Events[0].ImageInfo[2].Length=22531
-Events[0].ImageInfo[2].Offset=36935
-Events[0].ImageInfo[2].Type=2
-Events[0].ImageInfo[2].Width=480
-Events[0].Method=15
-Events[0].ReaderID=1
-Events[0].RealUTC=%d
-Events[0].Similarity=99
-Events[0].SnapPath=/var/tmp/white_part5.jpg
-Events[0].Status=1
-Events[0].Type=Entry
-Events[0].UTC=%d
-Events[0].UserID=%d
-Events[0].UserType=0
-`, cardName, cardNo, time.Now().Unix(), time.Now().Unix(), time.Now().Unix(), userID)
+	// Gerar evento no formato Dahua (texto simples com \r\n como equipamento real)
+	eventText := fmt.Sprintf("Events[0].Alive=100\r\n"+
+		"Events[0].CardName=%s\r\n"+
+		"Events[0].CardNo=%s\r\n"+
+		"Events[0].CardType=0\r\n"+
+		"Events[0].CreateTime=%d\r\n"+
+		"Events[0].Door=0\r\n"+
+		"Events[0].ErrorCode=0\r\n"+
+		"Events[0].EventBaseInfo.Action=Pulse\r\n"+
+		"Events[0].EventBaseInfo.Code=AccessControl\r\n"+
+		"Events[0].EventBaseInfo.Index=0\r\n"+
+		"Events[0].FaceIndex=0\r\n"+
+		"Events[0].ImageInfo[0].Height=384\r\n"+
+		"Events[0].ImageInfo[0].Length=15225\r\n"+
+		"Events[0].ImageInfo[0].Offset=0\r\n"+
+		"Events[0].ImageInfo[0].Type=1\r\n"+
+		"Events[0].ImageInfo[0].Width=640\r\n"+
+		"Events[0].ImageInfo[1].Height=420\r\n"+
+		"Events[0].ImageInfo[1].Length=21710\r\n"+
+		"Events[0].ImageInfo[1].Offset=15225\r\n"+
+		"Events[0].ImageInfo[1].Type=0\r\n"+
+		"Events[0].ImageInfo[1].Width=360\r\n"+
+		"Events[0].ImageInfo[2].Height=608\r\n"+
+		"Events[0].ImageInfo[2].Length=22531\r\n"+
+		"Events[0].ImageInfo[2].Offset=36935\r\n"+
+		"Events[0].ImageInfo[2].Type=2\r\n"+
+		"Events[0].ImageInfo[2].Width=480\r\n"+
+		"Events[0].Method=15\r\n"+
+		"Events[0].ReaderID=1\r\n"+
+		"Events[0].RealUTC=%d\r\n"+
+		"Events[0].Similarity=99\r\n"+
+		"Events[0].SnapPath=/var/tmp/white_part5.jpg\r\n"+
+		"Events[0].Status=1\r\n"+
+		"Events[0].Type=Entry\r\n"+
+		"Events[0].UTC=%d\r\n"+
+		"Events[0].UserID=%d\r\n"+
+		"Events[0].UserType=0\r\n",
+		cardName, cardNo, time.Now().Unix(), time.Now().Unix(), time.Now().Unix(), userID)
 
-	// Formatar como multipart
 	boundary := "myboundary"
-	eventPackage := fmt.Sprintf("\r\n\r\n\r\n--%s\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s",
-		boundary, len(eventText), eventText)
 
 	// Decodificar a imagem
 	imageData, err := GetPhotoImageData()
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode image: %w", err)
+		e.tracer.Error("[DEBUG] Failed to decode image: %v", err)
+		return nil, nil, fmt.Errorf("failed to decode image: %w", err)
 	}
+	e.tracer.Info("Photo image decoded, size: %d bytes", len(imageData))
 
-	// Adicionar a imagem ao pacote
-	dataPhoto := fmt.Sprintf("\r\n--%s\r\nContent-Type: image/jpeg\r\nContent-Length: %d\r\n\r\n",
+	// Formato igual ao dispositivo real Dahua:
+	// --myboundary\r\n
+	// Content-Type: text/plain\r\n
+	// Content-Length: XXX\r\n
+	// \r\n
+	// [conteúdo]\r\n
+	// \r\n
+	textPart := []byte(fmt.Sprintf("\r\n--%s\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s\r\n",
+		boundary, len(eventText), eventText))
+
+	// Parte da imagem - formato igual ao dispositivo real:
+	// --myboundary\r\n
+	// Content-Type: image/jpeg\r\n
+	// Content-Length: XXX\r\n
+	// \r\n
+	// [dados binários da imagem]
+	imageHeader := fmt.Sprintf("--%s\r\nContent-Type: image/jpeg\r\nContent-Length: %d\r\n\r\n",
 		boundary, len(imageData))
+	imagePart := append([]byte(imageHeader), imageData...)
 
-	return []byte(eventPackage + dataPhoto + string(imageData)), nil
+	e.tracer.Info("=== generateRandomEventParts COMPLETE ===")
+	e.tracer.Info("Returning 2 parts: text(%d bytes) + image(%d bytes)",
+		len(textPart), len(imagePart))
+
+	return textPart, imagePart, nil
 }
 
 // generateOnlineEvent gera um evento online para envio ao servidor remoto

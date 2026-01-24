@@ -221,37 +221,6 @@ func applyDBEnvOverrides(db *DatabaseConfig, prefix string) {
 	}
 }
 
-// DefaultConfig retorna uma configuração padrão
-func DefaultConfig() *Config {
-	postgresConfig := DatabaseConfig{
-		Driver:   "postgres",
-		Host:     "localhost",
-		Port:     5432,
-		Database: "facial_emulator",
-		Username: "emulator",   // Usar o usuário criado
-		Password: "#Emul@tor#", // Usar a senha definida
-		Schema:   "emulator",
-	}
-
-	return &Config{
-		Server: ServerConfig{
-			Address: ":7070",
-			Host:    "localhost",
-			Port:    7070,
-		},
-		ServiceDB:  postgresConfig,
-		EmulatorDB: postgresConfig, // Mesmo banco
-		WxsDB: DatabaseConfig{
-			Driver:   "mssql",
-			Host:     "RPH-SRV",
-			Port:     1433,
-			Database: "W_Access",
-			Username: "W-Access",
-			Password: "password",
-		},
-	}
-}
-
 // GetEffectiveConfig retorna a configuração final com todos os overrides aplicados
 func (c *Config) GetEffectiveConfig() map[string]interface{} {
 	return map[string]interface{}{

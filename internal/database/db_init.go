@@ -27,15 +27,6 @@ var (
 	useDualPoolManager = os.Getenv("USE_DUAL_POOL_MANAGER") == "true"
 )
 
-func Initialize(cfg *config.Config) error {
-	log.Println("Inicializando conexões com banco de dados...")
-
-	// A validação já foi feita no main.go com ValidateDatabaseOnStartup()
-	// Aqui apenas confirmamos que as conexões funcionam
-
-	return nil
-}
-
 func GetServiceDB(cfg config.DatabaseConfig) (DBInterface, error) {
 	var err error
 	serviceOnce.Do(func() {
@@ -215,7 +206,7 @@ func getEstimatedEmulatorCount(cfg config.DatabaseConfig) int {
 	defer cancel()
 
 	var count int
-	err = tempPool.QueryRow(ctx, "SELECT COUNT(*) FROM service.devices WHERE enabled = true").Scan(&count)
+	err = tempPool.QueryRow(ctx, "SELECT COUNT(*) FROM service.devices WHERE enabled = 1").Scan(&count)
 	if err != nil {
 		log.Printf("Não conseguiu contar dispositivos, usando estimativa padrão: %v", err)
 		return 50 // Estimativa conservadora

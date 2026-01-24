@@ -23,21 +23,11 @@ services:
   app:
     build:
       context: .
-      dockerfile: Dockerfile
-    container_name: facial-emulator-app
+      dockerfile: Dockerfile.dev
+    container_name: facial-emulator-app-dev
     environment:
-      # Configuração do servidor
       SERVER_HOST: "0.0.0.0"
       SERVER_PORT: "8080"
-
-      # # Configuração do PostgreSQL (service_db)
-      # PG_HOST: postgres
-      # PG_PORT: "5432"
-      # PG_USER: emulator
-      # PG_PASSWORD: emulator123
-      # PG_DATABASE: service_db
-
-      # Configuração do PostgreSQL (emulator_db)
       DB_HOST: postgres
       DB_PORT: "5432"
       DB_USER: emulator
@@ -45,7 +35,6 @@ services:
       DB_DATABASE: emulator_db
     ports:
       - "8080:8080"
-      # Portas para emuladores (range: 4000-4999 = 1000 emuladores possíveis)
       - "4000-4999:4000-4999"
     depends_on:
       postgres:
@@ -54,11 +43,18 @@ services:
       - facial-network
     restart: unless-stopped
     volumes:
+      # Volume do código fonte para hot reload
+      - .:/app
+      - /app/tmp
       - ./logs:/app/logs
       - ./traces:/app/traces
+      # Cache do Go para não redownload de módulos
+      - go_modules:/go/pkg/mod
 
 volumes:
   postgres_data:
+    driver: local
+  go_modules:
     driver: local
 
 networks:

@@ -16,7 +16,7 @@ set DB_HOST=localhost
 set DB_PORT=5432
 set DB_USER=emulator
 set DB_PASSWORD=emulator123
-set DB_SERVICE=service_db
+set DB_SERVICE=emulator_db
 set DB_EMULATOR=emulator_db
 
 REM Para modo native

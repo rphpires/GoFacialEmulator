@@ -1,9 +1,11 @@
 package dahua
 
 import (
+	"bufio"
 	"crypto/md5"
 	"encoding/base64"
 	"fmt"
+	"net"
 	"net/http"
 	"strconv"
 	"time"
@@ -67,7 +69,7 @@ func (e *Emulator) handleGetStatus(c *gin.Context) {
 func (e *Emulator) handleGlobal(c *gin.Context) {
 	action := c.Query("action")
 	timeParam := c.Query("time")
-	e.tracer.Info("New [GET] Request at: '/cgi-bin/global.cgi' | action=%s | time=%s", action, timeParam)
+	e.tracer.Info("[CONCURRENT] Global.cgi called: action=%s | time=%s | RemoteAddr=%s", action, timeParam, c.Request.RemoteAddr)
 
 	switch action {
 	case "getCurrentTime":
@@ -100,6 +102,7 @@ func (e *Emulator) handleMagicBox(c *gin.Context) {
 
 func (e *Emulator) handleConfigManager(c *gin.Context) {
 	action := c.Query("action")
+	e.tracer.Info("[CONCURRENT] ConfigManager called: action=%s | RemoteAddr=%s", action, c.Request.RemoteAddr)
 
 	switch action {
 	case "getConfig":
@@ -375,72 +378,295 @@ func (e *Emulator) handleCardInsert(c *gin.Context) {
 // ====================== SNAP MANAGER (STREAMING) ======================
 
 func (e *Emulator) handleSnapManager(c *gin.Context) {
-	e.tracer.Info("[GET] /cgi-bin/snapManager.cgi - Starting event stream")
+	e.tracer.Info("=== [GET] /cgi-bin/snapManager.cgi - CLIENT CONNECTED ===")
+	e.tracer.Info("Client IP: %s", c.ClientIP())
+	e.tracer.Info("User-Agent: %s", c.Request.UserAgent())
+	e.tracer.Info("Remote Addr: %s", c.Request.RemoteAddr)
+	e.tracer.Info("HTTP Proto: %s", c.Request.Proto)
+	e.tracer.Info("Connection header: %s", c.Request.Header.Get("Connection"))
 
-	// Configurar headers para streaming
-	c.Writer.Header().Set("Content-Type", "text/event-stream")
-	c.Writer.Header().Set("Cache-Control", "no-cache")
-	c.Writer.Header().Set("Connection", "keep-alive")
-	c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
-	c.Writer.Flush()
+	// Hijack da conexão para evitar Transfer-Encoding: chunked
+	// O dispositivo real Dahua não usa chunked encoding
+	hijacker, ok := c.Writer.(http.Hijacker)
+	if !ok {
+		e.tracer.Error("Hijacking not supported")
+		c.String(http.StatusInternalServerError, "Hijacking not supported")
+		return
+	}
 
-	e.handleEventStream(c)
+	conn, bufrw, err := hijacker.Hijack()
+	if err != nil {
+		e.tracer.Error("Hijack failed: %v", err)
+		c.String(http.StatusInternalServerError, "Hijack failed")
+		return
+	}
+	defer conn.Close()
+
+	e.tracer.Info("Connection hijacked successfully, writing raw HTTP response...")
+
+	// Escrever resposta HTTP raw (igual ao dispositivo real Dahua)
+	httpResponse := "HTTP/1.1 200 OK\r\n" +
+		"Cache-Control: no-cache\r\n" +
+		"Pragma: no-cache\r\n" +
+		"Connection: Keep-Alive\r\n" +
+		"Content-Type: multipart/x-mixed-replace; boundary=myboundary\r\n" +
+		"\r\n"
+
+	_, err = bufrw.WriteString(httpResponse)
+	if err != nil {
+		e.tracer.Error("Failed to write HTTP headers: %v", err)
+		return
+	}
+	bufrw.Flush()
+
+	e.tracer.Info("Headers sent, starting event stream handler...")
+	e.handleEventStreamHijacked(conn, bufrw)
+	e.tracer.Info("=== Event stream handler finished ===")
 }
 
-// handleEventStream gerencia o streaming de eventos Dahua
-func (e *Emulator) handleEventStream(c *gin.Context) {
+// handleEventStreamHijacked gerencia o streaming de eventos Dahua usando conexão hijacked
+// Isso evita o Transfer-Encoding: chunked que o Go adiciona automaticamente
+func (e *Emulator) handleEventStreamHijacked(conn net.Conn, bufrw *bufio.ReadWriter) {
+	streamStartTime := time.Now()
+	e.tracer.Info("=== Event Stream Started (Hijacked) at %s ===", streamStartTime.Format("15:04:05.000"))
+	e.tracer.Info("EventInterval configured: %d seconds", e.device.EventInterval)
+
 	// Inicializar contadores
 	heartbeatCounter := time.Now()
 	generatedEventCounter := time.Now()
+	e.tracer.Info("[DEBUG] Event counter initialized, first event will be generated in %d seconds", e.device.EventInterval)
+
+	// Verificar configuração inicial
+	localAuth, err := e.repo.GetSetting("LocalAuthentication")
+	if err != nil {
+		e.tracer.Warning("Failed to get LocalAuthentication setting: %v", err)
+	} else {
+		e.tracer.Info("LocalAuthentication setting: %s (1=local, 0=online)", localAuth)
+	}
+
+	loopCounter := 0
+	// Loop principal de streaming
+	for {
+		loopCounter++
+		if loopCounter%5 == 0 {
+			e.tracer.Info("[DEBUG] Event stream loop iteration #%d - client still connected", loopCounter)
+		}
+
+		select {
+		case <-e.stopChan:
+			e.tracer.Info("Event stream stopped due to emulator shutdown")
+			return
+		default:
+			now := time.Now()
+			timeSinceLastEvent := now.Sub(generatedEventCounter)
+
+			// Verificar se é hora de gerar um evento
+			if e.device.EventInterval > 0 {
+				if now.Sub(generatedEventCounter) >= time.Duration(e.device.EventInterval)*time.Second {
+					e.tracer.Info(">> Sending Generated Fake Event <<")
+					e.tracer.Info("[DEBUG] Event generation triggered after %.2f seconds", timeSinceLastEvent.Seconds())
+					generatedEventCounter = now
+
+					textPart, imagePart, err := e.generateRandomEventParts()
+					if err != nil {
+						e.tracer.Error("Failed to generate random event: %v", err)
+					} else if textPart != nil && imagePart != nil {
+						msgTextPart, err := bufrw.Write(textPart)
+						if err != nil {
+							e.tracer.Error("Failed to write text part: %v", err)
+							return
+						}
+						bufrw.Flush()
+						time.Sleep(2 * time.Millisecond)
+
+						// Escrever parte da imagem
+						msgImagePart, err := bufrw.Write(imagePart)
+						if err != nil {
+							e.tracer.Error("Failed to write image part: %v", err)
+							return
+						}
+						bufrw.Flush()
+						e.tracer.Info("Both messages sent: %d total bytes (text=%d + image=%d)", msgTextPart+msgImagePart, msgTextPart, msgImagePart)
+
+						// Resetar contador de heartbeat
+						heartbeatCounter = time.Now()
+					} else {
+						e.tracer.Warning("generateRandomEventParts returned nil (probably LocalAuthentication != 1)")
+					}
+				}
+			}
+
+			if now.Sub(heartbeatCounter) >= 10*time.Second {
+				e.tracer.Info(">> Sending Heartbeat <<")
+				heartbeatCounter = now
+
+				// Heartbeat no formato do equipamento real Dahua
+				heartbeatText := "Heartbeat"
+				heartbeatData := fmt.Sprintf("\r\n--myboundary\r\nContent-Type: text/plain\r\nContent-Length:%d\r\n\r\n%s\r\n\r\n",
+					len(heartbeatText), heartbeatText)
+
+				n, err := bufrw.WriteString(heartbeatData)
+				if err != nil {
+					e.tracer.Error("Failed to write heartbeat: %v", err)
+					return
+				}
+				bufrw.Flush()
+				e.tracer.Info("[DEBUG] Heartbeat sent: %d bytes", n)
+			}
+
+			// Verificar se a autenticação local está desativada
+			localAuth, err := e.repo.GetSetting("LocalAuthentication")
+			if err != nil {
+				e.tracer.Warning("[DEBUG] Failed to get LocalAuthentication: %v", err)
+			}
+
+			if err == nil && localAuth == "0" {
+				e.tracer.Info("Local authentication disabled, stopping event stream")
+				return
+			}
+
+			// Pequena pausa para evitar consumo excessivo de CPU
+			time.Sleep(2 * time.Second)
+		}
+	}
+}
+
+// handleEventStream gerencia o streaming de eventos Dahua (versão antiga - mantida para compatibilidade)
+func (e *Emulator) handleEventStream(c *gin.Context) {
+	streamStartTime := time.Now()
+	e.tracer.Info("=== Event Stream Started at %s ===", streamStartTime.Format("15:04:05.000"))
+	e.tracer.Info("EventInterval configured: %d seconds", e.device.EventInterval)
+
+	// Inicializar contadores
+	heartbeatCounter := time.Now()
+	generatedEventCounter := time.Now()
+	e.tracer.Info("[DEBUG] Event counter initialized, first event will be generated in %d seconds", e.device.EventInterval)
 
 	// Verificar se o cliente desconectou
 	clientGone := c.Request.Context().Done()
 
+	// Verificar configuração inicial
+	localAuth, err := e.repo.GetSetting("LocalAuthentication")
+	if err != nil {
+		e.tracer.Warning("Failed to get LocalAuthentication setting: %v", err)
+	} else {
+		e.tracer.Info("LocalAuthentication setting: %s (1=local, 0=online)", localAuth)
+	}
+
+	loopCounter := 0
 	// Loop principal de streaming
 	for {
+		loopCounter++
+		if loopCounter%5 == 0 {
+			e.tracer.Info("[DEBUG] Event stream loop iteration #%d - client still connected", loopCounter)
+		}
+
 		select {
 		case <-clientGone:
-			e.tracer.Info("Client disconnected from event stream")
+			streamDuration := time.Since(streamStartTime)
+			e.tracer.Warning("[DISCONNECT] Client disconnected from event stream (loop #%d)", loopCounter)
+			e.tracer.Warning("[DISCONNECT] Stream lasted: %.2f seconds", streamDuration.Seconds())
+			e.tracer.Warning("[DISCONNECT] Last heartbeat was %.2f seconds ago", time.Since(heartbeatCounter).Seconds())
+			e.tracer.Warning("[DISCONNECT] Last event attempt was %.2f seconds ago", time.Since(generatedEventCounter).Seconds())
+			e.tracer.Warning("[DISCONNECT] EventInterval: %d seconds (needed %.2f more seconds for next event)",
+				e.device.EventInterval,
+				float64(e.device.EventInterval)-time.Since(generatedEventCounter).Seconds())
 			return
 		case <-e.stopChan:
 			e.tracer.Info("Event stream stopped due to emulator shutdown")
 			return
 		default:
 			now := time.Now()
+			timeSinceLastEvent := now.Sub(generatedEventCounter)
+
+			e.tracer.Info("[DEBUG] Time since last event: %.2f seconds (EventInterval: %d seconds)",
+				timeSinceLastEvent.Seconds(), e.device.EventInterval)
 
 			// Verificar se é hora de gerar um evento
-			if e.device.EventInterval > 0 && now.Sub(generatedEventCounter) >= time.Duration(e.device.EventInterval)*time.Second {
-				e.tracer.Info(">> Sending Generated Fake Event <<")
-				generatedEventCounter = now
+			if e.device.EventInterval > 0 {
+				e.tracer.Info("[DEBUG] EventInterval check: %d > 0 = true", e.device.EventInterval)
 
-				// Gerar evento
-				eventData, err := e.generateRandomEvent()
-				if err != nil {
-					e.tracer.Error("Failed to generate random event: %v", err)
-				} else if eventData != nil {
-					if _, err := c.Writer.Write(eventData); err != nil {
-						e.tracer.Error("Failed to write event data: %v", err)
-						return
+				if now.Sub(generatedEventCounter) >= time.Duration(e.device.EventInterval)*time.Second {
+					e.tracer.Info(">> Sending Generated Fake Event <<")
+					e.tracer.Info("[DEBUG] Event generation triggered after %.2f seconds", timeSinceLastEvent.Seconds())
+					generatedEventCounter = now
+
+					// Gerar evento em DUAS PARTES SEPARADAS como o equipamento real Dahua faz
+					textPart, imagePart, err := e.generateRandomEventParts()
+					if err != nil {
+						e.tracer.Error("Failed to generate random event: %v", err)
+					} else if textPart != nil && imagePart != nil {
+						e.tracer.Info("[DEBUG] Event parts generated - Text: %d bytes, Image: %d bytes", len(textPart), len(imagePart))
+
+						n1, err := c.Writer.Write(textPart)
+						if err != nil {
+							e.tracer.Error("Failed to write text part: %v", err)
+							return
+						}
+						c.Writer.Flush()
+						e.tracer.Info("[DEBUG] Text part sent and flushed: %d bytes", n1)
+						time.Sleep(2 * time.Millisecond)
+
+						n2, err := c.Writer.Write(imagePart)
+						if err != nil {
+							e.tracer.Error("Failed to write image part: %v", err)
+							return
+						}
+						c.Writer.Flush()
+						e.tracer.Info("[DEBUG] Image part sent and flushed: %d bytes", n2)
+
+						// // Após enviar a imagem, envie um \r\n extra
+						// n3, err := c.Writer.Write([]byte("\r\n"))
+						// if err != nil {
+						// 	e.tracer.Error("Failed to write final CRLF: %v", err)
+						// 	return
+						// }
+						// c.Writer.Flush()
+						// e.tracer.Info("[DEBUG] Final CRLF sent: %d bytes", n3)
+
+						e.tracer.Info("[DEBUG] Both messages sent: %d total bytes (text=%d + image=%d)", n1+n2, n1, n2)
+
+						// Resetar contador de heartbeat
+						heartbeatCounter = time.Now()
+					} else {
+						e.tracer.Warning("[DEBUG] generateRandomEventParts returned nil (probably LocalAuthentication != 1)")
 					}
-					c.Writer.Flush()
+				} else {
+					e.tracer.Info("[DEBUG] Not time for event yet (%.2f/%d seconds)",
+						timeSinceLastEvent.Seconds(),
+						e.device.EventInterval)
 				}
+			} else {
+				e.tracer.Warning("[DEBUG] EventInterval is 0 or negative, events disabled")
 			}
 
-			// Verificar se é hora de enviar um heartbeat
 			if now.Sub(heartbeatCounter) >= 10*time.Second {
 				e.tracer.Info(">> Sending Heartbeat <<")
 				heartbeatCounter = now
 
-				heartbeat := []byte("\r\n\r\n\r\n--myboundary\r\nContent-Type: text/plain\r\nContent-Length:9\r\n\r\nHeartbeat")
-				if _, err := c.Writer.Write(heartbeat); err != nil {
+				// Heartbeat no formato do equipamento real Dahua
+				// Formato: \r\n--myboundary\r\nContent-Type: text/plain\r\nContent-Length:9\r\n\r\nHeartbeat\r\n\r\n
+				heartbeatText := "Heartbeat"
+				heartbeatData := fmt.Sprintf("\r\n--myboundary\r\nContent-Type: text/plain\r\nContent-Length:%d\r\n\r\n%s\r\n\r\n",
+					len(heartbeatText), heartbeatText)
+
+				n, err := c.Writer.Write([]byte(heartbeatData))
+				if err != nil {
 					e.tracer.Error("Failed to write heartbeat: %v", err)
 					return
 				}
 				c.Writer.Flush()
+				e.tracer.Info("[DEBUG] Heartbeat sent: %d bytes", n)
 			}
 
 			// Verificar se a autenticação local está desativada
 			localAuth, err := e.repo.GetSetting("LocalAuthentication")
+			if err != nil {
+				e.tracer.Warning("[DEBUG] Failed to get LocalAuthentication: %v", err)
+			} else {
+				e.tracer.Info("[DEBUG] LocalAuthentication check: '%s' (will disconnect if '0')", localAuth)
+			}
+
 			if err == nil && localAuth == "0" {
 				e.tracer.Info("Local authentication disabled, stopping event stream")
 				return

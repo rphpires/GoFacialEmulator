@@ -61,11 +61,6 @@ func (r *Repository) getWriteContext() (context.Context, context.CancelFunc) {
 	return ctx, cancel
 }
 
-// getReadContext cria contexto para operações de leitura (sem EmulatorID)
-func (r *Repository) getReadContext() (context.Context, context.CancelFunc) {
-	return context.WithTimeout(context.Background(), r.timeout)
-}
-
 // ====================== SETTINGS ======================
 
 // GetSetting obtém uma configuração do dispositivo

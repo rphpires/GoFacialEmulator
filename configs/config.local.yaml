@@ -1,10 +1,10 @@
 server:
   host: "0.0.0.0"
-  port: 7070
+  port: 8080
 
 service_db:
   driver: "postgres"
-  host: "0.0.0.0"
+  host: "localhost"  # localhost quando roda local
   port: 5432
   username: "emulator"
   password: "emulator123"
@@ -15,7 +15,7 @@ service_db:
 
 emulator_db:
   driver: "postgres"
-  host: "0.0.0.0"
+  host: "localhost"  # localhost quando roda local
   port: 5432
   username: "emulator"
   password: "emulator123"

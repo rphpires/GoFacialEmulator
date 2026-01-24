@@ -3,7 +3,6 @@ package monitoring
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"runtime"
 	"time"
 
@@ -123,38 +122,5 @@ func RecoveryMiddleware(metrics *Metrics, tracer *trace.Tracer) gin.HandlerFunc 
 		}()
 
 		c.Next()
-	}
-}
-
-// RequestLoggerMiddleware middleware para log detalhado de requisições
-func RequestLoggerMiddleware(tracer *trace.Tracer, verbose bool) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		if !verbose {
-			c.Next()
-			return
-		}
-
-		start := time.Now()
-
-		// Log request
-		var bodyBytes []byte
-		if c.Request.Body != nil {
-			bodyBytes, _ = io.ReadAll(c.Request.Body)
-			c.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
-		}
-
-		tracer.Info("[REQUEST] %s %s - Body: %s",
-			c.Request.Method,
-			c.Request.URL.Path,
-			string(bodyBytes))
-
-		c.Next()
-
-		duration := time.Since(start)
-		tracer.Info("[RESPONSE] %s %s - Status: %d - Duration: %dms",
-			c.Request.Method,
-			c.Request.URL.Path,
-			c.Writer.Status(),
-			duration.Milliseconds())
 	}
 }

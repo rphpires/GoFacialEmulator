@@ -118,38 +118,6 @@ func (m *Metrics) recordEndpointMetrics(path string, statusCode int, duration ti
 	em.AvgDuration.Store(newAvg)
 }
 
-// RecordEmulatorStart registra tentativa de início de emulador
-func (m *Metrics) RecordEmulatorStart(success bool) {
-	m.totalStartAttempts.Add(1)
-	if !success {
-		m.totalStartFailures.Add(1)
-	}
-}
-
-// RecordEmulatorStop registra tentativa de parada de emulador
-func (m *Metrics) RecordEmulatorStop(success bool) {
-	m.totalStopAttempts.Add(1)
-	if !success {
-		m.totalStopFailures.Add(1)
-	}
-}
-
-// RecordDBQuery registra uma query de banco de dados
-func (m *Metrics) RecordDBQuery(duration time.Duration, err error) {
-	m.totalDBQueries.Add(1)
-	if err != nil {
-		m.totalDBErrors.Add(1)
-	}
-
-	m.dbDurationsMutex.Lock()
-	if len(m.dbQueryDurations) < 1000 {
-		m.dbQueryDurations = append(m.dbQueryDurations, duration)
-	} else {
-		m.dbQueryDurations = append(m.dbQueryDurations[1:], duration)
-	}
-	m.dbDurationsMutex.Unlock()
-}
-
 // GetSnapshot retorna um snapshot das métricas
 func (m *Metrics) GetSnapshot() map[string]interface{} {
 	// Calcular percentis de duração HTTP

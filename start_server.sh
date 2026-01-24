@@ -27,7 +27,7 @@ fi
 
 # 2. Testar conexão com banco
 echo "2. Testando conexão com banco..."
-if ! PGPASSWORD=emulator123 psql -h localhost -U emulator -d service_db -c "SELECT 1;" > /dev/null 2>&1; then
+if ! PGPASSWORD=emulator123 psql -h localhost -U emulator -d emulator_db -c "SELECT 1;" > /dev/null 2>&1; then
     echo "❌ Erro: Não foi possível conectar ao banco de dados"
     echo "Verifique se PostgreSQL está configurado corretamente"
     exit 1
