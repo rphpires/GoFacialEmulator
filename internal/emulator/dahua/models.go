@@ -39,21 +39,45 @@ type EventData struct {
 	PhysicalAddress string           `json:"PhysicalAddress"`
 }
 
-// EventDataDetails detalhes específicos do evento
+// EventDataDetails detalhes específicos do evento (formato igual ao dispositivo real Dahua)
 type EventDataDetails struct {
-	CardStatus   int         `json:"CardStatus"`
-	CardType     int         `json:"CardType"`
-	Door         int         `json:"Door"`
-	ErrorCode    int         `json:"ErrorCode"`
-	EventGroupID int         `json:"EventGroupID"`
-	Method       int         `json:"Method"`
-	ReadID       string      `json:"ReadID"`
-	Status       int         `json:"Status"`
-	Type         string      `json:"Type"`
-	UTC          int64       `json:"UTC"`
-	UserID       int         `json:"UserID"`
-	UserType     int         `json:"UserType"`
-	ImageInfo    []ImageInfo `json:"ImageInfo,omitempty"`
+	Alive            int               `json:"Alive,omitempty"`
+	BlockId          int               `json:"BlockId,omitempty"`
+	CardName         string            `json:"CardName,omitempty"`
+	CardNo           string            `json:"CardNo,omitempty"`
+	CardStatus       int               `json:"CardStatus,omitempty"`
+	CardType         int               `json:"CardType"`
+	CreateTime       int64             `json:"CreateTime,omitempty"`
+	Door             int               `json:"Door"`
+	ErrorCode        int               `json:"ErrorCode"`
+	EventGroupID     int               `json:"EventGroupID,omitempty"`
+	FaceIndex        int               `json:"FaceIndex,omitempty"`
+	FeatureId        int               `json:"FeatureId,omitempty"`
+	HatColor         string            `json:"HatColor,omitempty"`
+	HatType          int               `json:"HatType,omitempty"`
+	ImageInfo        []ImageInfo       `json:"ImageInfo,omitempty"`
+	Method           int               `json:"Method"`
+	ObjectProperties *ObjectProperties `json:"ObjectProperties,omitempty"`
+	ReaderID         string            `json:"ReaderID"`
+	RealUTC          int64             `json:"RealUTC,omitempty"`
+	Similarity       int               `json:"Similarity,omitempty"`
+	SnapPath         string            `json:"SnapPath,omitempty"`
+	Status           int               `json:"Status"`
+	Type             string            `json:"Type"`
+	UTC              int64             `json:"UTC"`
+	UserID           string            `json:"UserID"`
+	UserType         int               `json:"UserType"`
+}
+
+// ObjectProperties propriedades do objeto detectado
+type ObjectProperties struct {
+	HatInfo *HatInfo `json:"HatInfo,omitempty"`
+}
+
+// HatInfo informações sobre chapéu/boné
+type HatInfo struct {
+	HatColor string `json:"HatColor"`
+	HatType  int    `json:"HatType"`
 }
 
 // ImageInfo informações da imagem do evento
@@ -65,11 +89,12 @@ type ImageInfo struct {
 	Width  int `json:"Width"`
 }
 
-// EventWithImage evento completo com imagem (para eventos online)
-type EventWithImage struct {
-	Event
-	Channel  int    `json:"Channel,omitempty"`
-	FilePath string `json:"FilePath,omitempty"`
+// OnlineEvent evento completo para envio ao servidor remoto (formato igual ao dispositivo real Dahua)
+type OnlineEvent struct {
+	Channel  int         `json:"Channel"`
+	Events   []EventData `json:"Events"`
+	FilePath string      `json:"FilePath"`
+	Time     string      `json:"Time"`
 }
 
 // FindFaceResponse resposta da busca de faces

@@ -1,6 +1,7 @@
 package dahua
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -343,98 +344,106 @@ func (e *Emulator) generateRandomEventParts() ([]byte, []byte, error) {
 func (e *Emulator) generateOnlineEvent() error {
 	e.tracer.Info("Generating online event")
 
-	// Buscar um cartão aleatório
-	_, _, userID, err := e.repo.GetRandomCard()
+	// Buscar um cartão aleatório com todos os dados
+	cardName, cardNo, userID, err := e.repo.GetRandomCard()
 	if err != nil {
 		e.tracer.Warning("No card found for event generation: %v", err)
 		return nil
 	}
 
-	currentTime := time.Now().UTC()
+	currentTime := time.Now()
+	unixTime := currentTime.Unix()
 
-	// Criar evento base
-	event := &Event{
+	// Decodificar a imagem para obter o tamanho real
+	imageData, err := GetPhotoImageData()
+	if err != nil {
+		return fmt.Errorf("failed to decode image: %w", err)
+	}
+	imageLength := len(imageData)
+
+	// Criar evento no formato igual ao dispositivo real Dahua
+	event := &OnlineEvent{
+		Channel: 0,
 		Events: []EventData{
 			{
 				Action: "Pulse",
 				Code:   "AccessControl",
 				Data: EventDataDetails{
-					CardStatus:   0,
-					CardType:     0,
-					Door:         0,
-					ErrorCode:    96,
-					EventGroupID: 0,
-					Method:       15,
-					ReadID:       "1",
-					Status:       0,
-					Type:         "Entry",
-					UTC:          currentTime.Unix(),
-					UserID:       userID,
-					UserType:     0,
+					Alive:      100,
+					BlockId:    27,
+					CardName:   cardName,
+					CardNo:     cardNo,
+					CardType:   0,
+					CreateTime: unixTime,
+					Door:       0,
+					ErrorCode:  0,
+					FaceIndex:  0,
+					FeatureId:  4,
+					HatColor:   "Other",
+					HatType:    0,
+					ImageInfo: []ImageInfo{
+						{
+							Height: 640,
+							Length: imageLength,
+							Offset: 0,
+							Type:   1,
+							Width:  384,
+						},
+					},
+					Method: 15,
+					ObjectProperties: &ObjectProperties{
+						HatInfo: &HatInfo{
+							HatColor: "Other",
+							HatType:  0,
+						},
+					},
+					ReaderID:   "1",
+					RealUTC:    unixTime,
+					Similarity: 99,
+					SnapPath:   "/var/tmp/white_part3.jpg",
+					Status:     1,
+					Type:       "Entry",
+					UTC:        unixTime,
+					UserID:     fmt.Sprintf("%d", userID),
+					UserType:   0,
 				},
 				Index:           0,
 				PhysicalAddress: e.macAddress,
 			},
 		},
-		Time: currentTime.Format("02-01-2006 15:04:05"),
+		FilePath: fmt.Sprintf("/SnapShotFilePath/%s/%d_99_100_%s.jpg",
+			currentTime.Format("2006-01-02/15/04"),
+			userID,
+			currentTime.Format("20060102150405000")),
+		Time: currentTime.Format("2006-01-02 15:04:05"),
 	}
 
-	// Criar primeira parte do evento
-	eventJSON, err := json.MarshalIndent(event, "", "  ")
+	// Codificar evento com indentação de 3 espaços (igual ao dispositivo real)
+	eventJSON, err := json.MarshalIndent(event, "", "   ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal event: %w", err)
 	}
 
-	// Formatar como multipart
+	// Construir mensagem multipart no formato do dispositivo real Dahua
 	boundary := "myboundary"
-	eventPart := fmt.Sprintf("\r\n--%s\r\nContent-Type: text/plain\r\nContent-Disposition: form-data; name=\"info\"\r\n\r\n%s\r\n--%s--\r\n\r\n",
-		boundary, string(eventJSON), boundary)
 
-	// Enviar primeira parte do evento
-	if err := e.sendEventToRemoteServer(eventPart); err != nil {
-		return fmt.Errorf("failed to send first event: %w", err)
-	}
+	// Parte 1: JSON do evento
+	textPart := fmt.Sprintf("--%s\r\nContent-Type: text/plain\r\nContent-Disposition: form-data; name=\"info\"\r\nContent-Length: %d\r\n\r\n%s\r\n",
+		boundary, len(eventJSON), string(eventJSON))
 
-	// Criar segunda parte com imagem (se necessário)
-	eventWithImage := &EventWithImage{
-		Event:    *event,
-		Channel:  0,
-		FilePath: "\\/mnt\\/appdata1\\/userpic\\/SnapShot\\/2024-04-16\\/21\\/07\\/20240416210702098.jpg",
-	}
+	// Parte 2: Imagem JPEG
+	imagePart := fmt.Sprintf("--%s\r\nContent-Type: image/jpeg\r\nContent-Length: %d\r\n\r\n",
+		boundary, imageLength)
 
-	// Adicionar ImageInfo
-	eventWithImage.Events[0].Data.ImageInfo = []ImageInfo{
-		{
-			Height: 640,
-			Length: 14088,
-			Offset: 0,
-			Type:   1,
-			Width:  360,
-		},
-	}
-	eventWithImage.Events[0].Data.Method = 4
+	// Parte final: fechamento do boundary
+	closingPart := fmt.Sprintf("\r\n--%s--\r\n", boundary)
 
-	// Codificar evento com imagem
-	eventWithImageJSON, err := json.MarshalIndent(eventWithImage, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed to marshal event with image: %w", err)
-	}
+	// Calcular Content-Length total
+	totalLength := len(textPart) + len(imagePart) + imageLength + len(closingPart)
 
-	// Decodificar a imagem
-	imageData, err := GetPhotoImageData()
-	if err != nil {
-		return fmt.Errorf("failed to decode image: %w", err)
-	}
-
-	// Formatar evento com imagem
-	eventWithImagePart := fmt.Sprintf("\r\n--%s\r\nContent-Type: text/plain\r\nContent-Disposition: form-data; name=\"info\"\r\n\r\n%s\r\n--%s\r\nContent-Type: image/jpeg\r\nContent-Disposition: form-data; name=\"file\"\r\n\r\n",
-		boundary, string(eventWithImageJSON), boundary)
-
-	fullEventWithImage := eventWithImagePart + string(imageData) + fmt.Sprintf("\r\n--%s--\r\n\r\n", boundary)
-
-	// Enviar segunda parte com imagem
-	if err := e.sendEventToRemoteServer(fullEventWithImage); err != nil {
-		return fmt.Errorf("failed to send event with image: %w", err)
+	// Enviar evento completo
+	if err := e.sendOnlineEventToServer(textPart, imagePart, imageData, closingPart, totalLength); err != nil {
+		return fmt.Errorf("failed to send online event: %w", err)
 	}
 
 	// Se for necessário simular eventos de porta (aleatoriamente)
@@ -446,19 +455,30 @@ func (e *Emulator) generateOnlineEvent() error {
 	return nil
 }
 
-// sendEventToRemoteServer envia evento para servidor remoto
-func (e *Emulator) sendEventToRemoteServer(eventData string) error {
+// sendOnlineEventToServer envia evento online para servidor remoto no formato Dahua
+func (e *Emulator) sendOnlineEventToServer(textPart, imagePart string, imageData []byte, closingPart string, totalLength int) error {
 	remoteURL := e.remoteServerURL + "/notification"
-	e.tracer.Info("Sending event to server: %s", remoteURL)
+	e.tracer.Info("Sending online event to server: %s (total size: %d bytes)", remoteURL, totalLength)
 
-	// Fazer a requisição HTTP
-	req, err := http.NewRequest("POST", remoteURL, strings.NewReader(eventData))
+	// Construir o body completo
+	var body bytes.Buffer
+	body.WriteString(textPart)
+	body.WriteString(imagePart)
+	body.Write(imageData)
+	body.WriteString(closingPart)
+
+	// Criar requisição HTTP no formato do dispositivo real Dahua
+	req, err := http.NewRequest("POST", remoteURL, &body)
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
-	req.Header.Set("Content-Type", "multipart/form-data; boundary=myboundary")
 
-	client := &http.Client{Timeout: 5 * time.Second}
+	// Headers no formato do dispositivo real Dahua
+	req.Header.Set("Connection", "Keep-Alive")
+	req.Header.Set("Content-Type", "multipart/mixed; boundary=myboundary")
+	req.Header.Set("Content-Length", fmt.Sprintf("%d", totalLength))
+
+	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to send request: %w", err)
@@ -470,7 +490,7 @@ func (e *Emulator) sendEventToRemoteServer(eventData string) error {
 		return fmt.Errorf("unexpected response: %s", resp.Status)
 	}
 
-	e.tracer.Info("Event sent successfully to %s", remoteURL)
+	e.tracer.Info("Online event sent successfully to %s", remoteURL)
 	return nil
 }
 
@@ -507,18 +527,47 @@ func (e *Emulator) sendDoorEvent(status string) error {
 	}
 
 	// Codificar o evento em JSON
-	eventJSON, err := json.Marshal(event)
+	eventJSON, err := json.MarshalIndent(event, "", "   ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal door event: %w", err)
 	}
 
 	// Formatar o evento como multipart
 	boundary := "myboundary"
-	body := fmt.Sprintf("\r\n--%s\r\nContent-Type: text/plain\r\nContent-Disposition: form-data; name=\"info\"\r\n\r\n%s\r\n--%s--\r\n\r\n",
-		boundary, string(eventJSON), boundary)
+	textPart := fmt.Sprintf("--%s\r\nContent-Type: text/plain\r\nContent-Disposition: form-data; name=\"info\"\r\nContent-Length: %d\r\n\r\n%s\r\n--%s--\r\n",
+		boundary, len(eventJSON), string(eventJSON), boundary)
 
 	// Enviar o evento para o servidor remoto
-	return e.sendEventToRemoteServer(body)
+	return e.sendTextEventToServer(textPart)
+}
+
+// sendTextEventToServer envia evento de texto simples (sem imagem) para servidor remoto
+func (e *Emulator) sendTextEventToServer(body string) error {
+	remoteURL := e.remoteServerURL + "/notification"
+	e.tracer.Info("Sending text event to server: %s", remoteURL)
+
+	req, err := http.NewRequest("POST", remoteURL, strings.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Connection", "Keep-Alive")
+	req.Header.Set("Content-Type", "multipart/mixed; boundary=myboundary")
+	req.Header.Set("Content-Length", fmt.Sprintf("%d", len(body)))
+
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("unexpected response: %s", resp.Status)
+	}
+
+	e.tracer.Info("Text event sent successfully to %s", remoteURL)
+	return nil
 }
 
 func (e *Emulator) GetTotalUsers() (int, error) {
