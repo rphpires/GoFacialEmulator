@@ -3,6 +3,7 @@ package hikvision
 import (
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
@@ -77,6 +78,89 @@ func TestHandleSetDateTime_ReturnsResponseStatusXML(t *testing.T) {
 	}
 	if strings.TrimSpace(body) == "OK" {
 		t.Errorf("handler still returns plain OK; got body:\n%s", body)
+	}
+}
+
+func assertResponseStatusOK(t *testing.T, body string) {
+	t.Helper()
+	for _, want := range []string{
+		`<?xml version="1.0" encoding="UTF-8"?>`,
+		`<ResponseStatus `,
+		`<statusCode>1</statusCode>`,
+		`<statusString>OK</statusString>`,
+		`<subStatusCode>ok</subStatusCode>`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("missing %q in body:\n%s", want, body)
+		}
+	}
+	if strings.TrimSpace(body) == "OK" {
+		t.Errorf("handler still returns plain OK:\n%s", body)
+	}
+}
+
+func TestHandleCommandOutput_ReturnsResponseStatusXML(t *testing.T) {
+	e := newTestEmulator(t)
+	r := gin.New()
+	r.PUT("/ISAPI/System/IO/outputs/:output_id/trigger", e.handleCommandOutput)
+
+	req := httptest.NewRequest(http.MethodPut, "/ISAPI/System/IO/outputs/1/trigger", strings.NewReader(""))
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status: got %d, want 200", w.Code)
+	}
+	if ct := w.Header().Get("Content-Type"); !strings.HasPrefix(ct, "application/xml") {
+		t.Errorf("Content-Type: got %q, want application/xml", ct)
+	}
+	assertResponseStatusOK(t, w.Body.String())
+}
+
+func TestHandlePostFingerprintSetup_ReturnsResponseStatusXML(t *testing.T) {
+	e := newTestEmulator(t)
+	r := gin.New()
+	r.POST("/ISAPI/AccessControl/FingerPrint/SetUp", e.handlePostFingerprintSetup)
+
+	req := httptest.NewRequest(http.MethodPost, "/ISAPI/AccessControl/FingerPrint/SetUp", strings.NewReader(""))
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status: got %d, want 200", w.Code)
+	}
+	if ct := w.Header().Get("Content-Type"); !strings.HasPrefix(ct, "application/xml") {
+		t.Errorf("Content-Type: got %q, want application/xml", ct)
+	}
+	assertResponseStatusOK(t, w.Body.String())
+}
+
+func TestHandlersNoLongerReturnPlainOK(t *testing.T) {
+	// Sentinel: none of the three fixed handlers should reference
+	// c.String(http.StatusOK, "OK") after Task 7.
+	b, err := os.ReadFile("handlers.go")
+	if err != nil {
+		t.Fatalf("read handlers.go: %v", err)
+	}
+	src := string(b)
+	for _, fn := range []string{
+		"handleCommandOutput",
+		"handlePostFingerprintSetup",
+		"handlePutFingerprintDelete",
+	} {
+		start := strings.Index(src, "func (e *Emulator) "+fn+"(")
+		if start < 0 {
+			t.Fatalf("did not find %s in handlers.go", fn)
+		}
+		rest := src[start:]
+		end := strings.Index(rest[1:], "\nfunc ")
+		body := rest
+		if end > 0 {
+			body = rest[:end+1]
+		}
+		if strings.Contains(body, `c.String(http.StatusOK, "OK")`) {
+			t.Errorf("%s still returns plain-text OK; must use writeHikvisionXML", fn)
+		}
 	}
 }
 

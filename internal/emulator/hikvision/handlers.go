@@ -653,7 +653,7 @@ func (e *Emulator) handlePostCardRecord(c *gin.Context) {
 // ====================== FINGERPRINT HANDLERS ======================
 
 func (e *Emulator) handlePostFingerprintSetup(c *gin.Context) {
-	c.String(http.StatusOK, "OK")
+	writeHikvisionXML(c, http.StatusOK, "1", "OK", "ok")
 }
 
 func (e *Emulator) handlePostFingerprintUploadAll(c *gin.Context) {
@@ -797,7 +797,7 @@ func (e *Emulator) handlePutFingerprintDelete(c *gin.Context) {
 		return
 	}
 
-	c.String(http.StatusOK, "OK")
+	writeHikvisionXML(c, http.StatusOK, "1", "OK", "ok")
 }
 
 func (e *Emulator) handlePostFaceDataRecord(c *gin.Context) {
@@ -960,7 +960,7 @@ func (e *Emulator) handleGetDeviceInfo(c *gin.Context) {
 func (e *Emulator) handleCommandOutput(c *gin.Context) {
 	outputID := c.Param("output_id")
 	e.tracer.Info("Receiving command for output: %s", outputID)
-	c.String(http.StatusOK, "OK")
+	writeHikvisionXML(c, http.StatusOK, "1", "OK", "ok")
 }
 
 // ====================== EVENT HANDLERS ======================
