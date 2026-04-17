@@ -194,7 +194,11 @@ func (e *Emulator) handlePutAcsCfg(c *gin.Context) {
 	}
 
 	if err := c.BindJSON(&payload); err != nil {
-		c.XML(http.StatusBadRequest, errorXMLResponse("Invalid request"))
+		c.JSON(http.StatusBadRequest, gin.H{
+			"statusCode":    6,
+			"statusString":  "Error",
+			"subStatusCode": "Invalid request",
+		})
 		return
 	}
 
@@ -205,11 +209,19 @@ func (e *Emulator) handlePutAcsCfg(c *gin.Context) {
 	}
 
 	if err := e.repo.SetSetting("LocalAuthentication", localAuthValue); err != nil {
-		c.XML(http.StatusInternalServerError, errorXMLResponse(err.Error()))
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"statusCode":    6,
+			"statusString":  "Error",
+			"subStatusCode": err.Error(),
+		})
 		return
 	}
 
-	c.XML(http.StatusOK, successXMLResponse())
+	c.JSON(http.StatusOK, gin.H{
+		"statusCode":    1,
+		"statusString":  "OK",
+		"subStatusCode": "ok",
+	})
 }
 
 func (e *Emulator) handlePutStorageCfg(c *gin.Context) {
