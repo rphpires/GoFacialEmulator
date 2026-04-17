@@ -25,6 +25,36 @@ type XMLResponseStatus struct {
 	SubStatusCode string   `xml:"subStatusCode"`
 }
 
+// HttpHostNotificationList is the payload sent by the client on
+// PUT /ISAPI/Event/notification/httpHosts. We only consume the first
+// HttpHostNotification entry and only the fields needed for online event
+// delivery (ipAddress, portNo, url).
+type HttpHostNotificationList struct {
+	XMLName xml.Name                   `xml:"HttpHostNotificationList"`
+	Items   []HttpHostNotificationItem `xml:"HttpHostNotification"`
+}
+
+type HttpHostNotificationItem struct {
+	ID        string `xml:"id"`
+	URL       string `xml:"url"`
+	IPAddress string `xml:"ipAddress"`
+	PortNo    string `xml:"portNo"`
+}
+
+// parseHttpHostNotification extracts ipAddress, portNo, url from the raw
+// XML body sent by the client. Returns an error if the body is not valid
+// XML or if no HttpHostNotification entries are present.
+func parseHttpHostNotification(body []byte) (HttpHostNotificationItem, error) {
+	var list HttpHostNotificationList
+	if err := xml.Unmarshal(body, &list); err != nil {
+		return HttpHostNotificationItem{}, fmt.Errorf("invalid XML: %w", err)
+	}
+	if len(list.Items) == 0 {
+		return HttpHostNotificationItem{}, fmt.Errorf("no HttpHostNotification entries")
+	}
+	return list.Items[0], nil
+}
+
 // SetupRoutes configura todas as rotas específicas do Hikvision
 func (e *Emulator) SetupRoutes(router *gin.Engine) {
 	// Endpoint para verificar o status do emulador
