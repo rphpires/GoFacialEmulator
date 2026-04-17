@@ -908,10 +908,16 @@ func (e *Emulator) handlePutFaceSetup(c *gin.Context) {
 
 func (e *Emulator) handleGetDateTime(c *gin.Context) {
 	e.tracer.Info("Polling message received")
-	c.XML(http.StatusOK, `<?xml version="1.0" encoding="UTF-8"?>
-<DeviceInfo version="2.0" xmlns="http://www.isapi.org/ver20/XMLSchema">
-    <deviceStatus>OK</deviceStatus>
-</DeviceInfo>`)
+	now := time.Now().Format("2006-01-02T15:04:05-07:00")
+	body := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<Time version="2.0" xmlns="http://www.isapi.org/ver20/XMLSchema">
+<timeMode>manual</timeMode>
+<localTime>%s</localTime>
+<timeZone>CST+3:00:00</timeZone>
+</Time>
+`, now)
+	c.Header("Content-Type", "application/xml")
+	c.String(http.StatusOK, body)
 }
 
 func (e *Emulator) handleSetDateTime(c *gin.Context) {
