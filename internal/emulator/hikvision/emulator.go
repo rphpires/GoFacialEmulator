@@ -79,6 +79,23 @@ func (e *Emulator) Start() error {
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
 	router.Use(gin.Recovery())
+
+	// Middleware de diagnóstico: loga toda requisição que entra neste emulador.
+	router.Use(func(c *gin.Context) {
+		e.tracer.Info("[REQ] %s %s from %s (CL=%d CT=%q)",
+			c.Request.Method, c.Request.URL.Path, c.Request.RemoteAddr,
+			c.Request.ContentLength, c.Request.Header.Get("Content-Type"))
+		c.Next()
+		e.tracer.Info("[RES] %s %s -> %d (%d bytes)",
+			c.Request.Method, c.Request.URL.Path, c.Writer.Status(), c.Writer.Size())
+	})
+
+	// NoRoute: loga tentativas de rota não registrada (evita resposta silenciosa).
+	router.NoRoute(func(c *gin.Context) {
+		e.tracer.Error("[NOROUTE] %s %s not matched", c.Request.Method, c.Request.URL.Path)
+		c.String(http.StatusNotFound, "not found: %s %s", c.Request.Method, c.Request.URL.Path)
+	})
+
 	e.SetupRoutes(router)
 
 	// Inicia o servidor HTTP
