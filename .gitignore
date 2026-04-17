@@ -28,3 +28,6 @@ dist/
 
 CLAUDE.md
 *.md
+
+# Git worktrees created by superpowers workflow
+.worktrees/
