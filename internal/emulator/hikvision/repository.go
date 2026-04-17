@@ -75,6 +75,8 @@ func (r *Repository) GetSetting(key string) (string, error) {
 			return "localhost", nil
 		case "RemotePort":
 			return "15501", nil
+		case "RemoteURL":
+			return "/notification", nil
 		case "LocalAuthentication":
 			return "1", nil
 		default:
