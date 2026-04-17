@@ -986,9 +986,42 @@ func (e *Emulator) handleGetHttpHosts(c *gin.Context) {
 	c.Header("Content-Type", "application/xml")
 	c.String(http.StatusOK, xmlContent)
 }
+
 func (e *Emulator) handlePutHttpHosts(c *gin.Context) {
-	e.tracer.Info("Receiving configuration from server")
-	c.String(http.StatusOK, "OK")
+	body, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		e.tracer.Error("httpHosts: failed to read body: %v", err)
+		c.XML(http.StatusBadRequest, errorXMLResponse("Invalid body"))
+		return
+	}
+
+	item, err := parseHttpHostNotification(body)
+	if err != nil {
+		e.tracer.Error("httpHosts: parse failed: %v", err)
+		c.XML(http.StatusBadRequest, errorXMLResponse("Invalid XML"))
+		return
+	}
+
+	if err := e.repo.SetSetting("RemoteServer", item.IPAddress); err != nil {
+		e.tracer.Error("httpHosts: SetSetting RemoteServer failed: %v", err)
+		c.XML(http.StatusInternalServerError, errorXMLResponse(err.Error()))
+		return
+	}
+	if err := e.repo.SetSetting("RemotePort", item.PortNo); err != nil {
+		e.tracer.Error("httpHosts: SetSetting RemotePort failed: %v", err)
+		c.XML(http.StatusInternalServerError, errorXMLResponse(err.Error()))
+		return
+	}
+	if err := e.repo.SetSetting("RemoteURL", item.URL); err != nil {
+		e.tracer.Error("httpHosts: SetSetting RemoteURL failed: %v", err)
+		c.XML(http.StatusInternalServerError, errorXMLResponse(err.Error()))
+		return
+	}
+
+	e.tracer.Info("httpHosts persisted: ipAddress=%s portNo=%s url=%s",
+		item.IPAddress, item.PortNo, item.URL)
+
+	c.XML(http.StatusOK, successXMLResponse())
 }
 
 func (e *Emulator) handleGetAlertStream(c *gin.Context) {
