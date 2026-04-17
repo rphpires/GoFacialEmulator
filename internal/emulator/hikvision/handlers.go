@@ -950,21 +950,20 @@ func (e *Emulator) handleCommandOutput(c *gin.Context) {
 func (e *Emulator) handleGetHttpHosts(c *gin.Context) {
 	e.tracer.Info("Getting Info httpHosts")
 
-	remoteServer, err := e.repo.GetSetting("RemoteServer")
-	if err != nil || remoteServer == "" {
-		remoteServer = "172.16.17.20" // valor padrão
-	}
+	remoteServer, _ := e.repo.GetSetting("RemoteServer")
+	remotePort, _ := e.repo.GetSetting("RemotePort")
+	remoteURL, _ := e.repo.GetSetting("RemoteURL")
 
 	xmlContent := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <HttpHostNotificationList version="2.0" xmlns="http://www.isapi.org/ver20/XMLSchema">
     <HttpHostNotification>
         <id>1</id>
-        <url>/w-access</url>
+        <url>%s</url>
         <protocolType>HTTP</protocolType>
         <parameterFormatType>XML</parameterFormatType>
         <addressingFormatType>ipaddress</addressingFormatType>
         <ipAddress>%s</ipAddress>
-        <portNo>15501</portNo>
+        <portNo>%s</portNo>
         <httpAuthenticationMethod>none</httpAuthenticationMethod>
         <SubscribeEvent>
             <heartbeat>30</heartbeat>
@@ -981,7 +980,7 @@ func (e *Emulator) handleGetHttpHosts(c *gin.Context) {
         <portNo>0</portNo>
         <httpAuthenticationMethod>none</httpAuthenticationMethod>
     </HttpHostNotification>
-</HttpHostNotificationList>`, remoteServer)
+</HttpHostNotificationList>`, remoteURL, remoteServer, remotePort)
 
 	c.Header("Content-Type", "application/xml")
 	c.String(http.StatusOK, xmlContent)
