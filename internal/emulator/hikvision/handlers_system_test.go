@@ -46,3 +46,36 @@ func TestHandleGetDateTime_ReturnsTimeXML(t *testing.T) {
 		t.Errorf("body contains legacy DeviceInfo element:\n%s", body)
 	}
 }
+
+func TestHandleSetDateTime_ReturnsResponseStatusXML(t *testing.T) {
+	e := newTestEmulator(t)
+	r := gin.New()
+	r.PUT("/ISAPI/System/time", e.handleSetDateTime)
+
+	req := httptest.NewRequest(http.MethodPut, "/ISAPI/System/time", strings.NewReader("<Time/>"))
+	req.Header.Set("Content-Type", "application/xml")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status: got %d, want 200", w.Code)
+	}
+	if ct := w.Header().Get("Content-Type"); !strings.HasPrefix(ct, "application/xml") {
+		t.Errorf("Content-Type: got %q, want application/xml prefix", ct)
+	}
+	body := w.Body.String()
+	for _, want := range []string{
+		`<?xml version="1.0" encoding="UTF-8"?>`,
+		`<ResponseStatus `,
+		`<statusCode>1</statusCode>`,
+		`<statusString>OK</statusString>`,
+		`<subStatusCode>ok</subStatusCode>`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("missing %q in body:\n%s", want, body)
+		}
+	}
+	if strings.TrimSpace(body) == "OK" {
+		t.Errorf("handler still returns plain OK; got body:\n%s", body)
+	}
+}

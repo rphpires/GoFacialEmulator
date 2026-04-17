@@ -921,7 +921,7 @@ func (e *Emulator) handleGetDateTime(c *gin.Context) {
 }
 
 func (e *Emulator) handleSetDateTime(c *gin.Context) {
-	c.String(http.StatusOK, "OK")
+	writeHikvisionXML(c, http.StatusOK, "1", "OK", "ok")
 }
 
 func (e *Emulator) handleGetDeviceInfo(c *gin.Context) {
