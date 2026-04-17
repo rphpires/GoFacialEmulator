@@ -28,11 +28,6 @@ type Emulator struct {
 	macAddress       string
 	deleteInProgress bool
 	startTime        *time.Time // Timestamp de quando o emulador foi iniciado
-
-	// Configurações do servidor remoto
-	remoteServer    string
-	remotePort      string
-	remoteServerURL string
 }
 
 // NewEmulator cria uma nova instância do emulador Hikvision
@@ -52,28 +47,7 @@ func NewEmulator(db database.DBInterface, device models.Device, tracer *trace.Tr
 		stopChan:         make(chan struct{}),
 	}
 
-	// Inicializar configurações do servidor remoto
-	emulator.initializeRemoteSettings()
-
 	return emulator
-}
-
-// initializeRemoteSettings inicializa as configurações do servidor remoto
-func (e *Emulator) initializeRemoteSettings() {
-	if server, err := e.repo.GetSetting("RemoteServer"); err == nil && server != "" {
-		e.remoteServer = server
-	} else {
-		e.remoteServer = "localhost"
-	}
-
-	if port, err := e.repo.GetSetting("RemotePort"); err == nil && port != "" {
-		e.remotePort = port
-	} else {
-		e.remotePort = "15501"
-	}
-
-	e.remoteServerURL = fmt.Sprintf("http://%s:%s", e.remoteServer, e.remotePort)
-	e.tracer.Info("Remote server URL: %s", e.remoteServerURL)
 }
 
 // Start inicia o servidor do emulador
@@ -360,8 +334,11 @@ func (e *Emulator) sendEventToRemoteServer(event *Event) error {
 	// Boundary final
 	body.WriteString(fmt.Sprintf("--%s--\r\n", boundary))
 
-	// Envia o evento para o servidor remoto
-	remoteURL := e.remoteServerURL + "/notification"
+	// Monta a URL a partir das settings por dispositivo
+	server, _ := e.repo.GetSetting("RemoteServer")
+	port, _ := e.repo.GetSetting("RemotePort")
+	path, _ := e.repo.GetSetting("RemoteURL")
+	remoteURL := fmt.Sprintf("http://%s:%s%s", server, port, path)
 	e.tracer.Info("Sending event to server: %s", remoteURL)
 
 	// Faz a requisição HTTP
@@ -431,8 +408,11 @@ func (e *Emulator) sendDoorEvent(status string) error {
 	body := fmt.Sprintf("\r\n--%s\r\nContent-Type: text/plain\r\nContent-Disposition: form-data; name=\"info\"\r\n\r\n%s\r\n--%s--\r\n\r\n",
 		boundary, string(eventJSON), boundary)
 
-	// Envia o evento para o servidor remoto
-	remoteURL := e.remoteServerURL + "/notification"
+	// Monta a URL a partir das settings por dispositivo
+	server, _ := e.repo.GetSetting("RemoteServer")
+	port, _ := e.repo.GetSetting("RemotePort")
+	path, _ := e.repo.GetSetting("RemoteURL")
+	remoteURL := fmt.Sprintf("http://%s:%s%s", server, port, path)
 	req, err := http.NewRequest("POST", remoteURL, strings.NewReader(body))
 	if err != nil {
 		return fmt.Errorf("failed to create door event request: %w", err)
