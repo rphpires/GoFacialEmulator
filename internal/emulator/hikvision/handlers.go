@@ -987,19 +987,24 @@ func (e *Emulator) handleGetHttpHosts(c *gin.Context) {
 }
 
 func (e *Emulator) handlePutHttpHosts(c *gin.Context) {
+	e.tracer.Info("httpHosts: PUT received from %s, Content-Length=%d, Content-Type=%q",
+		c.Request.RemoteAddr, c.Request.ContentLength, c.Request.Header.Get("Content-Type"))
+
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
 		e.tracer.Error("httpHosts: failed to read body: %v", err)
 		writeHikvisionXML(c, http.StatusBadRequest, "6", "Error", "Invalid body")
 		return
 	}
+	e.tracer.Info("httpHosts: body bytes=%d, body=%q", len(body), string(body))
 
 	item, err := parseHttpHostNotification(body)
 	if err != nil {
-		e.tracer.Error("httpHosts: parse failed: %v (body=%q)", err, string(body))
+		e.tracer.Error("httpHosts: parse failed: %v", err)
 		writeHikvisionXML(c, http.StatusBadRequest, "6", "Error", "Invalid XML")
 		return
 	}
+	e.tracer.Info("httpHosts: parsed ipAddress=%s portNo=%s url=%s", item.IPAddress, item.PortNo, item.URL)
 
 	if err := e.repo.SetSetting("RemoteServer", item.IPAddress); err != nil {
 		e.tracer.Error("httpHosts: SetSetting RemoteServer failed: %v", err)
@@ -1017,10 +1022,10 @@ func (e *Emulator) handlePutHttpHosts(c *gin.Context) {
 		return
 	}
 
-	e.tracer.Info("httpHosts persisted: ipAddress=%s portNo=%s url=%s",
-		item.IPAddress, item.PortNo, item.URL)
-
+	e.tracer.Info("httpHosts: persisted OK, writing XML response")
 	writeHikvisionXML(c, http.StatusOK, "1", "OK", "ok")
+	e.tracer.Info("httpHosts: response written (status=%d, wrote=%d bytes)",
+		c.Writer.Status(), c.Writer.Size())
 }
 
 // writeHikvisionXML escreve a resposta no formato exato que um equipamento
