@@ -79,3 +79,32 @@ func TestHandleSetDateTime_ReturnsResponseStatusXML(t *testing.T) {
 		t.Errorf("handler still returns plain OK; got body:\n%s", body)
 	}
 }
+
+func TestHandleGetAlertStream_HeadersMatchRealDevice(t *testing.T) {
+	e := newTestEmulator(t)
+	// Close stopChan BEFORE calling the handler so the event loop
+	// exits on its first select iteration without writing events.
+	close(e.stopChan)
+
+	r := gin.New()
+	r.GET("/ISAPI/Event/notification/alertStream", e.handleGetAlertStream)
+
+	req := httptest.NewRequest(http.MethodGet, "/ISAPI/Event/notification/alertStream", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status: got %d, want 200", w.Code)
+	}
+	if ct := w.Header().Get("Content-Type"); ct != "multipart/mixed; boundary=MIME_boundary" {
+		t.Errorf("Content-Type: got %q, want %q", ct, "multipart/mixed; boundary=MIME_boundary")
+	}
+	if cc := w.Header().Get("Cache-Control"); cc != "" {
+		t.Errorf("Cache-Control must be absent to match real device; got %q", cc)
+	}
+	// Regression guard for the legacy "x-mixed-replace" value and for the
+	// misleading text/event-stream we also dropped.
+	if strings.Contains(w.Header().Get("Content-Type"), "x-mixed-replace") {
+		t.Errorf("legacy x-mixed-replace Content-Type still present: %q", w.Header().Get("Content-Type"))
+	}
+}

@@ -1067,7 +1067,6 @@ func (e *Emulator) handleGetAlertStream(c *gin.Context) {
 	e.tracer.Info("[GET] /alertStream")
 
 	// Configurar headers para streaming
-	c.Writer.Header().Set("Content-Type", "text/event-stream")
 	c.Writer.Header().Set("Connection", "keep-alive")
 	c.Writer.Flush()
 

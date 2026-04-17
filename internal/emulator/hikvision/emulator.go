@@ -585,14 +585,10 @@ func (e *Emulator) handleEventStream(c *gin.Context) {
 	e.tracer.Info("[GET] /alertStream - Starting event stream")
 
 	// Configurar headers para streaming
-	c.Writer.Header().Set("Content-Type", "multipart/x-mixed-replace; boundary=MIME_boundary")
-	c.Writer.Header().Set("Cache-Control", "no-cache")
+	c.Writer.Header().Set("Content-Type", "multipart/mixed; boundary=MIME_boundary")
 	c.Writer.Header().Set("Connection", "keep-alive")
 	c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
 	c.Writer.Flush()
-
-	// 	// Configurar headers para streaming
-	// c.Writer.Header().Set("Content-Type", "text/event-stream")
 
 	// Inicializar contadores
 	heartbeatCounter := time.Now()
