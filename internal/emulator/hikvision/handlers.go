@@ -990,37 +990,54 @@ func (e *Emulator) handlePutHttpHosts(c *gin.Context) {
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
 		e.tracer.Error("httpHosts: failed to read body: %v", err)
-		c.XML(http.StatusBadRequest, errorXMLResponse("Invalid body"))
+		writeHikvisionXML(c, http.StatusBadRequest, "6", "Error", "Invalid body")
 		return
 	}
 
 	item, err := parseHttpHostNotification(body)
 	if err != nil {
-		e.tracer.Error("httpHosts: parse failed: %v", err)
-		c.XML(http.StatusBadRequest, errorXMLResponse("Invalid XML"))
+		e.tracer.Error("httpHosts: parse failed: %v (body=%q)", err, string(body))
+		writeHikvisionXML(c, http.StatusBadRequest, "6", "Error", "Invalid XML")
 		return
 	}
 
 	if err := e.repo.SetSetting("RemoteServer", item.IPAddress); err != nil {
 		e.tracer.Error("httpHosts: SetSetting RemoteServer failed: %v", err)
-		c.XML(http.StatusInternalServerError, errorXMLResponse(err.Error()))
+		writeHikvisionXML(c, http.StatusInternalServerError, "6", "Error", err.Error())
 		return
 	}
 	if err := e.repo.SetSetting("RemotePort", item.PortNo); err != nil {
 		e.tracer.Error("httpHosts: SetSetting RemotePort failed: %v", err)
-		c.XML(http.StatusInternalServerError, errorXMLResponse(err.Error()))
+		writeHikvisionXML(c, http.StatusInternalServerError, "6", "Error", err.Error())
 		return
 	}
 	if err := e.repo.SetSetting("RemoteURL", item.URL); err != nil {
 		e.tracer.Error("httpHosts: SetSetting RemoteURL failed: %v", err)
-		c.XML(http.StatusInternalServerError, errorXMLResponse(err.Error()))
+		writeHikvisionXML(c, http.StatusInternalServerError, "6", "Error", err.Error())
 		return
 	}
 
 	e.tracer.Info("httpHosts persisted: ipAddress=%s portNo=%s url=%s",
 		item.IPAddress, item.PortNo, item.URL)
 
-	c.XML(http.StatusOK, successXMLResponse())
+	writeHikvisionXML(c, http.StatusOK, "1", "OK", "ok")
+}
+
+// writeHikvisionXML escreve a resposta no formato exato que um equipamento
+// Hikvision real devolve (com prolog XML e quebras de linha), evitando
+// eventuais incompatibilidades de xml.Marshal com parsers que esperam o
+// texto literal do firmware.
+func writeHikvisionXML(c *gin.Context, status int, statusCode, statusString, subStatusCode string) {
+	body := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<ResponseStatus version="1.0" xmlns="http://www.hikvision.com/ver10/XMLSchema">
+<requestURL></requestURL>
+<statusCode>%s</statusCode>
+<statusString>%s</statusString>
+<subStatusCode>%s</subStatusCode>
+</ResponseStatus>
+`, statusCode, statusString, subStatusCode)
+	c.Header("Content-Type", "application/xml")
+	c.String(status, body)
 }
 
 func (e *Emulator) handleGetAlertStream(c *gin.Context) {
