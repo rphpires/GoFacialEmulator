@@ -1,0 +1,68 @@
+
+===================================================================
+Follow: tcp,ascii
+Filter: tcp.stream eq 75
+Node 0: 192.168.1.138:63108
+Node 1: 192.168.1.81:80
+233
+PUT /ISAPI/AccessControl/AcsCfg?format=json HTTP/1.1
+Host: 192.168.1.81
+User-Agent: python-requests/2.32.5
+Accept-Encoding: gzip, deflate
+Accept: */*
+Connection: keep-alive
+Content-Type: application/json
+Content-Length: 80
+
+
+80
+{"AcsCfg": {"remoteCheckDoorEnabled": false, "checkChannelType": "ISAPIListen"}}
+	615
+HTTP/1.1 401 Unauthorized
+Date: Fri, 17 Apr 2026 19:23:43 GMT
+X-Content-Type-Options: nosniff
+X-Frame-Options: SAMEORIGIN
+X-XSS-Protection: 1; mode=block
+Content-Length: 195
+Connection: keep-alive
+Keep-Alive: timeout=5, max=99
+WWW-Authenticate: Digest qop="auth", realm="DS-4D43F695", nonce="NTE5MTQyMDJhYTIyNDZiY2VlNmRlNjI1ZWFjOGI4YmE=", stale="false", opaque="", domain="::"
+Content-Type: application/json
+
+<userCheck version="2.0" xmlns="http://www.isapi.org/ver20/XMLSchema">
+<statusValue>401</statusValue>
+<statusString>Unauthorized</statusString>
+<isActivated>false</isActivated>
+</userCheck>
+
+492
+PUT /ISAPI/AccessControl/AcsCfg?format=json HTTP/1.1
+Host: 192.168.1.81
+User-Agent: python-requests/2.32.5
+Accept-Encoding: gzip, deflate
+Accept: */*
+Connection: keep-alive
+Content-Type: application/json
+Content-Length: 80
+Authorization: Digest username="admin", realm="DS-4D43F695", nonce="NTE5MTQyMDJhYTIyNDZiY2VlNmRlNjI1ZWFjOGI4YmE=", uri="/ISAPI/AccessControl/AcsCfg?format=json", response="0f1abd964889305df74cca7b8eb753d1", qop="auth", nc=00000001, cnonce="ca39d94a94306125"
+
+
+80
+{"AcsCfg": {"remoteCheckDoorEnabled": false, "checkChannelType": "ISAPIListen"}}
+	325
+HTTP/1.1 200 OK
+Date: Fri, 17 Apr 2026 19:23:43 GMT
+X-Content-Type-Options: nosniff
+X-Frame-Options: SAMEORIGIN
+X-XSS-Protection: 1; mode=block
+Content-Length: 67
+Connection: keep-alive
+Keep-Alive: timeout=5, max=98
+Content-Type: application/json
+
+{
+."statusCode":.1,
+."statusString":."OK",
+."subStatusCode":."ok"
+}
+===================================================================

@@ -12,6 +12,7 @@ import (
 
 // Config representa a configuração da aplicação
 type Config struct {
+	AppVersion string         `yaml:"app_version"`
 	Server     ServerConfig   `yaml:"server"`
 	ServiceDB  DatabaseConfig `yaml:"service_db"`  // Banco principal do serviço
 	EmulatorDB DatabaseConfig `yaml:"emulator_db"` // Mesmo banco, mas conceitualmente separado
@@ -224,6 +225,7 @@ func applyDBEnvOverrides(db *DatabaseConfig, prefix string) {
 // GetEffectiveConfig retorna a configuração final com todos os overrides aplicados
 func (c *Config) GetEffectiveConfig() map[string]interface{} {
 	return map[string]interface{}{
+		"app_version": c.AppVersion,
 		"server": map[string]interface{}{
 			"host": c.Server.Host,
 			"port": c.Server.Port,

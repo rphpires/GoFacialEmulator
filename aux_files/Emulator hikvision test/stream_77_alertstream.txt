@@ -1,0 +1,483 @@
+
+===================================================================
+Follow: tcp,ascii
+Filter: tcp.stream eq 77
+Node 0: 192.168.1.138:63110
+Node 1: 192.168.1.81:80
+179
+GET /ISAPI/Event/notification/alertStream HTTP/1.1
+Host: 192.168.1.81
+User-Agent: python-requests/2.32.5
+Accept-Encoding: gzip, deflate
+Accept: */*
+Connection: keep-alive
+
+
+	654
+HTTP/1.1 401 Unauthorized
+Date: Fri, 17 Apr 2026 19:23:43 GMT
+X-Content-Type-Options: nosniff
+X-Frame-Options: SAMEORIGIN
+X-XSS-Protection: 1; mode=block
+Content-Length: 235
+Connection: keep-alive
+Keep-Alive: timeout=5, max=99
+WWW-Authenticate: Digest qop="auth", realm="DS-4D43F695", nonce="NjI0OWRiZDg0ZTEzMGRjNjAxZWNkYjhhZTFkZWNjNmY=", stale="false", opaque="", domain="::"
+Content-Type: application/xml
+
+<?xml version="1.0" encoding="UTF-8"?>
+<userCheck version="2.0" xmlns="http://www.isapi.org/ver20/XMLSchema">
+<statusValue>401</statusValue>
+<statusString>Unauthorized</statusString>
+<isActivated>false</isActivated>
+</userCheck>
+
+436
+GET /ISAPI/Event/notification/alertStream HTTP/1.1
+Host: 192.168.1.81
+User-Agent: python-requests/2.32.5
+Accept-Encoding: gzip, deflate
+Accept: */*
+Connection: keep-alive
+Authorization: Digest username="admin", realm="DS-4D43F695", nonce="NjI0OWRiZDg0ZTEzMGRjNjAxZWNkYjhhZTFkZWNjNmY=", uri="/ISAPI/Event/notification/alertStream", response="28d631ec5d462038fef18251ddd8ed78", qop="auth", nc=00000001, cnonce="3d4df3dbfd387e8d"
+
+
+	134
+HTTP/1.1 200 OK
+MIME-Version: 1.0
+Connection: keep-alive
+Content-Type: multipart/mixed; boundary=MIME_boundary
+
+--MIME_boundary
+
+	904
+Content-Type: application/json; charset="UTF-8"
+Content-Length: 813
+
+{
+."ipAddress":."192.168.1.81",
+."ipv6Address":."fe80::be5e:33ff:fe57:a5cb",
+."portNo":.80,
+."protocol":."HTTP",
+."macAddress":."bc:5e:33:57:a5:cb",
+."channelID":.1,
+."dateTime":."2026-04-17T19:23:42-03:00",
+."activePostCount":.1,
+."eventType":."AccessControllerEvent",
+."eventState":."active",
+."eventDescription":."Access Controller Event",
+."shortSerialNumber":."AA8066966",
+."AccessControllerEvent":.{
+.."deviceName":."subdoorOne",
+.."majorEventType":.3,
+.."subEventType":.1028,
+.."remoteHostAddr":."192.168.1.138",
+.."verifyNo":.147,
+.."serialNo":.587,
+.."currentVerifyMode":."invalid",
+.."currentEvent":.false,
+.."frontSerialNo":.579,
+.."attendanceStatus":."undefined",
+.."label":."",
+.."statusValue":.0,
+.."mask":."unknown",
+.."helmet":."unknown",
+.."purePwdVerifyEnable":.true,
+.."licensePlateNo":.""
+.}
+}
+--MIME_boundary
+
+	942
+Content-Type: application/json; charset="UTF-8"
+Content-Length: 851
+
+{
+."ipAddress":."192.168.1.81",
+."ipv6Address":."fe80::be5e:33ff:fe57:a5cb",
+."portNo":.80,
+."protocol":."HTTP",
+."macAddress":."bc:5e:33:57:a5:cb",
+."channelID":.1,
+."dateTime":."2026-04-17T19:23:43-03:00",
+."activePostCount":.1,
+."eventType":."AccessControllerEvent",
+."eventState":."active",
+."eventDescription":."Access Controller Event",
+."shortSerialNumber":."AA8066966",
+."AccessControllerEvent":.{
+.."deviceName":."subdoorOne",
+.."majorEventType":.3,
+.."subEventType":.1025,
+.."remoteHostAddr":."192.168.1.138",
+.."cardReaderKind":.1,
+.."doorNo":.1,
+.."verifyNo":.149,
+.."serialNo":.588,
+.."currentVerifyMode":."invalid",
+.."currentEvent":.false,
+.."frontSerialNo":.587,
+.."attendanceStatus":."undefined",
+.."label":."",
+.."statusValue":.0,
+.."mask":."unknown",
+.."helmet":."unknown",
+.."purePwdVerifyEnable":.true,
+.."licensePlateNo":.""
+.}
+}
+--MIME_boundary
+
+	884
+Content-Type: application/json; charset="UTF-8"
+Content-Length: 793
+
+{
+."ipAddress":."192.168.1.81",
+."ipv6Address":."fe80::be5e:33ff:fe57:a5cb",
+."portNo":.80,
+."protocol":."HTTP",
+."macAddress":."bc:5e:33:57:a5:cb",
+."channelID":.1,
+."dateTime":."2026-04-17T19:23:43-03:00",
+."activePostCount":.1,
+."eventType":."AccessControllerEvent",
+."eventState":."active",
+."eventDescription":."Access Controller Event",
+."shortSerialNumber":."AA8066966",
+."AccessControllerEvent":.{
+.."deviceName":."subdoorOne",
+.."majorEventType":.5,
+.."subEventType":.22,
+.."cardReaderKind":.1,
+.."doorNo":.1,
+.."serialNo":.589,
+.."currentVerifyMode":."invalid",
+.."currentEvent":.false,
+.."frontSerialNo":.588,
+.."attendanceStatus":."undefined",
+.."label":."",
+.."statusValue":.0,
+.."mask":."unknown",
+.."helmet":."unknown",
+.."purePwdVerifyEnable":.true,
+.."licensePlateNo":.""
+.}
+}
+--MIME_boundary
+
+	903
+Content-Type: application/json; charset="UTF-8"
+Content-Length: 812
+
+{
+."ipAddress":."192.168.1.81",
+."ipv6Address":."fe80::be5e:33ff:fe57:a5cb",
+."portNo":.80,
+."protocol":."HTTP",
+."macAddress":."bc:5e:33:57:a5:cb",
+."channelID":.1,
+."dateTime":."2026-04-17T19:23:43-03:00",
+."activePostCount":.1,
+."eventType":."AccessControllerEvent",
+."eventState":."active",
+."eventDescription":."Access Controller Event",
+."shortSerialNumber":."AA8066966",
+."AccessControllerEvent":.{
+.."deviceName":."subdoorOne",
+.."majorEventType":.3,
+.."subEventType":.121,
+.."remoteHostAddr":."192.168.1.138",
+.."verifyNo":.153,
+.."serialNo":.590,
+.."currentVerifyMode":."invalid",
+.."currentEvent":.false,
+.."frontSerialNo":.589,
+.."attendanceStatus":."undefined",
+.."label":."",
+.."statusValue":.0,
+.."mask":."unknown",
+.."helmet":."unknown",
+.."purePwdVerifyEnable":.true,
+.."licensePlateNo":.""
+.}
+}
+--MIME_boundary
+
+	1460
+Content-Type: application/json; charset="UTF-8"
+Content-Length: 1116
+
+{
+."ipAddress":."192.168.1.81",
+."ipv6Address":."fe80::be5e:33ff:fe57:a5cb",
+."portNo":.80,
+."protocol":."HTTP",
+."macAddress":."bc:5e:33:57:a5:cb",
+."channelID":.1,
+."dateTime":."2026-04-17T19:23:48-03:00",
+."activePostCount":.1,
+."eventType":."AccessControllerEvent",
+."eventState":."active",
+."eventDescription":."Access Controller Event",
+."shortSerialNumber":."AA8066966",
+."AccessControllerEvent":.{
+.."deviceName":."subdoorOne",
+.."majorEventType":.5,
+.."subEventType":.75,
+.."cardNo":."0000020101",
+.."cardType":.1,
+.."name":."Raphael Pires",
+.."cardReaderKind":.1,
+.."cardReaderNo":.1,
+.."verifyNo":.155,
+.."employeeNoString":."1",
+.."turnstileTurned":.false,
+.."serialNo":.591,
+.."userType":."normal",
+.."currentVerifyMode":."faceOrFpOrCardOrPw",
+.."currentEvent":.true,
+.."frontSerialNo":.590,
+.."attendanceStatus":."undefined",
+.."label":."",
+.."statusValue":.0,
+.."mask":."no",
+.."helmet":."unknown",
+.."picturesNumber":.1,
+.."purePwdVerifyEnable":.true,
+.."licensePlateNo":."",
+.."FaceRect":.{
+..."height":.0.172,
+..."width":.0.307,
+..."x":.0.444,
+..."y":.0.441
+..},
+.."unlockRoomNo":."0000020101"
+.}
+}
+--MIME_boundary
+Content-Disposition: form-data; name="Picture"; filename="Picture.jpg"
+Content-Type: image/jpeg
+Content-Length: 18756
+Content-ID: pictureImage
+
+.....>JPEG..S.....INF..................................................................................
+	1460
+.......................................2026-4-17 19:23:48..................F1x....................`................x...............................-...-...Z............................................................................................... ....e..........\Y@...........
+...k..m..j..L]K.(...8.n..........................................'...........'..........B.%......................)7.0.5.........................................................................................................................................................................................................................FR800006..........<...-U..[..'...2+......4.........K0.:..$>..!............+.............. ..Y.....9.2..-..!.%...=..%.........".;...~.C*.......,...U4..A...K..BG.........[.8.......kj......#........(.....-.........G#-.....#%...:.....+*3t....?.@.................................FR800006..........Y..+;......0..
+...............!..........%....#...".....C........."..".5..S7`..S....(E./.."1..!..............L.+.R$|R4.......1..........6.;.....i............'...[.g*....%...]....&..6..A..........I
+.=...... &..4....T,...P..O.B......%..#.....g..8...$.D....p..............................................................................................
+.
+
+..
+...............%...#... , #&')*)..-0-(0%()(....
+.
+.
+
+.(...((((((((((((((((((((((((((((((((((((((((((((((((((..........."......................................
+.................}........!1A..Q
+	1460
+a."q.2....#B...R..$3br..
+.....%&'()*456789:CDEFGHIJSTUVWXYZcdefghijstuvwxyz....................................................................................................
+.................w.......!1..AQ.aq."2...B.....#3R..br.
+.$4.%.....&'()*56789:CDEFGHIJSTUVWXYZcdefghijstuvwxyz....................................................................................?....
+.b.^^)v....S.........J.(....R
+Z.p..`.
+..R.L..`..*.(.H[...Bj2...@JZ...oZ].....*..W..........4..m&).P1.SqR.M.............T.S.3.......n)qK.\P.qK.v(..&).(.....b..(..(......;m0..v).......b.....#+M+S..+@....j.Z...U)Q<um...@.$.....j.T..i.M".".i..(.;....:.../zZe......MU.6i...<.P..R...Ax.w.....3.I.(ZxZ.h....Q.
+.P.SY..O7aP.M.$g..SV......u!.Bb...J.0.H..M..SMHi.P.t.Rb.h.:).Q@.F)qK..&1K.u.......S...V...U^j@..hZv.xZpZ.`ZxZxZxZ@0-(Z.-8-0".I...AZ.V+Q.....J.Se...L..-.+2.l..Ej6Z...i.Fi.i...C@...i..Qw9.P!...0...\jh..>M@.,.d...@.o...3......y.$.Q.L.HY.1@.....t.|.|y=.......k...B......-....y(.;I....Q<..
+.H2i... ...ZJu......)).Rb..4.}!...).T..h.3Hi.R..f)1N4b..J..).....)@.....".E.*..U..(U.B..U...U..h..... ZxJ.F.....N.@....M..m.+..2U.....M.......Q2P.&J....TL...Q....&i..m=c...\El3!....G[iIK.......j.Q..N...\...5..C.T..F.1f>......c...Ki
+..d....3........1....X...f.........3.:V..K....&..a@....%.'...<...95.bM<
+.H...-H...T.Tb.Z.u:.S..!...`%......M>.h....y...i..~).P.(.;..P.b.
+\R.@.
+p.
+x..U.*.j....9.J.H.R.....U.V.U...R*....h..i.i......e.jp..(..ZaZ.R..L
+...%\e..P.&Z...:T...E..71...mS\..R.Z.5-f[.."U=k3
+	1460
+...*..WR.>dn=).6........'..Kcm.6..V.....q....;...N...&..O.6...5..m^..m-..........0;.....B..`J.TD.j<.O^)."..Q%J(...Z.jE.."...Z.t..
+u .P.IN......`6..u!...6.I...zSqO4...QE-...P).....(..(..*e.....0...:.b..E.9V.U.QS*. U..i..*%0.V..OT..(....]Y...t.L.L)W.t...3.*6J.h.&..3.*.J.x..Ni..**E\.(.....,..6.Z*.....2.1.oz.Y.....bX.z.@...sF+F..o.....l..K.......i..0.....Y.1.....8
+Lb...8T..."...OZ.jU....QLZ.h..S. .P..R.L..IN...m.....4.q.4..M..C@.-....S..<P!@..H.<S..*t..T.@.G...TQU.....2-5..E.!Qj.%$iV.J.D..H.H..).1..\S..........sM0...i..j`d.U..[-..B.{P.+..U.........x....k.N............&1....E..3.}..EDA..v0..'....eo..~..D.
+.p..)..0.....1@...p......Q....5..@..O...M(.j@L.(.c.2...R..z..@...
+Z.J)M..).Jq......E7....N.4..Ju&(.(...@.
+p...E....QM."....<b.QV.P....(*.lt.1."x.Y.j..Z.S.X..F...%....I.ur(.I.uz...."../j..5a ."...o.Z.o.O.=01...D....m.6....vKj.-.t.Z.UI-....(`X..Z..Zo..QZaiv.....c.y%..V..,Q.Z..X.e..1@......P.H.....(....J.8
+.....N.O..)..j!........9..V.Zh..)."..Q-J..*....@.E....@.%-%.&):....%8.m.4.S....-%(....j5.....OQLZ.h.U.2TKR.0.......(...y..Z.U...B*."..P._.9..
+..Zb-@...u^.+N.).|QU....:..b..D+H!..EO1V .)..b.9.X...Z[_j..!Pi..).~.]..R..(.nj7LU..m.0).O...9...cqJ.<%....H. .....O..S.....L.x..(...`....Y2*..c..B.je....i....F*A@.I.p...H...R.@4.R.J`4.H..i..4.N4..AJ)-.8T.Q.z."E...Z.).2..P.L..:T..
+.>.h
+.........h@:S.~.Zv........D...Z..Y...k[/J`.p..`Sc.S...QE..
+(..
+(..>V...I..P.1N.;..R..2*.........
+@R..H..I.....S.u.J...S..QN.@.....i.P.b...T.i....".....".Tx..(...)
+	1460
+...)....(.i...i...4......C@4...@.%-%.8S.0S..%Z.*....,-L.]*.S.t.QsUR.E...b.Mi.Y.*...P..V..j..=+R...I.k..-EcZ...k.....- .KY...(.0..(...(...Q.~(.1...(..)..T.R.N..`C$Y.[n....Q..zR..*E.m ......<
+.S...
+x..S...
+\S...@....,..)...e:.4...*..T...QK@.IN...CM4.M...kS.4..3IN...CE.P...).8P...J.T.LD.V..%O..Z..GU...@. .].U.M_.....m..-.J.........S..-OJ..=+f..U.j.JZdg".Y3E.QE...QE..QE.|..\S.@..n).R....*(4...F:S......4..H..V./J...V...,<.R. ).P.<
+..S..
+x...N....(...b.
+v(....Vh...S.2(.......E....h...R..@0..q.4..Ljy......q..`!..(.i..)s@.
+.j!O....L.]8.....f.%TCV....f..k:6.Q=.5.............nZ.5.h.+.....%.LGC.T..m'J..".H..E.T..QE..QE.|..v)....7..)@..@..*.).S....E=E..^...).2).).P.9b....Z...RE.qH..O..
+x...O..).P..v)@.b...&*LR.@..L....T..4y...0i*....z@!..u4..M4...GM4............-4R.......A.E.52.....@....j...i...S.U55:.`j[.+F.+...*..LF..V...+...N.N..t.....dW7k/J.........3V*...%............E;.b...O..S...
+.R(..@....M.P.'..z..E"..6i.....%.(...Ni..9..R..O..).P0... ..@
+..(..(.1I.........T.Tl(....T&B+].T.>...Mj.D... .i).......q...m4.....E<S)...KE(...Y..`*h..iMJ........S!.......5v...5f&.....h......d.I.o.+F..W=..~)....z..pz.3..~..z{....+:..:...5E...(. aK.C>r..R..
+d..z.AO.......EJ.....0..*).X....<....O%.&.X....R..*P).*@(..N..).P..<
+...@
+.8
+...@..1N.....0.H.0.....sS........2)S[..EP.:@Q4....i...i..m.6...S...P(.E8SE<P...J.T.@..N....@.....u5*.b,)..5UMJ.@..z...lmVczb5...E-c..j9)....j9...c...$........7~..$..2\{..N.~.0...e.q...G..X.aN......@.............2.a
+...Has0.8...X.d..26
+	1460
+.....(.TS....=i... ...O..E8
+....@..@.....S..&("..(.2*6.1..
+.B..aS0....XUy..j.
+...fO.W...V...T.c.r:R.....6..i)M% 
+..P..E6.S.QR-BH..&SR.....h.u5*....S@....j...M.YCV.........j..Y..2.1..%J.Vz.<=.i,.. .......h.TMN.Eey...u.r..
+Ju .jE..$...=...L"Oz.f26..f26Z....(..H.<R.......@.J.j4\T.(....4S.0..8
+AO....)...@.)1N.......LEF...
+..f..P.,*6.3
+.....MV.w)..0..s@.2..Q..u.g....Rw......4f..KM...x....<R.u...MH..&SR........5(5YMJ..'SR.Upi.....R..5j.=1..S..P....h=8=T.K..-......<.`S......4.+.A..#..&.$....).z..SV.).p.
+m9h.AR ...Z.x..`...x..`...x.
+h..`<S....P..:...j6.H.......R54.2"*..`.L(..Uy85fAU..4...k>.:..fM...2.....d."....Q.fh..I.Z.4....8..4......T...@...@j.j.^.-.R+UUzxj....V...".0-..........j]._u......._}&.....}A..}0.[.5Ni7.jt.n.t.....
+z...
+C.N..p...N.
+p...R.F)...&Z.TkR
+.x.-4S..9jAL..@.Z.TkR
+`--.P.MD..4....SJi..!j..f..P..*............U....P.I.<...v......&./....E.74....T{.....^dq.H..8'.<.k.o.If.....S..Y...L...1ou.N...[..c.....d..U.}..n...P......jp4.d5H.......J.".TOV.e.. j..R...;.wU}.n...Q...I..&.M-Q....LC.N..QH....J(.Jr..<P...).O...OQ.D*U.........H. ......i... ...H*5...:.(.@4...cP.f...Mj...D..5.
+......*......<...T.nc.....j........f.X...............O
++..T.......e.....-. ...`:SZW+W........J...#.....%..S....;..8.*sW..1..P1.jH.)..l.".m<..L4C..+........k{.h..z..3.J.."\..})9....p5....L85@;4.......K..-..o...K..-o...P.&.H.{...M.....A....(.....O..N.....F..L...j!OZ@J).Q.x...H.....$.".kO...T..Z.R..RR...Q....Fi..i...i.O4.@....^_..<...F.G.....#V.......S.y.|.
+	1460
+A=*...x.M.<.0...o..EKv.W...Q.."..J.8
+.....3...A@..<.y!..S..0.....}....]..d......'.=*..H.d.2.ZzE..B......V.=.Y......rJ...............s.........H.F.N..p.i...........F...LFo...].O..?*x......cf....G...)....{..@....5oE."....T...q.X....5.
+.O&....k......."...?W...h...7.#[......./Y?...u.G.W.}E.3i(....
+m(...p.
+p.... ..H...O...
+..i......."..P.H..*...Z.S.E...jA@.....@.i..i.@.i..Mj...M<......>>.7z.B.1....z..J.l.....hZ.r....\K..4..cn"M....a..,..T.~*...CUqN...9.V.\...'".H..9..y..}1...i7Pj64.5,'Q....j7.4.2..>..s.!..7...sLEi...Z..VA..*..j....j.;O.,s....j.=1^.ii...C^[.}D.T...d..+...ELa.|f....l....&..........V..?......4......N.b...
+-........w....U.Gh..S&....~Uin$.................S........WR_..)...../.L..R........1>J.U:.I..?..T.Q..{..@.xy...% ....Q@...LZu.H)....@.
+x..=h.U.1Q.<P..OZ.jA@..H..Zz..QR.D)...E.P..a..a..4.KHh.....L4... Nb....;.....\*F-...............o?......>..'.-.)..Y$.5.\.M..id;V....OZ.....njX....q.EI....;A.w.Id....C6;.|.zb.l....-<=1.h...a.H?".\...Un.zh.-.....ON.......cl.k..W....TI...S...V.., s...Mc..]..|>....E?q..!..?...z.."yt...J.._..]......Wm. .....@..)i... 05{..4..bN.....G.I1>}....$m$.0...|~....F..3_..[q..,d...{q..,$.+..^..a....J...X..Q...m....R.U....i....5%...ZZm(...8.`... ...S....=j1O..*..P.H..*.......jE......MH*%....)i.....<..Z.Ji.SM.4.d!P.8.T..o......O.'.>..l....no&...O.......h...........T.S...<.v.&..em5z...-X..'.iG...)68...E.....Z.|..f..).<...5..RF......<..n*....x4...S...LcqP\....qU....Fi...dk?.^..j.t...<.;...;...48...k....s.
+	1460
+..4.W..kk.l.3ifCr8i;....^...6H.Iyq....2.$jMJ.5..G.9.L..bIq...@.8.......S....z
+.HM34.>.*<...:.SiE03.(......
+`=i....@........H).Q
+.P..R-D....A..Z.T.@.
+.Tb...*..Q
+.S.(..
+ZB.L4.L4.Q.)O........^....?".+.....>wS...~...d5.f.Ww.M+N....5#((.).../q.........I..F..b..L.`...&..x...M.....\.........E"....njE~qL.iTP".ug.V..X^i.y.V}.v..8L.E.nzh.G......ic.!.I.....n"._.W...i.:........S$...h.........>.z.G....*.JX.^..H....O../g..W
+..S..+.o.e....s.eb.....K..\E...c..O...~.........`F...b.fii..
+.5".+....%(..N....4.P..))E.(..L... 5"...x4.59j jA@..R
+.jA@..x.V...R-.L)..SR
+..jAQ-=h.AN..u.-!.......RH...};...e~..1<Su...<...k.c.k...S..9.9>..a.X.sxl;8.5.>.G.......*......3.QH@Zh.Uv..Vy..f..|...b...e.9..t\..q....p(....1..qL"..L^../.l.n(...qV!..y....1.u...z.OV.z......m./ ..5D3o..L..... ...l}.....t...(..@TP.q..t(.t..+....^...., .^.....Z..>Z..........$K.....p..5............L.A....r..%..K3o.V....Z.S.Wn..i.94......E!.1....@...i.f.$..B8.`R..E!....i.f..)..)...)....@..H*%...&.".KO......`TJ..@..H.....%. .....J..LZp..P..K.j..@..L#Fw8.......~....tS..6.'.=.?.....E.''.....Q..'..2....ss...9.Y...g$.Ty".X.SH..1.n4...1..s..X.i7p:Sv...)....$....SW.<..}0.Rj2h.I.sM4..D...$;#&..............-...Dq..5P.qV.$d..gR.}sN....|(..82.!......e.V..d..`=U.~.../'.....5Q.i2N..C.........{...I%...I=I.._.j.T...f...x.}[.....C......CHiM4..CIA....K.fih....i).R..E.<S.0S....p....%......Z..MH*........I.sM=F).8...XC..Z.,...h.U.V.Z.h.(..1)dm...+.....Y..G.nX..tT.."..u=.z..k...H.........E.b.......>V.l_..}..;O4....9
+	1460
+.E..c.I..r9......=..0T^....MD...
+..L.NL...Xu.@..D.~..<.....Qq.B..R....L8.c.0..&.i...S .@..S$.x...>I5$...T.wS.4..e..@}[........y.O.0.?<W7....Z.V..K.q.A....wL.I.XbP.P(..o).?..f..........1......V...h.W c.}....\..p..O3g............O.).M*...Hc.i....).L4f...RR.J.p...)..!....Z3IFh......HC...Q.z..U.....(.2...Z.P..<b.R@....f...H....@.-J...^...m...$..)7a.srIR.....w......^.V.bK.5.-.?z.........|.C...U%.\.j..O.5..}..F...z...~..Mq...\4m...|.I....F...J.A.\....'?.+1..qZ.'.#..FME.g.JXu.Y7.M5....(.4....4...N)..2qM..R.n..i...
+`9y.*0..c..i...'.."\........c o......t..}E.&.5..G.]...O.MRi.c.+._....F..........R......:TF]..o.=Mu.2j..........9....D3;.W/?.` .......A.\..(.....#.,.O.(@?..c.E...6.T...I[.n.....T.}......)...3Z24..u....X...|..q.`S..s......?.C..N......H
+&...%..}.Z.2...X}E0.i3I.i..4f..f...3L4..2AKL..(..i...8P2U...Zz...R
+.jQ@.V..j5.....9.cB.p..5..$..$`.;....x.#%a..K...r...4...;!.Ov...V.LM@Z..Y7sd.H\.n..R..n...!4...q....."....O..k>SZ....j...j.,...azF5.5H.`...Sv)wS..K......H..P*.jEj...".Z..V...8...]..../A..S.[.E.^P2,..s...F...t...bp[..G..yH...............E..H.......Ut.T.$.pE..
+.$.
+.uK.... zzz.....5..-|.<..}z...*...q...o.........)..h.O..Y....3...{5W4.H.._(....=.@.]...$q.*.....J..3..fq...........L'M'.Z.j..n..+......R.......N......}.....?wy....*..,_.e.?......,g.@.Z.......*....e...Z..[....).-..c.......)....JCLaJ)...p.
+`..H..x..<P"@jAQ-<S.2..j....NEww..[.lz....-Z;5...^...;..n$-+.cQ)X....[T..NN#.uEgu4..(`*l...I..O...*.z...PEh.f.I(l..?....7X.....O9.J......h..
+	1460
+9H./xO.j....b=.........>.$6.F.q..P....Zyc...j...Z.8>cz..d.,........I8.f.q.qw)=S.z..WqHl..1P0..J..=*.(..wU.#5.'.2F....n)@.....4S......
+~....;..S./Lu..M0._#J.....=.4&jx.B3:;.....W.....UcED.U...VV.e.+l0...{z.....$....x..d.Q.{..Jj.>.u...? .W.....{.......y'>...j3P..1...X.v.....6....i..q.....j...5W.P.&.T..j<.@&h4....Jm).P...M.&h..Zm(...8S.8P...Q.p....*1R-.<U{...Dg..,.......J..r.dw....2....*....Y....Fb..B.....L..N..hM].:.#;..f... .J..y.a..<..@.25.D.`q@...P.......]N@.<....<..,.....(<u?..sU..&.Z.....F..f.y....J..X5.S.U..^:...qLE2..U...XP....y..N.....,fx...zO...S...b9...^k.>......j>T.p.E1.B..Ma...Nc.>..........d...<..)..s...........oL(#..t.j.......M9..3{c..?.}k...K....r.d+.=....mi6.
+..A..5."....0..<.b)....r-V.i...M)4.@.j.S.L.*.......V..!....B.......M.c.m..Fh..Hc.E2.)..N..p......S....H......,..........(....XC.8..y...a\...t.3.%...).$....L.O.."[%,..j.o..4......."....@.H=*.......i@.i.h^.g4...&.../....i8..r...|..d....Y.O....C...(.......mr._.i<..7R..<.s.|.i....GJi&.P.-.*&.....mG(s.w..g.4..b.(..iA...v..6..........q..{..b......9.I.Yj..>..j..R[..6$.q...6..Q.d.......A.X.Y.....3."CH...V..A..cj.A\.....2.V!.......1Sa...4P.0..-X5...).....2-V....!..j")K.h..qI...b..b.T....G.*B)...%.......)E.<S..
+p........@...W.....(.q...._..u..1s7.j.....%.,..B@..d.q...D..K..U.v....,..).P.*.LO.H.X."..OJT..E..V...."..&.....<.`T9..I..McH[h.z...@..8.?.)..*3.4..@Jx...m!.B............/Jn..@'4..S..i.....C.9...<..1...c5,)...a.j.2d.P.ai..O..k......3.;.dR.-....L.....F..........d..\..
+	1460
+.1.Z.3. ..c;.}..\.;y~Q...#...&.M!4.h..T.[h.......g.c@..J1......6PA.C..R...z...j..~.S.2...\.4.C.*...R.....Y..S.B{f..
+`sT....C..u0.\...>..;....(.B.....)k.H.e<.j....Y.....=$...9&..Ydffw9f9$.e..f.*#...$..S..h....b.8..,i..<S$z .S....^.*.(...3H.q..y08.7.<S..|....1.Q....P;.i./.M?}V...h.l......)......O4.i...cp.!.c4.h..!.......\k..@.C.i.{...$..N.(.H.U.q...*h."..Xei.1R.6.J.....qS....j.3|..~.c......#...J...T.E^..l.....;...`GZ."...kF...?*..t..HMQ..#........j)0G43T...R.*.5.N...NR[......>n.AJ....I=...9=.e...Y...de.2v....3@..;..~.rA...5...............Z`v........9.../...5.....\.@..]../.....r;(....1.tS7PX...4.........u..<).VT..!..Cv.....8^Mf]]..Fx.>g.&....X.v..j.<.....N(|..~....!.l..o=[...n:Sd.Jfj.d.....-.&...5..Y...As.....,i..c..TE....SH.s.4`...4.......rjDM...P.&8Z`9./....7....N.R....R.c..Z.3m..6*/4..L........I.............O9..i..0.T...5.j......A.i7.pH...p:.......ZP.A...,K.Bn.G..3a.1....!.....j......z....prN+4M....Hf8...4........\.....0UkB.....,gD_# .{.....qK4....%.z.......p..o.Y....t.>......u.e....SY3..MZ.....)..@]ri...) .jY7...j.c-Wa....D........kC..e......?.._....CQ...................3...3T.d...5gubj.....#vG..M..-.n..l.n.C.....#6iPm^;.P....Jf...Fr%<....
+.H.$u....I..T...OZ.F.#&.=.4.-.I...JZ.,jd...8.b.$|.K..b...2n..M...y.:.....S...#.(.:S......]...c.U<.9..@.*08..1...pE...i4R.L.4.Jx....d..x.....`...q.B.G`8..........O,u...%....].8....{.h.h......h..oJ.0..&...[..v..L!...4.=.5|....<g.Y..qT...
+r).n....?Z]b.......{.PF.x.Q..Q...0jd\L..A<.....Yx"........E
+	1460
+.m...!......Q....Wm.V(....:T.l7....R.t3-t..q.W....f..5u...W|9huG-....a....+.~.....$t.........i.w......Z...L&.J.[.5...MdI&...i.pH.D..H....7.y........M..0.]....9..g8...].r..=3M.S.z.M.U..&..pw...QA.b*b...W.Mg.x..,p:S....h.P6...}........C...j/4......nh..9.jel..%H.S..})s.B.O..b....?.J.:TRR.^n.....-C..h..I.8.<....(..@....0.i.M.K.Q...nN:.n..'SOQ.M7...@......)c.U4.nzS..x.L,+...jh.F2.h@"\.&..!s@..q..P.-...8R...y.......YV.8......?.j..N.b......T..E.J.....y.qo........f.E#-...".n...Bm....u9.+...BJ...6OZ.e..&[.q...v.....@....j..k.t=<izlv.d........W-..7..:..1.J......_j....2.......L&. ..5".i....Z..#.~..>k...'.[..."..sT.....}8QT..D..:.ki.s.i...../STI...~....K..5...*..\.As%.......*6.P;......5.u...@.T.SX.H......14..t..Ta.Hc.<.TT..".m..f...B.9>.....1..Lj.......h..Lb....l...i......I.E0...Si..0f...M4.p=. ......<u..`ST."I$,i.6...1s.O.e.=*8#27..M<....LBH.p).....z..........J*x.>....VP...V..(.J..V.......[,.lG..k..{.Kb.R.....{........b.d2."..i.Y.K.Tq.k.....B..t....1...XKww..c.......W]-..o.7.c.sD.X..Y~v....O..=.
+ss.....\......+x.#.v....O.......8..FM.i......W-P.)'...o.......K1.........4..3.bd.o4...V.;w..#Hi|.x.A.il.)......C..6i..)..R.c.J.D8........i...&.....QL..FhC.?.......W.jZ.<.).QL.Q..\.I..4..B..)x=is@..f...4.....MD.....=i.z..KM'....P...JO4...Z.x.".`.zj....q.F.........ri...(...*FO....^.A.....,/V...,j@U.jc.P.2.`S........I.~.....$[Lj..".,..OZ..Y>..Y...X...h.oXo..2.e\c5..p..dj...Z...q..f..YI].........#...?.{...?.......
+......rE.ep../...U...O.y..NvHy.]....?>..r
+	1460
+..}.jf#...R............*jN.D..(<Tt..]...;.F..$.M.;.Q...|...Li.....x".$....P..-L.N9.enz......94.\..m..c.D5.....i.......J.H.RSI.....JL.@..ii.)8.H..*...Z..*...Bi..i..J...SMc...8........H)..@.S.g.j..&.jh.....K.l.
+2ib....V1...Z...Z.c/..Kp..S.R...L6R.C@..fc..1.N..;T.fOl..l..Z0.P.e..o..P2..U...V....W......J.e......N.)".4.S-..f...........U;x...c.f'..:........C.G.. ...>....=.0..:S3FkS1. ..j2...G....sU..@.b...#"....NW....28..M...)...........J....Hi.4..Za.T...@..EL..s..V..u.e..\.lNi..(.@...S..b..:R.SE*.....Jo.O.S.'..M.i......h..Fh....P!E)<Si.h......y..P....C5 ...N..5........G4t......2je....x....p8....0*....j.P.#'..L....T.T..p..Z..1..V...Z...EW3.8..'....j...z{BXsO..csI..l<..z..'U..~..e.>....8...B......;}....l.............rqX6...}....z..m#....w.|g.[4..9.Ue.....-...LB1.....c@...........=(
+M?.'Z.Fm4.S....C.M.}(....<.N.Zm..R..N.Q...x.S......O.7....S..3.R(.4..QM.-1.K.i.P...RQ@....3@..a..LP...H.....0.iTb.......X.......
+`.<..hQ.<...3.........fT.(......b,..1.?....U..y5<g...e..Jf...O.3i'..@......v...F.:t.....`N.'.n(.T.l5n7...)...0:.+>+....;U.t...;..3j-]...5hZ...w.j..R.. ..[.L....\..u5..~............*....
+.s.R.wp........k-MelF.[..}:.1A...h1.1..F.@.MK.fiEQ#.H.
+JQ.@.8.Si..!..@....(.B.G......i...M....n(...Z@....)...;.(..\.`......m....E6......(.c..@.KM.M&..O4.I.3H.ny..9....Lg..p.P..i...zQ.4
+.h..*ALAS...9T....iP
+.....#..\P.A.S.($.a..."m<f...AZ`Wf.Q.5......*..U..1I...I.B}i......f...h...@{......h.....@..2yw1.?.]...'....lH.y9..G..l%.zLf.5..V4.E.<.4.Q
+uP.(....h.
+	1152
+...".E.....h.g..(.....>.....@E..3E....x4.P..74.GZ..}(...3@.IKE0..Rb...i.h....)..#.....4.....i1NN(.aO...s...B.`:.......'.*eS.~.n(..........B..{...g.?._H.T....a..+......U.z.....A......S....U..v.Z<U)..
+.8..Xm..\....d..)...w4.r.zBy...((p..B.A..dl.@..4...1MQ.i.Z..3j..3.....<.t_j.|.i.N.....f.x.1s.2C.qHZ....<.R.3JP...%........K.J;...KM.g...L#.%!.@...;....S...Z.Z~8.
+x...)..... ..m..I..4...QE.8R5%4..QE......S..0..~.6..v!PD0.[...f..... 8...O....*..j...jw..E<..5=Z...sA....f..C*...uW..(...]d..5..`\?.kX.H...i.w.B..$...Y#%~...{.H...q.....(Q.ZZ........u.....(1.+M.*(H....c....U....c...LRR.U.vij:\......nih..RQ@.....Z.}..f.....i...ozP(.-..b..R..bP..ri...CM%8..H....b.9..@.
+SK................f.b..R....UI&.........XJ..:.V,.....C.....Y.OW.[......j....f.!...iA.-?.H..N"o.rw.39>..]....r....}.h.L...*.94;sM. QR.L^)...I].....i.0.....;3yz.."..w.. Q.R`HO..4..T$.0cL9.&..y.-6...-%.......`?4S)A...i......CI@....(..Zh4..QKM...-4.ZJ.....iM6..)wS(.4...Sh.B.x...p=...j..E...h..-g......Q".ZSR.P....Y.!.....M&...j..j.rj.].`K.....dB.(.....b....*..K."j......Z......`...13Hv.O......zQR...\<}q.....iT.i.5...?..+..i........,.a.....j1...5#.MF.
+ajF<S.(<S3Fh...
+--MIME_boundary
+
+	883
+Content-Type: application/json; charset="UTF-8"
+Content-Length: 792
+
+{
+."ipAddress":."192.168.1.81",
+."ipv6Address":."fe80::be5e:33ff:fe57:a5cb",
+."portNo":.80,
+."protocol":."HTTP",
+."macAddress":."bc:5e:33:57:a5:cb",
+."channelID":.1,
+."dateTime":."2026-04-17T19:23:48-03:00",
+."activePostCount":.1,
+."eventType":."AccessControllerEvent",
+."eventState":."active",
+."eventDescription":."Access Controller Event",
+."shortSerialNumber":."AA8066966",
+."AccessControllerEvent":.{
+.."deviceName":."subdoorOne",
+.."majorEventType":.5,
+.."subEventType":.21,
+.."cardReaderKind":.1,
+.."doorNo":.1,
+.."serialNo":.592,
+.."currentVerifyMode":."invalid",
+.."currentEvent":.true,
+.."frontSerialNo":.591,
+.."attendanceStatus":."undefined",
+.."label":."",
+.."statusValue":.0,
+.."mask":."unknown",
+.."helmet":."unknown",
+.."purePwdVerifyEnable":.true,
+.."licensePlateNo":.""
+.}
+}
+--MIME_boundary
+
+	903
+Content-Type: application/json; charset="UTF-8"
+Content-Length: 812
+
+{
+."ipAddress":."192.168.1.81",
+."ipv6Address":."fe80::be5e:33ff:fe57:a5cb",
+."portNo":.80,
+."protocol":."HTTP",
+."macAddress":."bc:5e:33:57:a5:cb",
+."channelID":.1,
+."dateTime":."2026-04-17T19:23:48-03:00",
+."activePostCount":.1,
+."eventType":."AccessControllerEvent",
+."eventState":."active",
+."eventDescription":."Access Controller Event",
+."shortSerialNumber":."AA8066966",
+."AccessControllerEvent":.{
+.."deviceName":."subdoorOne",
+.."majorEventType":.3,
+.."subEventType":.1028,
+.."remoteHostAddr":."192.168.1.138",
+.."verifyNo":.159,
+.."serialNo":.593,
+.."currentVerifyMode":."invalid",
+.."currentEvent":.true,
+.."frontSerialNo":.592,
+.."attendanceStatus":."undefined",
+.."label":."",
+.."statusValue":.0,
+.."mask":."unknown",
+.."helmet":."unknown",
+.."purePwdVerifyEnable":.true,
+.."licensePlateNo":.""
+.}
+}
+--MIME_boundary
+
+===================================================================

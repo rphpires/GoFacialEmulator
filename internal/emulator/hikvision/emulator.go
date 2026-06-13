@@ -1,10 +1,12 @@
 package hikvision
 
 import (
+	"bufio"
 	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -511,8 +513,9 @@ func (e *Emulator) generateRandomEvent() ([]byte, error) {
 	event.AccessControllerEvent.FaceRect.Y = 0.354
 	event.AccessControllerEvent.UnlockRoomNo = "3723243075"
 
-	// Codificar o evento em JSON
-	eventJSON, err := json.MarshalIndent(event, "", "  ")
+	// Codificar o evento em JSON compacto (dispositivos Hikvision reais
+	// não enviam o JSON indentado).
+	eventJSON, err := json.Marshal(event)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal event: %w", err)
 	}
@@ -526,12 +529,15 @@ func (e *Emulator) generateRandomEvent() ([]byte, error) {
 
 	var body strings.Builder
 
-	// Primeira parte - JSON
+	// Primeira parte - JSON. O Content-Disposition com name="event_log" é o
+	// que o parser do cliente usa para identificar o payload como evento e
+	// decodificá-lo como dict (sem ele, o cliente trata como blob genérico).
 	body.WriteString(fmt.Sprintf("--%s\r\n", boundary))
+	body.WriteString("Content-Disposition: form-data; name=\"event_log\"\r\n")
 	body.WriteString("Content-Type: application/json; charset=\"UTF-8\"\r\n")
 	body.WriteString(fmt.Sprintf("Content-Length: %d\r\n", len(eventJSON)))
 	body.WriteString("\r\n")
-	body.WriteString(string(eventJSON))
+	body.Write(eventJSON)
 	body.WriteString("\r\n")
 
 	// Segunda parte - Imagem
@@ -544,8 +550,8 @@ func (e *Emulator) generateRandomEvent() ([]byte, error) {
 	body.Write(imageData)
 	body.WriteString("\r\n")
 
-	// Boundary final
-	body.WriteString(fmt.Sprintf("--%s--\r\n", boundary))
+	// NOTE: não emitimos boundary final ("--MIME_boundary--") durante streaming;
+	// isso encerraria o multipart conforme RFC 2046 e o cliente trataria como EOF.
 
 	return []byte(body.String()), nil
 }
@@ -570,80 +576,86 @@ func (e *Emulator) getHeartbeatMessage() []byte {
 	heartbeatJSON, _ := json.MarshalIndent(heartbeat, "", "  ")
 	contentLength := len(heartbeatJSON)
 
-	// Formata o heartbeat como multipart
+	// Formata o heartbeat como multipart (RFC 2046): cada part começa com
+	// "--boundary\r\n", headers, "\r\n", body, "\r\n". Sem boundary final
+	// para manter o stream aberto.
 	boundary := "MIME_boundary"
-	heartbeatMsg := fmt.Sprintf("\r\n--%s\r\nContent-Type: application/json; charset=\"UTF-8\"\r\nContent-Length: %d\r\n\r\n%s\r",
+	heartbeatMsg := fmt.Sprintf("--%s\r\nContent-Type: application/json\r\nContent-Length: %d\r\n\r\n%s\r\n",
 		boundary, contentLength, string(heartbeatJSON))
 
 	return []byte(heartbeatMsg)
 }
 
-// handleEventStream gerencia o streaming de eventos
-func (e *Emulator) handleEventStream(c *gin.Context) {
+// handleEventStream gerencia o streaming de eventos sobre a conexão bruta
+// previamente hijackada em handleGetAlertStream. Escreve parts multipart
+// diretamente no socket, sem chunked encoding, para replicar o dispositivo real.
+func (e *Emulator) handleEventStream(conn net.Conn, bufrw *bufio.ReadWriter) {
 	e.tracer.Info("[GET] /alertStream - Starting event stream")
 
-	// Configurar headers para streaming
-	c.Writer.Header().Set("Content-Type", "multipart/x-mixed-replace; boundary=MIME_boundary")
-	c.Writer.Header().Set("Cache-Control", "no-cache")
-	c.Writer.Header().Set("Connection", "keep-alive")
-	c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
-	c.Writer.Flush()
+	// Heartbeat inicial imediato: o cliente Python bloqueia em iter_content()
+	// até receber o primeiro byte do corpo; sem isto a abertura do stream
+	// parece "fechada" pelo lado do cliente.
+	initial := e.getHeartbeatMessage()
+	n, err := bufrw.Write(initial)
+	if err != nil {
+		e.tracer.Error("Failed to write initial heartbeat: %v", err)
+		return
+	}
+	if err := bufrw.Flush(); err != nil {
+		e.tracer.Error("Failed to flush initial heartbeat: %v", err)
+		return
+	}
+	e.tracer.Info("[alertStream] initial heartbeat sent (%d bytes)", n)
 
-	// 	// Configurar headers para streaming
-	// c.Writer.Header().Set("Content-Type", "text/event-stream")
-
-	// Inicializar contadores
 	heartbeatCounter := time.Now()
 	generatedEventCounter := time.Now()
 
-	// Verificar se o cliente desconectou
-	clientGone := c.Request.Context().Done()
-
-	// Loop principal de streaming - equivalente ao generate_heartbeat() do Python
+	// Loop principal de streaming. Falhas de escrita indicam que o cliente
+	// desconectou (equivalente a c.Request.Context().Done()).
 	for {
 		select {
-		case <-clientGone:
-			e.tracer.Info("Client disconnected from event stream")
-			return
 		case <-e.stopChan:
 			e.tracer.Info("Event stream stopped due to emulator shutdown")
 			return
 		default:
 			now := time.Now()
 
-			// Verificar se é hora de gerar um evento
 			if e.device.EventInterval > 0 && now.Sub(generatedEventCounter) >= time.Duration(e.device.EventInterval)*time.Second {
 				e.tracer.Info(">> Sending Generated Fake Event <<")
 				generatedEventCounter = now
 
-				// Gerar evento
 				eventData, err := e.generateRandomEvent()
 				if err != nil {
 					e.tracer.Error("Failed to generate random event: %v", err)
 				} else if eventData != nil {
-					if _, err := c.Writer.Write(eventData); err != nil {
-						e.tracer.Error("Failed to write event data: %v", err)
+					if _, err := bufrw.Write(eventData); err != nil {
+						e.tracer.Error("Failed to write event data: %v (client disconnected)", err)
 						return
 					}
-					c.Writer.Flush()
+					if err := bufrw.Flush(); err != nil {
+						e.tracer.Error("Failed to flush event data: %v (client disconnected)", err)
+						return
+					}
+					heartbeatCounter = now
 				}
 			}
 
-			// Verificar se é hora de enviar um heartbeat
 			if now.Sub(heartbeatCounter) >= 10*time.Second {
 				e.tracer.Info(">> Sending Heartbeat <<")
 				heartbeatCounter = now
 
 				heartbeat := e.getHeartbeatMessage()
-				if _, err := c.Writer.Write(heartbeat); err != nil {
-					e.tracer.Error("Failed to write heartbeat: %v", err)
+				if _, err := bufrw.Write(heartbeat); err != nil {
+					e.tracer.Error("Failed to write heartbeat: %v (client disconnected)", err)
 					return
 				}
-				c.Writer.Flush()
+				if err := bufrw.Flush(); err != nil {
+					e.tracer.Error("Failed to flush heartbeat: %v (client disconnected)", err)
+					return
+				}
 			}
 
-			// Pequena pausa para evitar consumo excessivo de CPU
-			time.Sleep(2 * time.Second)
+			time.Sleep(1 * time.Second)
 		}
 	}
 }

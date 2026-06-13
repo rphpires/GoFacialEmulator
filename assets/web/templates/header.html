@@ -7,6 +7,9 @@
           <i class="bi bi-cpu"></i>
         </div>
         <span>Facial Emulators</span>
+        {{ if .app_version }}
+        <span class="app-version">v{{ .app_version }}</span>
+        {{ end }}
       </a>
 
       <!-- Header Right -->

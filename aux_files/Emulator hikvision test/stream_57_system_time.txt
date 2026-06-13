@@ -1,0 +1,82 @@
+
+===================================================================
+Follow: tcp,ascii
+Filter: tcp.stream eq 57
+Node 0: 192.168.1.138:53035
+Node 1: 192.168.1.81:80
+212
+PUT /ISAPI/System/time HTTP/1.1
+Host: 192.168.1.81
+User-Agent: python-requests/2.32.5
+Accept-Encoding: gzip, deflate
+Accept: */*
+Connection: keep-alive
+Content-Type: application/xml
+Content-Length: 234
+
+
+234
+<?xml version='1.0' encoding='UTF-8'?>
+<Time version='2.0' xmlns='http://www.isapi.org/ver20/XMLSchema'>
+    <timeMode>manual</timeMode>
+    <localTime>2026-04-17T19:23:42-03:00</localTime>
+    <timeZone>CST+3:00:00</timeZone>
+</Time>
+	654
+HTTP/1.1 401 Unauthorized
+Date: Fri, 17 Apr 2026 19:23:42 GMT
+X-Content-Type-Options: nosniff
+X-Frame-Options: SAMEORIGIN
+X-XSS-Protection: 1; mode=block
+Content-Length: 235
+Connection: keep-alive
+Keep-Alive: timeout=5, max=99
+WWW-Authenticate: Digest qop="auth", realm="DS-4D43F695", nonce="OTEwZDEwNjA2OGZlNjRjMzEzNmZkZjE0ZTYxNTE1Yjg=", stale="false", opaque="", domain="::"
+Content-Type: application/xml
+
+<?xml version="1.0" encoding="UTF-8"?>
+<userCheck version="2.0" xmlns="http://www.isapi.org/ver20/XMLSchema">
+<statusValue>401</statusValue>
+<statusString>Unauthorized</statusString>
+<isActivated>false</isActivated>
+</userCheck>
+
+450
+PUT /ISAPI/System/time HTTP/1.1
+Host: 192.168.1.81
+User-Agent: python-requests/2.32.5
+Accept-Encoding: gzip, deflate
+Accept: */*
+Connection: keep-alive
+Content-Type: application/xml
+Content-Length: 234
+Authorization: Digest username="admin", realm="DS-4D43F695", nonce="OTEwZDEwNjA2OGZlNjRjMzEzNmZkZjE0ZTYxNTE1Yjg=", uri="/ISAPI/System/time", response="475e13108b944a239d2ff9a6330c0a07", qop="auth", nc=00000001, cnonce="e4a33f3294a3343e"
+
+
+234
+<?xml version='1.0' encoding='UTF-8'?>
+<Time version='2.0' xmlns='http://www.isapi.org/ver20/XMLSchema'>
+    <timeMode>manual</timeMode>
+    <localTime>2026-04-17T19:23:42-03:00</localTime>
+    <timeZone>CST+3:00:00</timeZone>
+</Time>
+	515
+HTTP/1.1 200 OK
+Date: Fri, 17 Apr 2026 19:23:42 GMT
+X-Content-Type-Options: nosniff
+X-Frame-Options: SAMEORIGIN
+X-XSS-Protection: 1; mode=block
+Content-Length: 257
+Connection: keep-alive
+Keep-Alive: timeout=5, max=98
+Content-Type: application/xml
+
+<?xml version="1.0" encoding="UTF-8"?>
+<ResponseStatus version="1.0" xmlns="http://www.hikvision.com/ver10/XMLSchema">
+<requestURL></requestURL>
+<statusCode>1</statusCode>
+<statusString>OK</statusString>
+<subStatusCode>ok</subStatusCode>
+</ResponseStatus>
+
+===================================================================

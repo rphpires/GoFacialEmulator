@@ -10,6 +10,7 @@ import (
 	"text/template"
 	"time"
 
+	"GoFacialEmulator/assets"
 	"GoFacialEmulator/internal/config"
 	"GoFacialEmulator/internal/database"
 	"GoFacialEmulator/internal/emulator"
@@ -25,6 +26,7 @@ type Handler struct {
 	manager       *emulator.Manager
 	serviceDB     database.DBInterface // Pode ser AdaptivePool ou DualPoolManager
 	wxsDB         *database.WxsDB
+	appVersion    string
 	tracer        *trace.Tracer
 	upgrader      websocket.Upgrader
 	healthMonitor *monitoring.HealthMonitor
@@ -32,7 +34,7 @@ type Handler struct {
 }
 
 // NewHandler cria uma nova instância de Handler
-func NewHandler(manager *emulator.Manager, serviceDB database.DBInterface, wxsDB *database.WxsDB, tracer *trace.Tracer) *Handler {
+func NewHandler(manager *emulator.Manager, serviceDB database.DBInterface, wxsDB *database.WxsDB, appVersion string, tracer *trace.Tracer) *Handler {
 	// Criar sistema de monitoramento
 	healthMonitor := monitoring.NewHealthMonitor()
 	metrics := monitoring.NewMetrics()
@@ -94,6 +96,7 @@ func NewHandler(manager *emulator.Manager, serviceDB database.DBInterface, wxsDB
 		manager:       manager,
 		serviceDB:     serviceDB,
 		wxsDB:         wxsDB,
+		appVersion:    appVersion,
 		tracer:        tracer,
 		healthMonitor: healthMonitor,
 		metrics:       metrics,
@@ -105,18 +108,30 @@ func NewHandler(manager *emulator.Manager, serviceDB database.DBInterface, wxsDB
 	}
 }
 
+func (h *Handler) withBaseContext(extra gin.H) gin.H {
+	context := gin.H{
+		"app_version": h.appVersion,
+	}
+
+	for key, value := range extra {
+		context[key] = value
+	}
+
+	return context
+}
+
 // Router configura e retorna o router HTTP
 func (h *Handler) Router() http.Handler {
 	// Criar router sem middlewares padrão (vamos adicionar os nossos)
 	router := gin.New()
 
 	// Configurar middlewares na ordem correta
-	router.Use(monitoring.RecoveryMiddleware(h.metrics, h.tracer))  // Primeiro: Recovery
-	router.Use(monitoring.MetricsMiddleware(h.metrics, h.tracer))   // Segundo: Métricas
-	router.Use(h.corsMiddleware())                                   // Terceiro: CORS
+	router.Use(monitoring.RecoveryMiddleware(h.metrics, h.tracer)) // Primeiro: Recovery
+	router.Use(monitoring.MetricsMiddleware(h.metrics, h.tracer))  // Segundo: Métricas
+	router.Use(h.corsMiddleware())                                 // Terceiro: CORS
 
-	// Servir arquivos estáticos
-	router.Static("/static", "./web/static")
+	// Servir arquivos estaticos embutidos no binario
+	router.StaticFS("/static", http.FS(assets.StaticFS()))
 
 	// Rotas da interface web - baseadas no EmulatorService.py
 	h.setupWebRoutes(router)
@@ -158,7 +173,7 @@ func (h *Handler) loadTemplate(templateName string) *template.Template {
 	}
 
 	files := append(baseFiles, templateName)
-	return template.Must(template.New("").Funcs(funcMap).ParseFiles(files...))
+	return template.Must(template.New("").Funcs(funcMap).ParseFS(assets.Templates(), files...))
 }
 
 // setupWebRoutes configura rotas da interface web
@@ -318,7 +333,7 @@ func (h *Handler) mainPage(c *gin.Context) {
 	}
 
 	tmpl := h.loadTemplate("web/templates/devices.html")
-	tmpl.ExecuteTemplate(c.Writer, "base.html", context)
+	tmpl.ExecuteTemplate(c.Writer, "base.html", h.withBaseContext(context))
 }
 
 // startEmulators inicia emuladores selecionados
@@ -475,7 +490,7 @@ func (h *Handler) comparisonPage(c *gin.Context) {
 	}
 
 	tmpl := h.loadTemplate("web/templates/comparison.html")
-	tmpl.ExecuteTemplate(c.Writer, "base.html", context)
+	tmpl.ExecuteTemplate(c.Writer, "base.html", h.withBaseContext(context))
 }
 
 // comparisonRefresh atualiza dados de comparação
@@ -975,9 +990,9 @@ func (h *Handler) settingsPage(c *gin.Context) {
 	}
 
 	tmpl := h.loadTemplate("web/templates/settings.html")
-	tmpl.ExecuteTemplate(c.Writer, "base.html", gin.H{
+	tmpl.ExecuteTemplate(c.Writer, "base.html", h.withBaseContext(gin.H{
 		"wxs_settings": wxsSettings,
-	})
+	}))
 }
 
 // testWxsConnection testa a conexão com o WXS

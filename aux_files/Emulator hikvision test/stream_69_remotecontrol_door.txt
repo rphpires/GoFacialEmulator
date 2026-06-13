@@ -1,0 +1,76 @@
+
+===================================================================
+Follow: tcp,ascii
+Filter: tcp.stream eq 69
+Node 0: 192.168.1.138:53054
+Node 1: 192.168.1.81:80
+235
+PUT /ISAPI/AccessControl/RemoteControl/door/1 HTTP/1.1
+Host: 192.168.1.81
+User-Agent: python-requests/2.32.5
+Accept-Encoding: gzip, deflate
+Accept: */*
+Connection: keep-alive
+Content-Type: application/xml
+Content-Length: 128
+
+
+128
+<RemoteControlDoor version="2.0" xmlns="http://www.isapi.org/ver20/XMLSchema">
+        <cmd>close</cmd>
+    </RemoteControlDoor>
+	654
+HTTP/1.1 401 Unauthorized
+Date: Fri, 17 Apr 2026 19:23:43 GMT
+X-Content-Type-Options: nosniff
+X-Frame-Options: SAMEORIGIN
+X-XSS-Protection: 1; mode=block
+Content-Length: 235
+Connection: keep-alive
+Keep-Alive: timeout=5, max=99
+WWW-Authenticate: Digest qop="auth", realm="DS-4D43F695", nonce="ZDcyOWJkNjYxZGQ0ZmQ4ZGM0ZjYyMGRlZjNhNWI5OWM=", stale="false", opaque="", domain="::"
+Content-Type: application/xml
+
+<?xml version="1.0" encoding="UTF-8"?>
+<userCheck version="2.0" xmlns="http://www.isapi.org/ver20/XMLSchema">
+<statusValue>401</statusValue>
+<statusString>Unauthorized</statusString>
+<isActivated>false</isActivated>
+</userCheck>
+
+496
+PUT /ISAPI/AccessControl/RemoteControl/door/1 HTTP/1.1
+Host: 192.168.1.81
+User-Agent: python-requests/2.32.5
+Accept-Encoding: gzip, deflate
+Accept: */*
+Connection: keep-alive
+Content-Type: application/xml
+Content-Length: 128
+Authorization: Digest username="admin", realm="DS-4D43F695", nonce="ZDcyOWJkNjYxZGQ0ZmQ4ZGM0ZjYyMGRlZjNhNWI5OWM=", uri="/ISAPI/AccessControl/RemoteControl/door/1", response="16b53beb4a72ecf3002e55126366c392", qop="auth", nc=00000001, cnonce="edbc9cbefa2b288e"
+
+
+128
+<RemoteControlDoor version="2.0" xmlns="http://www.isapi.org/ver20/XMLSchema">
+        <cmd>close</cmd>
+    </RemoteControlDoor>
+	515
+HTTP/1.1 200 OK
+Date: Fri, 17 Apr 2026 19:23:43 GMT
+X-Content-Type-Options: nosniff
+X-Frame-Options: SAMEORIGIN
+X-XSS-Protection: 1; mode=block
+Content-Length: 257
+Connection: keep-alive
+Keep-Alive: timeout=5, max=98
+Content-Type: application/xml
+
+<?xml version="1.0" encoding="UTF-8"?>
+<ResponseStatus version="1.0" xmlns="http://www.hikvision.com/ver10/XMLSchema">
+<requestURL></requestURL>
+<statusCode>1</statusCode>
+<statusString>OK</statusString>
+<subStatusCode>ok</subStatusCode>
+</ResponseStatus>
+
+===================================================================

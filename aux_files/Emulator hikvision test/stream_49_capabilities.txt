@@ -1,0 +1,68 @@
+
+===================================================================
+Follow: tcp,ascii
+Filter: tcp.stream eq 49
+Node 0: 192.168.1.138:53020
+Node 1: 192.168.1.81:80
+219
+GET /ISAPI/AccessControl/capabilities?format=json HTTP/1.1
+Host: 192.168.1.81
+User-Agent: python-requests/2.32.5
+Accept-Encoding: gzip, deflate
+Accept: */*
+Connection: keep-alive
+Content-Type: application/json
+
+
+	615
+HTTP/1.1 401 Unauthorized
+Date: Fri, 17 Apr 2026 19:23:42 GMT
+X-Content-Type-Options: nosniff
+X-Frame-Options: SAMEORIGIN
+X-XSS-Protection: 1; mode=block
+Content-Length: 195
+Connection: keep-alive
+Keep-Alive: timeout=5, max=99
+WWW-Authenticate: Digest qop="auth", realm="DS-4D43F695", nonce="YzNlYzk4Nzg4MGQwNjJjMjgyYTkxNjA3ZjYyNzdjNzk=", stale="false", opaque="", domain="::"
+Content-Type: application/json
+
+<userCheck version="2.0" xmlns="http://www.isapi.org/ver20/XMLSchema">
+<statusValue>401</statusValue>
+<statusString>Unauthorized</statusString>
+<isActivated>false</isActivated>
+</userCheck>
+
+484
+GET /ISAPI/AccessControl/capabilities?format=json HTTP/1.1
+Host: 192.168.1.81
+User-Agent: python-requests/2.32.5
+Accept-Encoding: gzip, deflate
+Accept: */*
+Connection: keep-alive
+Content-Type: application/json
+Authorization: Digest username="admin", realm="DS-4D43F695", nonce="YzNlYzk4Nzg4MGQwNjJjMjgyYTkxNjA3ZjYyNzdjNzk=", uri="/ISAPI/AccessControl/capabilities?format=json", response="46c2f6f2abbfb0ff5f32df65fb2a1932", qop="auth", nc=00000001, cnonce="c1781e248c0fa61a"
+
+
+	1460
+HTTP/1.1 200 OK
+Date: Fri, 17 Apr 2026 19:23:42 GMT
+X-Content-Type-Options: nosniff
+X-Frame-Options: SAMEORIGIN
+X-XSS-Protection: 1; mode=block
+Content-Length: 6147
+Connection: keep-alive
+Keep-Alive: timeout=5, max=98
+Content-Type: application/json
+
+<?xml version="1.0" encoding="UTF-8"?>
+<AccessControl version="2.0" xmlns="http://www.isapi.org/ver20/XMLSchema"><isSupportWiegandCfg>true</isSupportWiegandCfg><isSupportModuleStatus>true</isSupportModuleStatus><isSupportSNAPConfig>true</isSupportSNAPConfig><isSupportIdentityTerminal>true</isSupportIdentityTerminal><isSupportM1CardEncryptCfg>true</isSupportM1CardEncryptCfg><isSupportDeployInfo>true</isSupportDeployInfo><isSupportSupplementLight>true</isSupportSupplementLight><isSupportFaceCompareCond>true</isSupportFaceCompareCond><isSupportRemoteControlDoor>true</isSupportRemoteControlDoor><isSupportUserInfo>true</isSupportUserInfo><EmployeeNoInfo><employeeNo min="1" max="32">1</employeeNo><characterType opt="any">any</characterType></EmployeeNoInfo><isSupportCardInfo>true</isSupportCardInfo><isSupportFDLib>true</isSupportFDLib><isSupportUserInfoDetailDelete>true</isSupportUserInfoDetailDelete><isSupportFingerPrintCfg>true</isSupportFingerPrintCfg><isSupportFingerPrintDelete>true</isSupportFingerPrintDelete><isSupportDoorStatusWeekPlanCfg>true</isSupportDoorStatusWeekPlanCfg><isSupportVerifyWeekPlanCfg>true</isSupportVerifyWeekPlanCfg><isSupportCardRightWeekPlanCfg>true</isSupport
+	1460
+CardRightWeekPlanCfg><isSupportDoorStatusHolidayPlanCfg>true</isSupportDoorStatusHolidayPlanCfg><isSupportVerifyHolidayPlanCfg>true</isSupportVerifyHolidayPlanCfg><isSupportCardRightHolidayPlanCfg>true</isSupportCardRightHolidayPlanCfg><isSupportDoorStatusHolidayGroupCfg>true</isSupportDoorStatusHolidayGroupCfg><isSupportVerifyHolidayGroupCfg>true</isSupportVerifyHolidayGroupCfg><isSupportUserRightHolidayGroupCfg>true</isSupportUserRightHolidayGroupCfg><isSupportDoorStatusPlanTemplate>true</isSupportDoorStatusPlanTemplate><isSupportVerifyPlanTemplate>true</isSupportVerifyPlanTemplate><isSupportUserRightPlanTemplate>true</isSupportUserRightPlanTemplate><isSupportDoorStatusPlan>true</isSupportDoorStatusPlan><isSupportCardReaderPlan>true</isSupportCardReaderPlan><isSupportClearPlansCfg>true</isSupportClearPlansCfg><isSupportEventCardLinkageCfg>true</isSupportEventCardLinkageCfg><isSupportClearEventCardLinkageCfg>true</isSupportClearEventCardLinkageCfg><isSupportAcsEvent>true</isSupportAcsEvent><isSupportAcsEventTotalNum>true</isSupportAcsEventTotalNum><isSupportEventOptimizationCfg>true</isSupportEventOptimizationCfg><isSupportAcsWorkStatus>true</isSupportAcsWorkStatus><isSupportDoorCfg>true</isSupportDoorCfg><isSupportCardReaderCfg>true</isSupportCardReaderCfg><isSupportAcsCfg>true</isSupportAcsCfg><isSupportRemoteCheck>true</isSupportRemoteCheck><isSupportMaskDetection>true</isSupportMaskDetection><isSupportGroupCfg>true</isSupportGroupC
+	1460
+fg><isSupportClearGroupCfg>true</isSupportClearGroupCfg><isSupportMultiCardCfg>true</isSupportMultiCardCfg><isSupportMultiDoorInterLockCfg>true</isSupportMultiDoorInterLockCfg><isSupportAntiSneakCfg>true</isSupportAntiSneakCfg><isSupportCardReaderAntiSneakCfg>true</isSupportCardReaderAntiSneakCfg><isSupportClearAntiSneakCfg>true</isSupportClearAntiSneakCfg><isSupportClearAntiSneak>true</isSupportClearAntiSneak><isSupportQRCodeEncryption>true</isSupportQRCodeEncryption><isSupportQRCodeInfo>true</isSupportQRCodeInfo><FactoryReset><isSupportFactoryReset>true</isSupportFactoryReset><mode opt="full,basic,part"></mode></FactoryReset><isSupportCaptureFace>true</isSupportCaptureFace><isSupportCaptureInfraredFace>true</isSupportCaptureInfraredFace><isSupportFaceRecognizeMode>true</isSupportFaceRecognizeMode><isSupportCaptureCardInfo>true</isSupportCaptureCardInfo><isSupportNFCCfg>true</isSupportNFCCfg><isSupportRFCardCfg>true</isSupportRFCardCfg><isSupportTTSText>true</isSupportTTSText><isSupportMaintenanceDataExport>true</isSupportMaintenanceDataExport><isSupportLockTypeCfg>true</isSupportLockTypeCfg><isSupportSafetyHelmetDetection>true</isSupportSafetyHelmetDetection><isSupportKeyCfgAttendance>true</isSupportKeyCfgAttendance><isSupportAsyncImportDatas>true</isSupportAsyncImportDatas><isSupportAsyncImportPic>true</isSupportAsyncImportPic><isSupportFingerDataEncryption>true</isSupportFingerDataEncryption><isSupportAttendanceWeekPlan>true</isSupp
+	1460
+ortAttendanceWeekPlan><isSupportClearAttendancePlan>true</isSupportClearAttendancePlan><isSupportAttendanceStatusPlan>true</isSupportAttendanceStatusPlan><isSupportAttendanceMode>true</isSupportAttendanceMode><isSupportAttendancePlanTemplate>true</isSupportAttendancePlanTemplate><isSupportAttendancePlanTemplateList>true</isSupportAttendancePlanTemplateList><isSupportClearPictureCfg>true</isSupportClearPictureCfg><isSupportEventStorageCfg>true</isSupportEventStorageCfg><isSupportCardVerificationRule>true</isSupportCardVerificationRule><isSupportUserAndRightShow>true</isSupportUserAndRightShow><isSupportAddCustomAudio>true</isSupportAddCustomAudio><isSupportDeleteCustomAudio>true</isSupportDeleteCustomAudio><isSupportSearchCustomAudio>true</isSupportSearchCustomAudio><isSupportCustomPrompt>true</isSupportCustomPrompt><isSupportClearUserAuthenticationTimes>true</isSupportClearUserAuthenticationTimes><isSupportSearchModelFailRecord>true</isSupportSearchModelFailRecord><isSupportReaderAuthenticationMode>true</isSupportReaderAuthenticationMode><isSupportCheckEngineeringModeSecurityCode>true</isSupportCheckEngineeringModeSecurityCode><isSupportReaderEngineeringModeParams>true</isSupportReaderEngineeringModeParams><isSupportUnlockAntiAttack>true</isSupportUnlockAntiAttack><isSupportRemoteControlInfo>true</isSupportRemoteControlInfo><isSupportDoorSecurityModuleSwitchParams>true</isSupportDoorSecurityModuleSwitchParams><isSupportGetUserSupportRem
+	567
+oteControlInfo>true</isSupportGetUserSupportRemoteControlInfo><isSupportGetRemoteControlPairStatus>true</isSupportGetRemoteControlPairStatus><notRelateReaderDoorIDList><notRelateReaderDoorID><doorID>2</doorID></notRelateReaderDoorID></notRelateReaderDoorIDList><isSupportServerDevice>true</isSupportServerDevice><isSupportAntiPassback>true</isSupportAntiPassback><isSupportLinkageCameraParams>true</isSupportLinkageCameraParams><isSupportTriggerLinkageCameraCap>true</isSupportTriggerLinkageCameraCap><isSupportUHFCardInfo>true</isSupportUHFCardInfo></AccessControl>
+
+===================================================================

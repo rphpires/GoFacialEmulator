@@ -1,0 +1,68 @@
+
+===================================================================
+Follow: tcp,ascii
+Filter: tcp.stream eq 104
+Node 0: 192.168.1.138:55878
+Node 1: 192.168.1.81:80
+238
+PUT /ISAPI/AccessControl/remoteCheck?format=json HTTP/1.1
+Host: 192.168.1.81
+User-Agent: python-requests/2.32.5
+Accept-Encoding: gzip, deflate
+Accept: */*
+Connection: keep-alive
+Content-Length: 59
+Content-Type: application/json
+
+
+59
+{"RemoteCheck": {"serialNo": 587, "checkResult": "failed"}}
+	615
+HTTP/1.1 401 Unauthorized
+Date: Fri, 17 Apr 2026 19:23:50 GMT
+X-Content-Type-Options: nosniff
+X-Frame-Options: SAMEORIGIN
+X-XSS-Protection: 1; mode=block
+Content-Length: 195
+Connection: keep-alive
+Keep-Alive: timeout=5, max=99
+WWW-Authenticate: Digest qop="auth", realm="DS-4D43F695", nonce="MDIyNzRhYmIyZTgzNWQ0ZjVlNTkxYzFiNWYyMjBhYWM=", stale="false", opaque="", domain="::"
+Content-Type: application/json
+
+<userCheck version="2.0" xmlns="http://www.isapi.org/ver20/XMLSchema">
+<statusValue>401</statusValue>
+<statusString>Unauthorized</statusString>
+<isActivated>false</isActivated>
+</userCheck>
+
+502
+PUT /ISAPI/AccessControl/remoteCheck?format=json HTTP/1.1
+Host: 192.168.1.81
+User-Agent: python-requests/2.32.5
+Accept-Encoding: gzip, deflate
+Accept: */*
+Connection: keep-alive
+Content-Length: 59
+Content-Type: application/json
+Authorization: Digest username="admin", realm="DS-4D43F695", nonce="MDIyNzRhYmIyZTgzNWQ0ZjVlNTkxYzFiNWYyMjBhYWM=", uri="/ISAPI/AccessControl/remoteCheck?format=json", response="ae07900031dff1837633fbc01b0e9053", qop="auth", nc=00000001, cnonce="16f011c86553be97"
+
+
+59
+{"RemoteCheck": {"serialNo": 587, "checkResult": "failed"}}
+	325
+HTTP/1.1 200 OK
+Date: Fri, 17 Apr 2026 19:23:50 GMT
+X-Content-Type-Options: nosniff
+X-Frame-Options: SAMEORIGIN
+X-XSS-Protection: 1; mode=block
+Content-Length: 67
+Connection: keep-alive
+Keep-Alive: timeout=5, max=98
+Content-Type: application/json
+
+{
+."statusCode":.1,
+."statusString":."OK",
+."subStatusCode":."ok"
+}
+===================================================================

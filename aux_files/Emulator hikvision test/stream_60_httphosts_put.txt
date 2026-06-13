@@ -1,0 +1,96 @@
+
+===================================================================
+Follow: tcp,ascii
+Filter: tcp.stream eq 60
+Node 0: 192.168.1.138:53045
+Node 1: 192.168.1.81:80
+198
+PUT /ISAPI/Event/notification/httpHosts HTTP/1.1
+Host: 192.168.1.81
+User-Agent: python-requests/2.32.5
+Accept-Encoding: gzip, deflate
+Accept: */*
+Connection: keep-alive
+Content-Length: 550
+
+
+550
+
+<HttpHostNotificationList version="2.0" xmlns="http://www.isapi.org/ver20/XMLSchema">
+    <HttpHostNotification>
+        <id>1</id>
+        <url>/w-access</url>
+        <protocolType>HTTP</protocolType>
+        <parameterFormatType>JSON</parameterFormatType>
+        <addressingFormatType>ipaddress</addressingFormatType>
+        <ipAddress>192.168.1.138</ipAddress>
+        <portNo>15501</portNo>
+        <userName></userName>
+        <httpAuthenticationMethod>none</httpAuthenticationMethod>
+    </HttpHostNotification>
+</HttpHostNotificationList>
+	654
+HTTP/1.1 401 Unauthorized
+Date: Fri, 17 Apr 2026 19:23:42 GMT
+X-Content-Type-Options: nosniff
+X-Frame-Options: SAMEORIGIN
+X-XSS-Protection: 1; mode=block
+Content-Length: 235
+Connection: keep-alive
+Keep-Alive: timeout=5, max=99
+WWW-Authenticate: Digest qop="auth", realm="DS-4D43F695", nonce="OGRjYzczNTRkZjIxMmRhMzFiNGQ2MTA1ZGVkOWZlNWU=", stale="false", opaque="", domain="::"
+Content-Type: application/xml
+
+<?xml version="1.0" encoding="UTF-8"?>
+<userCheck version="2.0" xmlns="http://www.isapi.org/ver20/XMLSchema">
+<statusValue>401</statusValue>
+<statusString>Unauthorized</statusString>
+<isActivated>false</isActivated>
+</userCheck>
+
+453
+PUT /ISAPI/Event/notification/httpHosts HTTP/1.1
+Host: 192.168.1.81
+User-Agent: python-requests/2.32.5
+Accept-Encoding: gzip, deflate
+Accept: */*
+Connection: keep-alive
+Content-Length: 550
+Authorization: Digest username="admin", realm="DS-4D43F695", nonce="OGRjYzczNTRkZjIxMmRhMzFiNGQ2MTA1ZGVkOWZlNWU=", uri="/ISAPI/Event/notification/httpHosts", response="8a45b84b7f7c17aab73673c6e25e1d8e", qop="auth", nc=00000001, cnonce="e46d1f2115dcd88e"
+
+
+550
+
+<HttpHostNotificationList version="2.0" xmlns="http://www.isapi.org/ver20/XMLSchema">
+    <HttpHostNotification>
+        <id>1</id>
+        <url>/w-access</url>
+        <protocolType>HTTP</protocolType>
+        <parameterFormatType>JSON</parameterFormatType>
+        <addressingFormatType>ipaddress</addressingFormatType>
+        <ipAddress>192.168.1.138</ipAddress>
+        <portNo>15501</portNo>
+        <userName></userName>
+        <httpAuthenticationMethod>none</httpAuthenticationMethod>
+    </HttpHostNotification>
+</HttpHostNotificationList>
+	515
+HTTP/1.1 200 OK
+Date: Fri, 17 Apr 2026 19:23:42 GMT
+X-Content-Type-Options: nosniff
+X-Frame-Options: SAMEORIGIN
+X-XSS-Protection: 1; mode=block
+Content-Length: 257
+Connection: keep-alive
+Keep-Alive: timeout=5, max=98
+Content-Type: application/xml
+
+<?xml version="1.0" encoding="UTF-8"?>
+<ResponseStatus version="1.0" xmlns="http://www.hikvision.com/ver10/XMLSchema">
+<requestURL></requestURL>
+<statusCode>1</statusCode>
+<statusString>OK</statusString>
+<subStatusCode>ok</subStatusCode>
+</ResponseStatus>
+
+===================================================================

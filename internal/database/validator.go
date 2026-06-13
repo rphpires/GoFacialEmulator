@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
 	"strings"
 	"time"
 
+	"GoFacialEmulator/assets"
 	"GoFacialEmulator/internal/config"
 
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -201,10 +201,10 @@ func (v *DatabaseValidator) recreateDatabase(ctx context.Context) error {
 
 // executeCreationScript executa o script de criação do banco
 func (v *DatabaseValidator) executeCreationScript(ctx context.Context) error {
-	// Ler o arquivo de migração existente
-	scriptBytes, err := os.ReadFile("internal/database/migrations/V001_create_emulator_schema.sql")
+	// Ler migration embutida no binario
+	scriptBytes, err := assets.MigrationSQL()
 	if err != nil {
-		return fmt.Errorf("erro ao ler arquivo de migração: %w", err)
+		return fmt.Errorf("erro ao ler migration embutida: %w", err)
 	}
 
 	script := string(scriptBytes)

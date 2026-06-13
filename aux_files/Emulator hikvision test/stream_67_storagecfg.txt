@@ -1,0 +1,68 @@
+
+===================================================================
+Follow: tcp,ascii
+Filter: tcp.stream eq 67
+Node 0: 192.168.1.138:53051
+Node 1: 192.168.1.81:80
+246
+PUT /ISAPI/AccessControl/AcsEvent/StorageCfg?format=json HTTP/1.1
+Host: 192.168.1.81
+User-Agent: python-requests/2.32.5
+Accept-Encoding: gzip, deflate
+Accept: */*
+Connection: keep-alive
+Content-Type: application/json
+Content-Length: 54
+
+
+54
+{"EventStorageCfg": {"mode": "regular", "period": 10}}
+	615
+HTTP/1.1 401 Unauthorized
+Date: Fri, 17 Apr 2026 19:23:43 GMT
+X-Content-Type-Options: nosniff
+X-Frame-Options: SAMEORIGIN
+X-XSS-Protection: 1; mode=block
+Content-Length: 195
+Connection: keep-alive
+Keep-Alive: timeout=5, max=99
+WWW-Authenticate: Digest qop="auth", realm="DS-4D43F695", nonce="NjJjZjg0ODhmZjgyYWZhNzhhMGMwNTYxNDZmN2Q4ZDU=", stale="false", opaque="", domain="::"
+Content-Type: application/json
+
+<userCheck version="2.0" xmlns="http://www.isapi.org/ver20/XMLSchema">
+<statusValue>401</statusValue>
+<statusString>Unauthorized</statusString>
+<isActivated>false</isActivated>
+</userCheck>
+
+518
+PUT /ISAPI/AccessControl/AcsEvent/StorageCfg?format=json HTTP/1.1
+Host: 192.168.1.81
+User-Agent: python-requests/2.32.5
+Accept-Encoding: gzip, deflate
+Accept: */*
+Connection: keep-alive
+Content-Type: application/json
+Content-Length: 54
+Authorization: Digest username="admin", realm="DS-4D43F695", nonce="NjJjZjg0ODhmZjgyYWZhNzhhMGMwNTYxNDZmN2Q4ZDU=", uri="/ISAPI/AccessControl/AcsEvent/StorageCfg?format=json", response="13f5ada2f78e2168199051d43ef1b95a", qop="auth", nc=00000001, cnonce="f0ffbfaede460e0b"
+
+
+54
+{"EventStorageCfg": {"mode": "regular", "period": 10}}
+	325
+HTTP/1.1 200 OK
+Date: Fri, 17 Apr 2026 19:23:43 GMT
+X-Content-Type-Options: nosniff
+X-Frame-Options: SAMEORIGIN
+X-XSS-Protection: 1; mode=block
+Content-Length: 67
+Connection: keep-alive
+Keep-Alive: timeout=5, max=98
+Content-Type: application/json
+
+{
+."statusCode":.1,
+."statusString":."OK",
+."subStatusCode":."ok"
+}
+===================================================================

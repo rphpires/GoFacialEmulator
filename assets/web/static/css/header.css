@@ -37,6 +37,17 @@
     color: #1a202c !important;
 }
 
+.app-version {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #ff8c00;
+    background: #fff4e6;
+    border: 1px solid #ffd8a8;
+    border-radius: 999px;
+    padding: 2px 8px;
+    line-height: 1.2;
+}
+
 .brand-icon {
     width: 28px;
     height: 28px;
@@ -209,6 +220,11 @@
 
     .navbar-brand {
         font-size: 1.1rem;
+    }
+
+    .app-version {
+        font-size: 0.65rem;
+        padding: 2px 6px;
     }
 
     .brand-icon {

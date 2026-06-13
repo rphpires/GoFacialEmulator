@@ -104,13 +104,18 @@ func main() {
 		log.Fatalf("EmulatorDB connection test failed: %v", err)
 	}
 
-	// Testar WxsDB apenas se conectou
+	// Testar WxsDB em background: ele é opcional e pode estar inacessível.
+	// Não deve bloquear a subida do servidor HTTP.
 	if wxsDB != nil {
-		if err := wxsDB.Ping(ctx); err != nil {
-			tracer.Warning("WxsDB ping failed (WXS may be temporarily unavailable): %v", err)
-		} else {
-			tracer.Info("All database connections successful")
-		}
+		go func() {
+			pingCtx, pingCancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer pingCancel()
+			if err := wxsDB.Ping(pingCtx); err != nil {
+				tracer.Warning("WxsDB ping failed (WXS may be temporarily unavailable): %v", err)
+			} else {
+				tracer.Info("WxsDB connection successful")
+			}
+		}()
 	}
 
 	// Inicializar manager de emuladores
@@ -119,14 +124,16 @@ func main() {
 		log.Fatalf("Failed to initialize emulator manager: %v", err)
 	}
 
-	// Atualizar dispositivos do WXS (se disponível)
-	if err := manager.RefreshDevices(); err != nil {
-		tracer.Error("Failed to refresh devices: %v", err)
-		// Continuar mesmo se WXS não estiver disponível
-	}
+	// Atualizar dispositivos do WXS em background — não pode bloquear a
+	// subida do HTTP server caso o WXS esteja inacessível.
+	go func() {
+		if err := manager.RefreshDevices(); err != nil {
+			tracer.Error("Failed to refresh devices: %v", err)
+		}
+	}()
 
 	// Inicializar handlers HTTP
-	handler := handlers.NewHandler(manager, serviceDB, wxsDB, tracer)
+	handler := handlers.NewHandler(manager, serviceDB, wxsDB, cfg.AppVersion, tracer)
 
 	// Configurar servidor HTTP
 	server := &http.Server{

@@ -1,0 +1,84 @@
+
+===================================================================
+Follow: tcp,ascii
+Filter: tcp.stream eq 62
+Node 0: 192.168.1.138:53047
+Node 1: 192.168.1.81:80
+166
+GET /ISAPI/System/deviceInfo HTTP/1.1
+Host: 192.168.1.81
+User-Agent: python-requests/2.32.5
+Accept-Encoding: gzip, deflate
+Accept: */*
+Connection: keep-alive
+
+
+	654
+HTTP/1.1 401 Unauthorized
+Date: Fri, 17 Apr 2026 19:23:42 GMT
+X-Content-Type-Options: nosniff
+X-Frame-Options: SAMEORIGIN
+X-XSS-Protection: 1; mode=block
+Content-Length: 235
+Connection: keep-alive
+Keep-Alive: timeout=5, max=99
+WWW-Authenticate: Digest qop="auth", realm="DS-4D43F695", nonce="NjU2NjI4ZmExYTFmYzMwMmFjOGQ5MGU0ZTE0YmExNzI=", stale="false", opaque="", domain="::"
+Content-Type: application/xml
+
+<?xml version="1.0" encoding="UTF-8"?>
+<userCheck version="2.0" xmlns="http://www.isapi.org/ver20/XMLSchema">
+<statusValue>401</statusValue>
+<statusString>Unauthorized</statusString>
+<isActivated>false</isActivated>
+</userCheck>
+
+410
+GET /ISAPI/System/deviceInfo HTTP/1.1
+Host: 192.168.1.81
+User-Agent: python-requests/2.32.5
+Accept-Encoding: gzip, deflate
+Accept: */*
+Connection: keep-alive
+Authorization: Digest username="admin", realm="DS-4D43F695", nonce="NjU2NjI4ZmExYTFmYzMwMmFjOGQ5MGU0ZTE0YmExNzI=", uri="/ISAPI/System/deviceInfo", response="2ce4730c9a7ac5aa817086d2dccdb921", qop="auth", nc=00000001, cnonce="f6a7c44960eef938"
+
+
+	1330
+HTTP/1.1 200 OK
+Date: Fri, 17 Apr 2026 19:23:42 GMT
+X-Content-Type-Options: nosniff
+X-Frame-Options: SAMEORIGIN
+X-XSS-Protection: 1; mode=block
+Content-Length: 1071
+Connection: keep-alive
+Keep-Alive: timeout=5, max=98
+Content-Type: application/xml
+
+<?xml version="1.0" encoding="UTF-8"?>
+<DeviceInfo version="2.0" xmlns="http://www.isapi.org/ver20/XMLSchema">
+<deviceName>subdoorOne</deviceName>
+<deviceID>255</deviceID>
+<model>DS-K1T673DX-BR</model>
+<serialNumber>DS-K1T673DX-BR20260305V031800ENAA8066966</serialNumber>
+<macAddress>BC:5E:33:57:A5:CB</macAddress>
+<firmwareVersion>V3.18.0</firmwareVersion>
+<firmwareReleasedDate>build 260305</firmwareReleasedDate>
+<encoderVersion>V2.9</encoderVersion>
+<encoderReleasedDate>build 250826</encoderReleasedDate>
+<deviceType>ACS</deviceType>
+<subDeviceType>accessControlTerminal</subDeviceType>
+<telecontrolID>1</telecontrolID>
+<localZoneNum>2</localZoneNum>
+<alarmOutNum>1</alarmOutNum>
+<relayNum>2</relayNum>
+<electroLockNum>1</electroLockNum>
+<RS485Num>1</RS485Num>
+<manufacturer>hikvision</manufacturer>
+<OEMCode>1</OEMCode>
+<customizedInfo>DZP20260202197</customizedInfo>
+<bspVersion>V1.17.0.662379 build 2024-3-9</bspVersion>
+<dspVersion>V2.9</dspVersion>
+<marketType>2</marketType>
+<productionDate>2023-04-28</productionDate>
+</DeviceInfo>
+
+===================================================================

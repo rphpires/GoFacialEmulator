@@ -1,0 +1,66 @@
+
+===================================================================
+Follow: tcp,ascii
+Filter: tcp.stream eq 80
+Node 0: 192.168.1.81:39624
+Node 1: 192.168.1.138:15501
+1143
+POST /w-access HTTP/1.1
+Host: 192.168.1.138:15501
+Accept: */*
+Content-Type: multipart/form-data; boundary=MIME_boundary
+Connection: keep-alive
+Content-Length: 972
+
+--MIME_boundary
+Content-Disposition: form-data; name="event_log"
+Content-Type: application/json
+Content-Length: 829
+
+{
+."ipAddress":."192.168.1.81",
+."ipv6Address":."fe80::be5e:33ff:fe57:a5cb",
+."portNo":.15501,
+."protocol":."HTTP",
+."macAddress":."bc:5e:33:57:a5:cb",
+."channelID":.1,
+."dateTime":."2026-04-17T18:40:26-03:00",
+."activePostCount":.1,
+."eventType":."AccessControllerEvent",
+."eventState":."active",
+."eventDescription":."Access Controller Event",
+."shortSerialNumber":."AA8066966",
+."AccessControllerEvent":.{
+.."deviceName":."subdoorOne",
+.."majorEventType":.3,
+.."subEventType":.1025,
+.."remoteHostAddr":."192.168.1.138",
+.."cardReaderKind":.1,
+.."doorNo":.1,
+.."verifyNo":.244,
+.."serialNo":.572,
+.."currentVerifyMode":."invalid",
+.."frontSerialNo":.571,
+.."attendanceStatus":."undefined",
+.."label":."",
+.."statusValue":.0,
+.."mask":."unknown",
+.."helmet":."unknown",
+.."purePwdVerifyEnable":.true,
+.."licensePlateNo":.""
+.}
+}
+--MIME_boundary--
+
+	173
+HTTP/1.1 200 OK
+Server: Werkzeug/3.1.6 Python/3.10.10
+Date: Fri, 17 Apr 2026 22:23:45 GMT
+Content-Type: text/html; charset=utf-8
+Content-Length: 3
+Connection: close
+
+
+	3
+200
+===================================================================

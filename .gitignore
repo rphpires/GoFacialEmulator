@@ -25,6 +25,13 @@ dist/
 *.so
 *.dylib
 
+# Artefatos de build/deploy
+dist-*/
+*.rar
+*.zip
+build-*.bat
+GoFacialEmulator-*-win64/
+
 
 CLAUDE.md
 *.md

@@ -70,6 +70,9 @@ func (e *Emulator) SetupRoutes(router *gin.Engine) {
 	router.PUT(acURL+"/Door/param/1", e.handleSetDoorParameters)
 	router.PUT(acURL+"/RemoteControl/door/:output_id", e.handleCommandDoor)
 
+	// Capabilities (usado pelo cliente para detectar suporte a online access)
+	router.GET(acURL+"/capabilities", e.handleGetAccessControlCapabilities)
+
 	// UserInfo
 	router.GET(acURL+"/UserInfo/Count", e.handleGetUserCount)
 	router.POST(acURL+"/UserInfo/Search", e.handlePostUserSearch)
@@ -184,6 +187,19 @@ func (e *Emulator) handleGetAcsCfg(c *gin.Context) {
 			"combinationAuthenticationLimitOrder": true,
 		},
 	})
+}
+
+// handleGetAccessControlCapabilities responde o XML que o cliente Python parseia
+// (via xmltodict com namespace stripping) em __get_device_capabilities. O único
+// campo consumido é isSupportRemoteCheck, usado para habilitar o modo online.
+func (e *Emulator) handleGetAccessControlCapabilities(c *gin.Context) {
+	body := `<?xml version="1.0" encoding="UTF-8"?>
+<AccessControl version="2.0" xmlns="http://www.isapi.org/ver20/XMLSchema">
+<isSupportRemoteCheck>true</isSupportRemoteCheck>
+</AccessControl>
+`
+	c.Header("Content-Type", "application/xml")
+	c.String(http.StatusOK, body)
 }
 
 func (e *Emulator) handlePutAcsCfg(c *gin.Context) {
@@ -925,7 +941,7 @@ func (e *Emulator) handleGetDeviceInfo(c *gin.Context) {
     <deviceID>255</deviceID>
     <model>DS-K1T673DX-BR</model>
     <serialNumber>DS-K1T673DX-BR20240206V031800ENAA8066966</serialNumber>
-    <macAddress>192.168.0.70</macAddress>
+    <macAddress>7A:3C:9F:42:B1:6D</macAddress>
     <firmwareVersion>V3.18.0</firmwareVersion>
     <firmwareReleasedDate>build 240206</firmwareReleasedDate>
     <encoderVersion>V2.7</encoderVersion>
@@ -1060,12 +1076,51 @@ func writeHikvisionXML(c *gin.Context, status int, statusCode, statusString, sub
 func (e *Emulator) handleGetAlertStream(c *gin.Context) {
 	e.tracer.Info("[GET] /alertStream")
 
-	// Configurar headers para streaming
-	c.Writer.Header().Set("Content-Type", "text/event-stream")
-	c.Writer.Header().Set("Connection", "keep-alive")
-	c.Writer.Flush()
+	// Hijack da conexão: o dispositivo Hikvision real envia multipart/x-mixed-replace
+	// sem Transfer-Encoding: chunked. O net/http do Go aplicaria chunked por padrão
+	// e também imporia WriteTimeout, o que fecha o stream. Assumindo a conexão bruta
+	// replicamos exatamente o comportamento do equipamento.
+	hijacker, ok := c.Writer.(http.Hijacker)
+	if !ok {
+		e.tracer.Error("Hijacking not supported")
+		c.String(http.StatusInternalServerError, "Hijacking not supported")
+		return
+	}
 
-	e.handleEventStream(c)
+	conn, bufrw, err := hijacker.Hijack()
+	if err != nil {
+		e.tracer.Error("Hijack failed: %v", err)
+		c.String(http.StatusInternalServerError, "Hijack failed")
+		return
+	}
+	defer conn.Close()
+	e.tracer.Info("[alertStream] connection hijacked from %s", conn.RemoteAddr())
+
+	// Limpa deadlines herdadas de ReadTimeout/WriteTimeout do http.Server;
+	// o stream precisa ficar aberto indefinidamente.
+	_ = conn.SetDeadline(time.Time{})
+
+	httpResponse := "HTTP/1.1 200 OK\r\n" +
+		"Date: " + time.Now().UTC().Format(http.TimeFormat) + "\r\n" +
+		"Server: App-webs/\r\n" +
+		"Content-Type: multipart/x-mixed-replace; boundary=MIME_boundary\r\n" +
+		"Connection: keep-alive\r\n" +
+		"Cache-Control: no-cache\r\n" +
+		"\r\n"
+
+	n, err := bufrw.WriteString(httpResponse)
+	if err != nil {
+		e.tracer.Error("[alertStream] Failed to write HTTP headers: %v", err)
+		return
+	}
+	if err := bufrw.Flush(); err != nil {
+		e.tracer.Error("[alertStream] Failed to flush HTTP headers: %v", err)
+		return
+	}
+	e.tracer.Info("[alertStream] HTTP headers sent (%d bytes)", n)
+
+	e.handleEventStream(conn, bufrw)
+	e.tracer.Info("[alertStream] event stream handler returned")
 }
 
 // ====================== HELPER FUNCTIONS ======================
