@@ -27,10 +27,8 @@ RUN apk --no-cache add ca-certificates tzdata
 # Copiar binário compilado
 COPY --from=builder /app/facial_emulator .
 
-# Copiar configuração e assets
+# Copiar configuração (web e migrations sao embutidos no binario via go:embed)
 COPY --from=builder /app/configs ./configs
-COPY --from=builder /app/web ./web
-COPY --from=builder /app/internal/database/migrations ./internal/database/migrations
 
 # Criar diretórios para dados
 RUN mkdir -p traces logs

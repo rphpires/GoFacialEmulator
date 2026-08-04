@@ -669,7 +669,7 @@ func (e *Emulator) handlePostCardRecord(c *gin.Context) {
 // ====================== FINGERPRINT HANDLERS ======================
 
 func (e *Emulator) handlePostFingerprintSetup(c *gin.Context) {
-	c.String(http.StatusOK, "OK")
+	writeHikvisionXML(c, http.StatusOK, "1", "OK", "ok")
 }
 
 func (e *Emulator) handlePostFingerprintUploadAll(c *gin.Context) {
@@ -813,7 +813,7 @@ func (e *Emulator) handlePutFingerprintDelete(c *gin.Context) {
 		return
 	}
 
-	c.String(http.StatusOK, "OK")
+	writeHikvisionXML(c, http.StatusOK, "1", "OK", "ok")
 }
 
 func (e *Emulator) handlePostFaceDataRecord(c *gin.Context) {
@@ -924,14 +924,20 @@ func (e *Emulator) handlePutFaceSetup(c *gin.Context) {
 
 func (e *Emulator) handleGetDateTime(c *gin.Context) {
 	e.tracer.Info("Polling message received")
-	c.XML(http.StatusOK, `<?xml version="1.0" encoding="UTF-8"?>
-<DeviceInfo version="2.0" xmlns="http://www.isapi.org/ver20/XMLSchema">
-    <deviceStatus>OK</deviceStatus>
-</DeviceInfo>`)
+	now := time.Now().Format("2006-01-02T15:04:05-07:00")
+	body := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<Time version="2.0" xmlns="http://www.isapi.org/ver20/XMLSchema">
+<timeMode>manual</timeMode>
+<localTime>%s</localTime>
+<timeZone>CST+3:00:00</timeZone>
+</Time>
+`, now)
+	c.Header("Content-Type", "application/xml")
+	c.String(http.StatusOK, body)
 }
 
 func (e *Emulator) handleSetDateTime(c *gin.Context) {
-	c.String(http.StatusOK, "OK")
+	writeHikvisionXML(c, http.StatusOK, "1", "OK", "ok")
 }
 
 func (e *Emulator) handleGetDeviceInfo(c *gin.Context) {
@@ -970,7 +976,7 @@ func (e *Emulator) handleGetDeviceInfo(c *gin.Context) {
 func (e *Emulator) handleCommandOutput(c *gin.Context) {
 	outputID := c.Param("output_id")
 	e.tracer.Info("Receiving command for output: %s", outputID)
-	c.String(http.StatusOK, "OK")
+	writeHikvisionXML(c, http.StatusOK, "1", "OK", "ok")
 }
 
 // ====================== EVENT HANDLERS ======================

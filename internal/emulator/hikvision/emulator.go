@@ -2,6 +2,7 @@ package hikvision
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -314,33 +315,23 @@ func (e *Emulator) generateOnlineEvent() error {
 	return nil
 }
 
-func (e *Emulator) sendEventToRemoteServer(event *Event) error {
-	// Codifica o evento em JSON
-	eventJSON, err := json.MarshalIndent(event, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed to marshal event: %w", err)
-	}
+// buildPushEventMultipart assembles the POST /w-access body the emulator
+// sends to the remote server. The first part carries the JSON event with
+// Content-Disposition: form-data; name="event_log" so the Python client
+// parses it as the event_log form field (matches real device stream_80).
+func buildPushEventMultipart(event *Event, imageData []byte, boundary string) []byte {
+	eventJSON, _ := json.MarshalIndent(event, "", "  ")
 
-	// Decodifica a imagem
-	imageData, err := GetPhotoImageData()
-	if err != nil {
-		return fmt.Errorf("failed to decode image: %w", err)
-	}
-
-	boundary := "MIME_boundary"
-
-	// Constrói o corpo multipart corretamente
 	var body strings.Builder
 
-	// Primeira parte - JSON
 	body.WriteString(fmt.Sprintf("--%s\r\n", boundary))
+	body.WriteString("Content-Disposition: form-data; name=\"event_log\"\r\n")
 	body.WriteString("Content-Type: application/json; charset=\"UTF-8\"\r\n")
 	body.WriteString(fmt.Sprintf("Content-Length: %d\r\n", len(eventJSON)))
 	body.WriteString("\r\n")
-	body.WriteString(string(eventJSON))
+	body.Write(eventJSON)
 	body.WriteString("\r\n")
 
-	// Segunda parte - Imagem
 	body.WriteString(fmt.Sprintf("--%s\r\n", boundary))
 	body.WriteString("Content-Disposition: form-data; name=\"Picture\"; filename=\"Picture.jpg\"\r\n")
 	body.WriteString("Content-Type: image/jpeg\r\n")
@@ -350,8 +341,19 @@ func (e *Emulator) sendEventToRemoteServer(event *Event) error {
 	body.Write(imageData)
 	body.WriteString("\r\n")
 
-	// Boundary final
 	body.WriteString(fmt.Sprintf("--%s--\r\n", boundary))
+
+	return []byte(body.String())
+}
+
+func (e *Emulator) sendEventToRemoteServer(event *Event) error {
+	imageData, err := GetPhotoImageData()
+	if err != nil {
+		return fmt.Errorf("failed to decode image: %w", err)
+	}
+
+	boundary := "MIME_boundary"
+	body := buildPushEventMultipart(event, imageData, boundary)
 
 	// Monta a URL a partir das settings por dispositivo
 	server, _ := e.repo.GetSetting("RemoteServer")
@@ -361,11 +363,15 @@ func (e *Emulator) sendEventToRemoteServer(event *Event) error {
 	e.tracer.Info("Sending event to server: %s", remoteURL)
 
 	// Faz a requisição HTTP
-	req, err := http.NewRequest("POST", remoteURL, strings.NewReader(body.String()))
+	req, err := http.NewRequest("POST", remoteURL, bytes.NewReader(body))
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
-	req.Header.Set("Content-Type", fmt.Sprintf("multipart/x-mixed-replace; boundary=%s", boundary))
+	// multipart/form-data: o receptor WXS (/w-access) lê os campos via
+	// request.form (Werkzeug), que só popula para form-data. x-mixed-replace
+	// é o content-type do alertStream (streaming), não do POST de push — com
+	// ele o WXS responde 200 mas request.form fica vazio e o evento é ignorado.
+	req.Header.Set("Content-Type", fmt.Sprintf("multipart/form-data; boundary=%s", boundary))
 
 	client := &http.Client{Timeout: 5 * time.Second}
 	resp, err := client.Do(req)

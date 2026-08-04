@@ -38,3 +38,23 @@ CLAUDE.md
 
 # Git worktrees created by superpowers workflow
 .worktrees/
+
+# Ambientes virtuais Python e bytecode
+venv/
+**/venv/
+.venv/
+env/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Toggles de trace (artefatos locais de runtime)
+DisableTrace.txt
+DisableTraceEnable.txt
+DisableTraceIntegraEnable.txt
+
+# Artefatos de teste/cobertura Go
+*.test
+*.out
+coverage.*
