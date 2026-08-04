@@ -9,6 +9,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -67,8 +68,13 @@ func (e *Emulator) SetupRoutes(router *gin.Engine) {
 	router.GET(acURL+"/AcsCfg", e.handleGetAcsCfg)
 	router.PUT(acURL+"/AcsCfg", e.handlePutAcsCfg)
 	router.PUT(acURL+"/AcsEvent/StorageCfg", e.handlePutStorageCfg)
+	router.POST(acURL+"/AcsEvent", e.handlePostAcsEvent)
 	router.PUT(acURL+"/Door/param/1", e.handleSetDoorParameters)
 	router.PUT(acURL+"/RemoteControl/door/:output_id", e.handleCommandDoor)
+
+	// remoteCheck: em modo online o SC responde a requisição de verificação
+	// remota com PUT contendo serialNo + checkResult (success/failed).
+	router.PUT(acURL+"/remoteCheck", e.handleRemoteCheck)
 
 	// Capabilities (usado pelo cliente para detectar suporte a online access)
 	router.GET(acURL+"/capabilities", e.handleGetAccessControlCapabilities)
@@ -256,6 +262,55 @@ func (e *Emulator) handleCommandDoor(c *gin.Context) {
 	outputID := c.Param("output_id")
 	e.tracer.Info("New command received to output= %s", outputID)
 	c.XML(http.StatusOK, successXMLResponse())
+}
+
+// handleRemoteCheck recebe a decisão de acesso do SC em modo online. O SC,
+// após processar a requisição de remote-check emitida pelo emulador (evento com
+// serialNo e SEM frontSerialNo), responde com PUT /ISAPI/AccessControl/remoteCheck
+// carregando { "RemoteCheck": { "serialNo", "checkResult", "info" } }. Este é o
+// momento em que a autorização de fato ocorre — o dispositivo real abriria a porta
+// em checkResult=="success".
+func (e *Emulator) handleRemoteCheck(c *gin.Context) {
+	var payload struct {
+		RemoteCheck struct {
+			SerialNo    int    `json:"serialNo"`
+			CheckResult string `json:"checkResult"`
+			Info        string `json:"info"`
+		} `json:"RemoteCheck"`
+	}
+
+	if err := c.BindJSON(&payload); err != nil {
+		e.tracer.Error("[remoteCheck] invalid body: %v", err)
+		writeHikvisionXML(c, http.StatusBadRequest, "6", "Error", "Invalid request")
+		return
+	}
+
+	rc := payload.RemoteCheck
+	e.tracer.Info("[remoteCheck] SC decision: serialNo=%d checkResult=%q info=%q", rc.SerialNo, rc.CheckResult, rc.Info)
+
+	// Sucesso => dispositivo abriria a porta. Simulamos os eventos de porta para
+	// refletir o acesso concedido (não bloqueante).
+	if strings.EqualFold(rc.CheckResult, "success") {
+		e.tracer.Info("[remoteCheck] access granted (serialNo=%d) -> simulating door open", rc.SerialNo)
+		go e.simulateDoorEvents()
+	}
+
+	writeHikvisionXML(c, http.StatusOK, "1", "OK", "ok")
+}
+
+// handlePostAcsEvent responde à busca de eventos (POST /ISAPI/AccessControl/AcsEvent).
+// Em modo online os eventos chegam por webhook, então retornamos "NO MATCH" — o
+// suficiente para o polling do cliente não receber 404. Evita ruído nos traces.
+func (e *Emulator) handlePostAcsEvent(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{
+		"AcsEvent": gin.H{
+			"searchID":           "0",
+			"responseStatusStrg":  "NO MATCH",
+			"numOfMatches":        0,
+			"totalMatches":        0,
+			"InfoList":            []interface{}{},
+		},
+	})
 }
 
 // ====================== USER INFO HANDLERS ======================
@@ -941,13 +996,13 @@ func (e *Emulator) handleSetDateTime(c *gin.Context) {
 }
 
 func (e *Emulator) handleGetDeviceInfo(c *gin.Context) {
-	xmlContent := `<?xml version="1.0" encoding="UTF-8"?>
+	xmlContent := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <DeviceInfo version="2.0" xmlns="http://www.isapi.org/ver20/XMLSchema">
     <deviceName>subdoorOne</deviceName>
     <deviceID>255</deviceID>
     <model>DS-K1T673DX-BR</model>
     <serialNumber>DS-K1T673DX-BR20240206V031800ENAA8066966</serialNumber>
-    <macAddress>7A:3C:9F:42:B1:6D</macAddress>
+    <macAddress>%s</macAddress>
     <firmwareVersion>V3.18.0</firmwareVersion>
     <firmwareReleasedDate>build 240206</firmwareReleasedDate>
     <encoderVersion>V2.7</encoderVersion>
@@ -967,7 +1022,7 @@ func (e *Emulator) handleGetDeviceInfo(c *gin.Context) {
     <dspVersion>V2.7</dspVersion>
     <marketType>2</marketType>
     <productionDate>2023-04-28</productionDate>
-</DeviceInfo>`
+</DeviceInfo>`, strings.ToUpper(e.macAddress))
 
 	c.Header("Content-Type", "application/xml")
 	c.String(http.StatusOK, xmlContent)

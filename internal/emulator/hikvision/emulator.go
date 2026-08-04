@@ -33,6 +33,10 @@ type Emulator struct {
 	startTime        *time.Time // Timestamp de quando o emulador foi iniciado
 }
 
+// intPtr retorna um ponteiro para o int fornecido (usado em campos de evento
+// opcionais que precisam distinguir "zero" de "ausente").
+func intPtr(i int) *int { return &i }
+
 // NewEmulator cria uma nova instância do emulador Hikvision
 func NewEmulator(db database.DBInterface, device models.Device, tracer *trace.Tracer) *Emulator {
 	tracer.Info("Initializing Hikvision emulator model: %s", device.Name)
@@ -287,10 +291,15 @@ func (e *Emulator) generateOnlineEvent() error {
 	event.AccessControllerEvent.UserType = "normal"
 	event.AccessControllerEvent.CurrentVerifyMode = "faceOrFpOrCardOrPw"
 	event.AccessControllerEvent.CurrentEvent = true
-	event.AccessControllerEvent.FrontSerialNo = 4434
+	// Modo online (remoteCheckDoorEnabled): NÃO decidimos aqui. Emitimos uma
+	// requisição de remote-check — frontSerialNo/statusValue ausentes (nil),
+	// remoteCheck=true. A ausência de frontSerialNo faz o SC entrar no path de
+	// verificação remota e responder com PUT /ISAPI/AccessControl/remoteCheck.
+	event.AccessControllerEvent.FrontSerialNo = nil
 	event.AccessControllerEvent.AttendanceStatus = "undefined"
 	event.AccessControllerEvent.Label = ""
-	event.AccessControllerEvent.StatusValue = 0
+	event.AccessControllerEvent.StatusValue = nil
+	event.AccessControllerEvent.RemoteCheck = true
 	event.AccessControllerEvent.Mask = "no"
 	event.AccessControllerEvent.Helmet = "unknown"
 	event.AccessControllerEvent.PicturesNumber = 1
@@ -505,10 +514,11 @@ func (e *Emulator) generateRandomEvent() ([]byte, error) {
 	event.AccessControllerEvent.UserType = "normal"
 	event.AccessControllerEvent.CurrentVerifyMode = "faceOrFpOrCardOrPw"
 	event.AccessControllerEvent.CurrentEvent = true
-	event.AccessControllerEvent.FrontSerialNo = 4434
+	// Modo local: evento já decidido — frontSerialNo/statusValue presentes.
+	event.AccessControllerEvent.FrontSerialNo = intPtr(4434)
 	event.AccessControllerEvent.AttendanceStatus = "undefined"
 	event.AccessControllerEvent.Label = ""
-	event.AccessControllerEvent.StatusValue = 0
+	event.AccessControllerEvent.StatusValue = intPtr(0)
 	event.AccessControllerEvent.Mask = "no"
 	event.AccessControllerEvent.Helmet = "unknown"
 	event.AccessControllerEvent.PicturesNumber = 1

@@ -150,10 +150,19 @@ type Event struct {
 		UserType            string  `json:"userType"`
 		CurrentVerifyMode   string  `json:"currentVerifyMode"`
 		CurrentEvent        bool    `json:"currentEvent"`
-		FrontSerialNo       int     `json:"frontSerialNo"`
+		// FrontSerialNo/StatusValue são ponteiros para permitir omissão real
+		// (nil) no evento de remote-check request — o dispositivo real, em modo
+		// online, envia o evento SEM frontSerialNo e SEM statusValue (indeciso).
+		// A ausência de frontSerialNo é justamente o gatilho que faz o SC entrar
+		// no path de remote check (IoHikvisionCommunication.py: `if not
+		// event_data.get("frontSerialNo")`). Ver [[handleRemoteCheck]].
+		FrontSerialNo       *int    `json:"frontSerialNo,omitempty"`
 		AttendanceStatus    string  `json:"attendanceStatus"`
 		Label               string  `json:"label"`
-		StatusValue         int     `json:"statusValue"`
+		StatusValue         *int    `json:"statusValue,omitempty"`
+		// RemoteCheck marca o evento como requisição de verificação remota
+		// (device indeciso, aguardando PUT /ISAPI/AccessControl/remoteCheck).
+		RemoteCheck         bool    `json:"remoteCheck,omitempty"`
 		Mask                string  `json:"mask"`
 		Helmet              string  `json:"helmet"`
 		PicturesNumber      int     `json:"picturesNumber"`
