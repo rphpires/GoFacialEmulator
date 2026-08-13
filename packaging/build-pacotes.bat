@@ -62,6 +62,55 @@ if errorlevel 1 (
 echo [docker] OK: %OUT%\GoFacialEmulator-docker.zip
 if /i not "%ALVO%"=="todos" goto fim
 
+REM ==================== WINDOWS ====================
+:build_windows
+set "PGCACHE=.build-cache\postgres-portable"
+if not exist "%PGCACHE%\bin\postgres.exe" (
+    echo [windows] Baixando o PostgreSQL portatil ^(uma vez^) ...
+    if not exist .build-cache mkdir .build-cache
+    powershell -NoProfile -Command ^
+      "$u='https://get.enterprisedb.com/postgresql/postgresql-15.8-1-windows-x64-binaries.zip'; Invoke-WebRequest -Uri $u -OutFile '.build-cache\pg.zip'; Expand-Archive -Path '.build-cache\pg.zip' -DestinationPath '.build-cache\pg' -Force; Move-Item '.build-cache\pg\pgsql' '%PGCACHE%' -Force; Remove-Item '.build-cache\pg.zip','.build-cache\pg' -Recurse -Force"
+    if not exist "%PGCACHE%\bin\postgres.exe" (
+        echo [ERRO] Falha ao baixar o PostgreSQL portatil.
+        exit /b 1
+    )
+)
+
+set "STAGE=%OUT%\windows"
+if exist "%STAGE%" rmdir /s /q "%STAGE%"
+mkdir "%STAGE%\sistema\logs"
+mkdir "%STAGE%\sistema\configs"
+
+echo [windows] Compilando ...
+set CGO_ENABLED=0
+set GOOS=windows
+set GOARCH=amd64
+go build -ldflags="-s -w" -o "%STAGE%\sistema\emulator-service.exe" cmd\emulator-service\main.go
+if errorlevel 1 (
+    echo [ERRO] Falha na compilacao.
+    exit /b 1
+)
+
+echo [windows] Copiando o PostgreSQL portatil ...
+xcopy /E /I /Y /Q "%PGCACHE%\bin"   "%STAGE%\sistema\postgres\bin"   >nul
+xcopy /E /I /Y /Q "%PGCACHE%\lib"   "%STAGE%\sistema\postgres\lib"   >nul
+xcopy /E /I /Y /Q "%PGCACHE%\share" "%STAGE%\sistema\postgres\share" >nul
+
+copy /Y packaging\windows\config.yaml   "%STAGE%\sistema\configs\config.yaml" >nul
+copy /Y packaging\windows\INSTALAR.bat  "%STAGE%\" >nul
+copy /Y packaging\windows\INICIAR.bat   "%STAGE%\" >nul
+copy /Y packaging\windows\PARAR.bat     "%STAGE%\" >nul
+copy /Y packaging\windows\LEIA-ME.txt   "%STAGE%\" >nul
+
+if exist "%OUT%\GoFacialEmulator-windows.zip" del "%OUT%\GoFacialEmulator-windows.zip"
+powershell -NoProfile -Command "Compress-Archive -Path '%STAGE%\*' -DestinationPath '%OUT%\GoFacialEmulator-windows.zip' -Force"
+if errorlevel 1 (
+    echo [ERRO] Falha ao gerar o ZIP.
+    exit /b 1
+)
+echo [windows] OK: %OUT%\GoFacialEmulator-windows.zip
+if /i not "%ALVO%"=="todos" goto fim
+
 :fim
 echo.
 echo Pacotes gerados em %OUT%\

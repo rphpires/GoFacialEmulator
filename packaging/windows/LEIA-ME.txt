@@ -1,0 +1,16 @@
+GoFacialEmulator - versao Windows (nao precisa de Docker)
+
+O QUE FAZER
+  1. Duplo-clique em INSTALAR.bat  (so na primeira vez, demora ~1 minuto)
+  2. Duplo-clique em INICIAR.bat
+  3. Abra http://localhost:7070 no navegador.
+  Para parar: PARAR.bat
+
+  Nao e preciso instalar mais nada: o banco de dados ja vem junto.
+
+LOGS
+  Aplicacao: sistema\logs\trace.log  (e trace.html, colorido)
+  Banco:     sistema\logs\postgres.log
+  Instalacao: sistema\logs\instalacao.log
+
+O manual completo esta no arquivo MANUAL.md do projeto.

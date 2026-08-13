@@ -1,0 +1,45 @@
+app_version: "1.0.0"
+
+server:
+  host: "0.0.0.0"
+  port: 7070
+
+service_db:
+  driver: "postgres"
+  host: "127.0.0.1"
+  port: 5433
+  username: "emulator"
+  password: "emulator123"
+  database: "emulator_db"
+  sslmode: "disable"
+  max_connections: 10
+  max_idle_connections: 5
+
+emulator_db:
+  driver: "postgres"
+  host: "127.0.0.1"
+  port: 5433
+  username: "emulator"
+  password: "emulator123"
+  database: "emulator_db"
+  sslmode: "disable"
+  max_connections: 20
+  max_idle_connections: 10
+
+# Banco do W-Access (sistema externo).
+# NÃO preencher aqui. Configure pela tela http://localhost:7070/settings.
+wxsDB:
+  driver: "mssql"
+  host: ""
+  port: 1433
+  database: "W_Access"
+  username: ""
+  password: ""
+  timeout: "30s"
+
+logging:
+  level: "info"
+  format: "json"
+  enable_trace: true
+  max_file_size: "50MB"
+  max_files: 10
