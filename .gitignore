@@ -26,15 +26,16 @@ dist/
 *.dylib
 
 # Artefatos de build/deploy
-dist-*/
 *.rar
 *.zip
-build-*.bat
 GoFacialEmulator-*-win64/
 
-
+# Documentação local do Claude (o restante dos .md é versionado)
 CLAUDE.md
-*.md
+
+# Saída de build dos pacotes
+packaging/.out/
+.build-cache/
 
 # Git worktrees created by superpowers workflow
 .worktrees/
