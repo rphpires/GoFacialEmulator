@@ -24,6 +24,11 @@ set "CHKUSER=%TEMP%\gofe_instalar_chkuser.txt"
 set "CHKDB=%TEMP%\gofe_instalar_chkdb.txt"
 del /f /q "%T1%" "%T2%" "%T3%" "%T4%" "%SQLFILE%" "%CHKUSER%" "%CHKDB%" >nul 2>&1
 
+REM Se o Postgres ja estiver rodando ^(porta 5433 respondendo^) quando este
+REM script comeca, nao mexemos nele: nem tentamos "ligar" de novo, nem o
+REM paramos no final. So paramos o que nos mesmos ligamos.
+set "PG_JA_RODANDO=0"
+
 echo ==============================================================
 echo   GoFacialEmulator - Instalacao (Windows)
 echo ==============================================================
@@ -73,6 +78,14 @@ goto ligar_banco
 :banco_existente
 echo O banco de dados ja existe, verificando se esta completo ...
 
+"%PGBIN%\pg_isready.exe" -h 127.0.0.1 -p %PGPORT% >nul 2>&1
+if not errorlevel 1 (
+    REM Ja esta rodando — nao tentar ligar de novo ^(pg_ctl start falharia
+    REM por causa do lock, mesmo com tudo saudavel^) e nao parar no final.
+    set "PG_JA_RODANDO=1"
+    goto verificar_usuario
+)
+
 :ligar_banco
 echo [2/3] Ligando o banco ...
 "%PGBIN%\pg_ctl.exe" -D "%PGDATA%" -l "%~dp0sistema\logs\postgres.log" -w start >"%T2%" 2>&1
@@ -85,6 +98,7 @@ if errorlevel 1 (
     exit /b 1
 )
 
+:verificar_usuario
 REM So declarar "ja instalado" depois de confirmar que o usuario e o banco
 REM da aplicacao realmente existem — o cluster pode ter sido criado numa
 REM tentativa anterior que falhou logo em seguida, antes de cria-los.
@@ -97,7 +111,7 @@ set /p TEM_USUARIO=<"%CHKUSER%"
 set /p TEM_BANCO=<"%CHKDB%"
 
 if "%TEM_USUARIO%"=="1" if "%TEM_BANCO%"=="1" (
-    "%PGBIN%\pg_ctl.exe" -D "%PGDATA%" -w stop >"%T4%" 2>&1
+    if "%PG_JA_RODANDO%"=="0" "%PGBIN%\pg_ctl.exe" -D "%PGDATA%" -w stop >"%T4%" 2>&1
     type "%T1%" "%T2%" "%T4%" > "%LOG%" 2>nul
     del /f /q "%T1%" "%T2%" "%T3%" "%T4%" "%SQLFILE%" "%CHKUSER%" "%CHKDB%" >nul 2>&1
     set PGPASSWORD=
@@ -128,7 +142,7 @@ echo \gexec
 set RC=%ERRORLEVEL%
 set PGPASSWORD=
 
-"%PGBIN%\pg_ctl.exe" -D "%PGDATA%" -w stop >"%T4%" 2>&1
+if "%PG_JA_RODANDO%"=="0" "%PGBIN%\pg_ctl.exe" -D "%PGDATA%" -w stop >"%T4%" 2>&1
 
 type "%T1%" "%T2%" "%T3%" "%T4%" > "%LOG%" 2>nul
 del /f /q "%T1%" "%T2%" "%T3%" "%T4%" "%SQLFILE%" "%CHKUSER%" "%CHKDB%" >nul 2>&1
