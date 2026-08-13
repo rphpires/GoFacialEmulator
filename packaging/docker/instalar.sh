@@ -28,9 +28,28 @@ fi
 echo "      Aplicacao carregada."
 
 echo "[3/3] Preparando o banco de dados ..."
-if ! docker compose -f sistema/docker-compose.yml up -d --wait --wait-timeout 120 postgres >>"$LOG" 2>&1; then
+if ! docker compose -f sistema/docker-compose.yml up -d postgres >>"$LOG" 2>&1; then
     echo
     echo "❌ Falha ao preparar o banco — veja sistema/logs/instalacao.log"
+    exit 1
+fi
+
+# "docker compose up -d" só confirma que o container começou a subir, não
+# que o banco já aceita conexões. --wait resolveria isso, mas exige Docker
+# Compose 2.17+; o piso do pacote é 2.0, então esperamos manualmente pelo
+# healthcheck que já existe em docker-compose.yml.
+banco_pronto=0
+for _ in $(seq 1 120); do
+    status=$(docker inspect -f '{{.State.Health.Status}}' facial-emulator-db 2>/dev/null || true)
+    if [ "$status" = "healthy" ]; then
+        banco_pronto=1
+        break
+    fi
+    sleep 1
+done
+if [ "$banco_pronto" -ne 1 ]; then
+    echo
+    echo "❌ O banco nao ficou pronto a tempo — veja sistema/logs/instalacao.log"
     exit 1
 fi
 echo "      Banco preparado."

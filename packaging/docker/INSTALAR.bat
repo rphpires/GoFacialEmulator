@@ -47,7 +47,7 @@ if errorlevel 1 (
 echo       Aplicacao carregada.
 
 echo [3/3] Preparando o banco de dados ...
-docker compose -f sistema\docker-compose.yml up -d --wait --wait-timeout 120 postgres >"%T3%" 2>&1
+docker compose -f sistema\docker-compose.yml up -d postgres >"%T3%" 2>&1
 if errorlevel 1 (
     type "%T1%" "%T2%" "%T3%" > "%LOG%" 2>nul
     echo.
@@ -56,6 +56,29 @@ if errorlevel 1 (
     pause
     exit /b 1
 )
+
+REM "docker compose up -d" so confirma que o container comecou a subir, nao
+REM que o banco ja aceita conexoes. --wait resolveria isso, mas exige Docker
+REM Compose 2.17+; o piso do pacote e 2.0, entao esperamos manualmente pelo
+REM healthcheck que ja existe em docker-compose.yml.
+set "PGSTATUS="
+set /a tentativas=0
+:esperar_banco
+set /a tentativas+=1
+for /f %%s in ('docker inspect -f "{{.State.Health.Status}}" facial-emulator-db 2^>nul') do set "PGSTATUS=%%s"
+if "%PGSTATUS%"=="healthy" goto banco_pronto
+if %tentativas% geq 120 (
+    type "%T1%" "%T2%" "%T3%" > "%LOG%" 2>nul
+    echo.
+    echo ^❌ O banco nao ficou pronto a tempo — veja sistema\logs\instalacao.log
+    echo.
+    pause
+    exit /b 1
+)
+timeout /t 1 /nobreak >nul
+goto esperar_banco
+
+:banco_pronto
 echo       Banco preparado.
 
 type "%T1%" "%T2%" "%T3%" > "%LOG%" 2>nul

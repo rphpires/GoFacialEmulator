@@ -66,19 +66,7 @@ func NewHandler(manager *emulator.Manager, serviceDB database.DBInterface, wxsDB
 		},
 	))
 
-	if wxsDB != nil {
-		// wxs_db é uma dependência opcional (W-Access externo): os emuladores
-		// continuam servindo dispositivos sem ele, só refresh/comparação
-		// degradam. Ping falho reporta "degraded", não "unhealthy" — não deve
-		// derrubar o status geral (e o HTTP de /monitoring/health/quick) para
-		// um cliente com WXS configurado mas temporariamente fora do ar.
-		healthMonitor.RegisterChecker(monitoring.NewDatabaseHealthCheckerWithFailureStatus(
-			"wxs_db",
-			func(ctx context.Context) error { return wxsDB.Ping(ctx) },
-			func() map[string]interface{} { return map[string]interface{}{"connected": true} },
-			monitoring.HealthStatusDegraded,
-		))
-	}
+	registerWxsChecker(healthMonitor, wxsDB)
 
 	healthMonitor.RegisterChecker(monitoring.NewEmulatorHealthChecker(
 		func() ([]map[string]interface{}, error) {
@@ -112,6 +100,32 @@ func NewHandler(manager *emulator.Manager, serviceDB database.DBInterface, wxsDB
 			},
 		},
 	}
+}
+
+// registerWxsChecker registra o health checker de wxs_db, mas só quando
+// wxsDB está de fato configurado (não nil) — cmd/emulator-service/main.go
+// deixa wxsDB nil quando o host efetivo (settings do banco, com fallback
+// pro config.yaml) está vazio, que é o estado normal de uma instalação nova
+// antes de o cliente configurar em /settings. Sem essa checagem, uma
+// instalação sem WXS nunca teria como aparecer saudável.
+//
+// wxs_db é uma dependência opcional (W-Access externo): os emuladores
+// continuam servindo dispositivos sem ele, só refresh/comparação degradam.
+// Por isso o ping falho reporta "degraded", não "unhealthy" — não deve
+// derrubar o status geral (e o HTTP de /monitoring/health/quick) para um
+// cliente com WXS configurado mas temporariamente fora do ar. Extraído do
+// corpo de NewHandler para ser testável sem precisar construir um Handler
+// inteiro (veja handlers_test.go).
+func registerWxsChecker(hm *monitoring.HealthMonitor, wxsDB *database.WxsDB) {
+	if wxsDB == nil {
+		return
+	}
+	hm.RegisterChecker(monitoring.NewDatabaseHealthCheckerWithFailureStatus(
+		"wxs_db",
+		func(ctx context.Context) error { return wxsDB.Ping(ctx) },
+		func() map[string]interface{} { return map[string]interface{}{"connected": true} },
+		monitoring.HealthStatusDegraded,
+	))
 }
 
 func (h *Handler) withBaseContext(extra gin.H) gin.H {
