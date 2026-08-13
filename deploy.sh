@@ -225,7 +225,7 @@ EOF
         print_info "Criando arquivo .env..."
         cat > .env << EOF
 SERVER_HOST=0.0.0.0
-SERVER_PORT=8080
+SERVER_PORT=7070
 
 PG_HOST=$DB_HOST
 PG_PORT=$DB_PORT
@@ -307,5 +307,5 @@ else
 fi
 
 echo ""
-echo -e "${BLUE}Acesse a aplicação:${NC} ${GREEN}http://localhost:8080${NC}"
+echo -e "${BLUE}Acesse a aplicação:${NC} ${GREEN}http://localhost:7070${NC}"
 echo ""

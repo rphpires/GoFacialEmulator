@@ -242,7 +242,7 @@ REM ============================================================
         echo [*] Criando arquivo .env...
         (
             echo SERVER_HOST=0.0.0.0
-            echo SERVER_PORT=8080
+            echo SERVER_PORT=7070
             echo.
             echo PG_HOST=%DB_HOST%
             echo PG_PORT=%DB_PORT%
@@ -328,6 +328,6 @@ if "%DEPLOY_MODE%"=="docker" (
 )
 
 echo.
-echo Acesse a aplicacao: http://localhost:8080
+echo Acesse a aplicacao: http://localhost:7070
 echo.
 pause
