@@ -26,6 +26,7 @@ dist/
 *.dylib
 
 # Artefatos de build/deploy
+dist-*/
 *.rar
 *.zip
 GoFacialEmulator-*-win64/
