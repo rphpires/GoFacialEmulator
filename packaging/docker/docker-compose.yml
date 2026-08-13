@@ -1,0 +1,49 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: facial-emulator-db
+    environment:
+      POSTGRES_USER: emulator
+      POSTGRES_PASSWORD: emulator123
+      POSTGRES_DB: emulator_db
+    expose:
+      - "5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U emulator -d emulator_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  app:
+    image: gofacialemulator:1.0
+    container_name: facial-emulator-app
+    environment:
+      SERVER_HOST: "0.0.0.0"
+      SERVER_PORT: "7070"
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_USER: emulator
+      DB_PASSWORD: emulator123
+      DB_DATABASE: emulator_db
+    ports:
+      - "7070:7070"
+      # 100 emuladores. Para mais, troque pela linha abaixo:
+      # - "4000-4999:4000-4999"
+      - "4000-4099:4000-4099"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      default:
+        aliases:
+          - app
+    restart: unless-stopped
+    volumes:
+      - ./logs:/app/logs
+
+volumes:
+  postgres_data:
+    driver: local

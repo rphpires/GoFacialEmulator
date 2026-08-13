@@ -1,0 +1,16 @@
+GoFacialEmulator - versao Docker
+
+O QUE FAZER
+  1. Abra o Docker Desktop e espere ficar verde.
+  2. Duplo-clique em INSTALAR.bat  (so na primeira vez)
+  3. Duplo-clique em INICIAR.bat
+  4. Abra http://localhost:7070 no navegador.
+  Para parar: PARAR.bat
+
+  No Linux, use ./instalar.sh, ./iniciar.sh e ./parar.sh.
+
+LOGS
+  Aplicacao: sistema/logs/trace.log  (e trace.html, colorido)
+  Banco:     docker compose -f sistema/docker-compose.yml logs postgres
+
+O manual completo esta no arquivo MANUAL.md do projeto.
