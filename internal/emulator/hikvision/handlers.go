@@ -1137,7 +1137,7 @@ func writeHikvisionXML(c *gin.Context, status int, statusCode, statusString, sub
 func (e *Emulator) handleGetAlertStream(c *gin.Context) {
 	e.tracer.Info("[GET] /alertStream")
 
-	// Hijack da conexão: o dispositivo Hikvision real envia multipart/x-mixed-replace
+	// Hijack da conexão: o dispositivo Hikvision real envia multipart/mixed
 	// sem Transfer-Encoding: chunked. O net/http do Go aplicaria chunked por padrão
 	// e também imporia WriteTimeout, o que fecha o stream. Assumindo a conexão bruta
 	// replicamos exatamente o comportamento do equipamento.
@@ -1162,11 +1162,9 @@ func (e *Emulator) handleGetAlertStream(c *gin.Context) {
 	_ = conn.SetDeadline(time.Time{})
 
 	httpResponse := "HTTP/1.1 200 OK\r\n" +
-		"Date: " + time.Now().UTC().Format(http.TimeFormat) + "\r\n" +
-		"Server: App-webs/\r\n" +
-		"Content-Type: multipart/x-mixed-replace; boundary=MIME_boundary\r\n" +
+		"MIME-Version: 1.0\r\n" +
 		"Connection: keep-alive\r\n" +
-		"Cache-Control: no-cache\r\n" +
+		"Content-Type: multipart/mixed; boundary=MIME_boundary\r\n" +
 		"\r\n"
 
 	n, err := bufrw.WriteString(httpResponse)

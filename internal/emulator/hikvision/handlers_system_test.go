@@ -1,11 +1,14 @@
 package hikvision
 
 import (
+	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -173,22 +176,61 @@ func TestHandleGetAlertStream_HeadersMatchRealDevice(t *testing.T) {
 	r := gin.New()
 	r.GET("/ISAPI/Event/notification/alertStream", e.handleGetAlertStream)
 
-	req := httptest.NewRequest(http.MethodGet, "/ISAPI/Event/notification/alertStream", nil)
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
+	// httptest.NewRecorder() does not implement http.Hijacker, and the
+	// handler hijacks the connection to write raw bytes. A real server is
+	// required to exercise that path at all.
+	srv := httptest.NewServer(r)
+	defer srv.Close()
 
-	if w.Code != http.StatusOK {
-		t.Fatalf("status: got %d, want 200", w.Code)
+	addr := strings.TrimPrefix(srv.URL, "http://")
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatalf("dial: %v", err)
 	}
-	if ct := w.Header().Get("Content-Type"); ct != "multipart/mixed; boundary=MIME_boundary" {
-		t.Errorf("Content-Type: got %q, want %q", ct, "multipart/mixed; boundary=MIME_boundary")
+	defer conn.Close()
+
+	// net/http's Client parses/normalizes headers when building an
+	// http.Response, which can hide exactly what the hijacked connection
+	// wrote to the wire. Speak raw HTTP instead so the assertion below
+	// proves what actually left the socket, same as the real device.
+	req := "GET /ISAPI/Event/notification/alertStream HTTP/1.1\r\n" +
+		"Host: " + addr + "\r\n" +
+		"Connection: keep-alive\r\n" +
+		"\r\n"
+	if _, err := conn.Write([]byte(req)); err != nil {
+		t.Fatalf("write request: %v", err)
 	}
-	if cc := w.Header().Get("Cache-Control"); cc != "" {
-		t.Errorf("Cache-Control must be absent to match real device; got %q", cc)
+
+	// The handler closes the connection once the event loop exits
+	// (stopChan already closed above), so reading to EOF is safe and
+	// the deadline is just a guard against the test hanging otherwise.
+	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	raw, err := io.ReadAll(conn)
+	if err != nil {
+		t.Fatalf("read response: %v", err)
 	}
-	// Regression guard for the legacy "x-mixed-replace" value and for the
-	// misleading text/event-stream we also dropped.
-	if strings.Contains(w.Header().Get("Content-Type"), "x-mixed-replace") {
-		t.Errorf("legacy x-mixed-replace Content-Type still present: %q", w.Header().Get("Content-Type"))
+
+	headerBlock, _, found := strings.Cut(string(raw), "\r\n\r\n")
+	if !found {
+		t.Fatalf("response has no header/body separator; got:\n%q", raw)
+	}
+
+	const wantHeaders = "HTTP/1.1 200 OK\r\n" +
+		"MIME-Version: 1.0\r\n" +
+		"Connection: keep-alive\r\n" +
+		"Content-Type: multipart/mixed; boundary=MIME_boundary"
+
+	if headerBlock != wantHeaders {
+		t.Errorf("headers: got %q, want %q", headerBlock, wantHeaders)
+	}
+	if strings.Contains(headerBlock, "Cache-Control") {
+		t.Errorf("Cache-Control must be absent to match real device; got %q", headerBlock)
+	}
+	// Regression guard for the legacy "x-mixed-replace" value.
+	if strings.Contains(headerBlock, "x-mixed-replace") {
+		t.Errorf("legacy x-mixed-replace Content-Type still present: %q", headerBlock)
+	}
+	if !strings.Contains(headerBlock, "MIME-Version: 1.0") {
+		t.Errorf("MIME-Version: 1.0 must be present to match real device; got %q", headerBlock)
 	}
 }
