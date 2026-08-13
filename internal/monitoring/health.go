@@ -70,6 +70,33 @@ func (hm *HealthMonitor) RegisterChecker(checker HealthChecker) {
 	hm.checkers = append(hm.checkers, checker)
 }
 
+// aggregateOverallStatus combina o status de cada componente num status
+// geral único: qualquer componente "unhealthy" derruba tudo pra
+// unhealthy (e, em quickHealthCheck, vira HTTP 503); "degraded" sobe o
+// geral pra degraded só se nada já estiver unhealthy; sem nenhum dos dois,
+// fica healthy. Extraído pra ser a ÚNICA definição da regra de agregação —
+// CheckAll e getCachedResponse (o caminho que QuickCheck serve na maior
+// parte do tempo, graças ao cache de 5s) chamam esta mesma função, em vez
+// de cada um reimplementar o loop. Antes desta extração, uma regressão
+// introduzida só numa das duas cópias (por exemplo, um wxs_db degradado
+// virando unhealthy de novo) passaria despercebida sempre que a resposta
+// viesse do cache.
+func aggregateOverallStatus(components map[string]ComponentHealth) (HealthStatus, int) {
+	overallStatus := HealthStatusHealthy
+	unhealthyCount := 0
+
+	for _, result := range components {
+		if result.Status == HealthStatusUnhealthy {
+			unhealthyCount++
+			overallStatus = HealthStatusUnhealthy
+		} else if result.Status == HealthStatusDegraded && overallStatus == HealthStatusHealthy {
+			overallStatus = HealthStatusDegraded
+		}
+	}
+
+	return overallStatus, unhealthyCount
+}
+
 // CheckAll verifica a saúde de todos os componentes
 func (hm *HealthMonitor) CheckAll(ctx context.Context) map[string]interface{} {
 	// Verificar cache primeiro
@@ -111,19 +138,13 @@ func (hm *HealthMonitor) CheckAll(ctx context.Context) map[string]interface{} {
 
 	// Coletar resultados
 	components := make(map[string]ComponentHealth)
-	overallStatus := HealthStatusHealthy
-	unhealthyCount := 0
-
 	for result := range resultsChan {
 		components[result.Name] = result
+	}
 
-		if result.Status == HealthStatusUnhealthy {
-			unhealthyCount++
-			overallStatus = HealthStatusUnhealthy
-			hm.totalFailures.Add(1)
-		} else if result.Status == HealthStatusDegraded && overallStatus == HealthStatusHealthy {
-			overallStatus = HealthStatusDegraded
-		}
+	overallStatus, unhealthyCount := aggregateOverallStatus(components)
+	if unhealthyCount > 0 {
+		hm.totalFailures.Add(int64(unhealthyCount))
 	}
 
 	// Métricas do sistema
@@ -177,18 +198,7 @@ func (hm *HealthMonitor) getCachedResponse() map[string]interface{} {
 	hm.cacheResultsMutex.RLock()
 	defer hm.cacheResultsMutex.RUnlock()
 
-	// Calcular status geral
-	overallStatus := HealthStatusHealthy
-	unhealthyCount := 0
-
-	for _, result := range hm.cachedResults {
-		if result.Status == HealthStatusUnhealthy {
-			unhealthyCount++
-			overallStatus = HealthStatusUnhealthy
-		} else if result.Status == HealthStatusDegraded && overallStatus == HealthStatusHealthy {
-			overallStatus = HealthStatusDegraded
-		}
-	}
+	overallStatus, unhealthyCount := aggregateOverallStatus(hm.cachedResults)
 
 	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)
