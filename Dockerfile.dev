@@ -14,7 +14,7 @@ RUN go mod download
 COPY . .
 
 # Criar diretórios
-RUN mkdir -p tmp logs traces
+RUN mkdir -p tmp logs
 
 # Expor porta
 EXPOSE 8080

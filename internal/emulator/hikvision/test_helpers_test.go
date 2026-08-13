@@ -9,7 +9,7 @@ import (
 
 // TestMain disables tracer file IO before any test in this package runs.
 // trace.NewTracer() is a sync.Once singleton; if it initializes without
-// the marker file it opens traces/trace.log under the package working dir.
+// the marker file it opens logs/trace.log under the package working dir.
 func TestMain(m *testing.M) {
 	_ = os.WriteFile("DisableTrace.txt", []byte(""), 0644)
 	defer os.Remove("DisableTrace.txt")
