@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/url"
+	"os"
 	"time"
 
 	_ "github.com/denisenkom/go-mssqldb"
@@ -16,7 +17,10 @@ func main() {
 	port := 1433
 	database := "W_Access"
 	username := "W-Access"
-	password := "db_W-X-S@Wellcare924_"
+	// Senha real não fica no código: precisa ser exportada antes de rodar
+	// este script manual (WXS_PASSWORD=... go run .). Sem a variável, o
+	// script roda com senha vazia e falha o login — comportamento esperado.
+	password := os.Getenv("WXS_PASSWORD")
 
 	fmt.Println("=== TESTE DE CONEXÃO SQL SERVER ===")
 	fmt.Printf("Server: %s:%d\n", server, port)

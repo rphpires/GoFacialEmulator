@@ -256,7 +256,8 @@ REM ============================================================
             echo DB_PASSWORD=%DB_PASSWORD%
             echo DB_DATABASE=%DB_EMULATOR%
             echo.
-            echo WXS_HOST=172.20.112.1
+            echo # Conexao com o WXS e configurada pela tela /settings, nao por este arquivo.
+            echo WXS_HOST=
             echo WXS_PORT=1433
             echo WXS_DATABASE=W_Access
             echo WXS_USER=W-Access

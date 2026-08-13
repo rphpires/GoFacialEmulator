@@ -239,7 +239,8 @@ DB_USER=$DB_USER
 DB_PASSWORD=$DB_PASSWORD
 DB_DATABASE=$DB_EMULATOR
 
-WXS_HOST=172.20.112.1
+# Conexão com o WXS é configurada pela tela /settings, não por este arquivo.
+WXS_HOST=
 WXS_PORT=1433
 WXS_DATABASE=W_Access
 WXS_USER=W-Access
