@@ -17,7 +17,7 @@ COPY . .
 RUN mkdir -p tmp logs
 
 # Expor porta
-EXPOSE 8080
+EXPOSE 7070
 
 # Usar air para hot reload
 CMD ["air", "-c", ".air.toml"]

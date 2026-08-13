@@ -49,6 +49,7 @@ func TestRepositorioNaoContemCredenciaisWXS(t *testing.T) {
 	const arquivoDoTeste = "internal/config/config_secrets_test.go"
 	const prefixoDocsHistorico = "docs/superpowers/"
 
+	auditadosCount := 0
 	for _, linha := range strings.Split(strings.TrimRight(string(saida), "\n"), "\n") {
 		if linha == "" || linha == arquivoDoTeste || strings.HasPrefix(linha, prefixoDocsHistorico) {
 			continue
@@ -58,13 +59,19 @@ func TestRepositorioNaoContemCredenciaisWXS(t *testing.T) {
 		if err != nil {
 			// Arquivo pode ter sumido entre o ls-files e a leitura, ou ser
 			// binário ilegível; não é o que este teste audita.
+			t.Logf("não foi possível auditar %s: %v", linha, err)
 			continue
 		}
 
+		auditadosCount++
 		for _, segredo := range segredosProibidos {
 			if strings.Contains(string(conteudo), segredo) {
 				t.Errorf("%s contém credencial proibida %q", linha, segredo)
 			}
 		}
+	}
+
+	if auditadosCount == 0 {
+		t.Fatalf("nenhum arquivo foi auditado - git ls-files retornou lista vazia ou todos os arquivos foram excluídos")
 	}
 }
