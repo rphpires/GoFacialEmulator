@@ -28,7 +28,7 @@ services:
     environment:
       # Configuração do servidor
       SERVER_HOST: "0.0.0.0"
-      SERVER_PORT: "8080"
+      SERVER_PORT: "7070"
 
       # # Configuração do PostgreSQL (service_db)
       # PG_HOST: postgres
@@ -44,9 +44,10 @@ services:
       DB_PASSWORD: emulator123
       DB_DATABASE: emulator_db
     ports:
-      - "8080:8080"
-      # Portas para emuladores (range: 4000-4999 = 1000 emuladores possíveis)
-      - "4000-4999:4000-4999"
+      - "7070:7070"
+      # 100 emuladores. Para mais, troque pela linha abaixo:
+      # - "4000-4999:4000-4999"
+      - "4000-4099:4000-4099"
     depends_on:
       postgres:
         condition: service_healthy

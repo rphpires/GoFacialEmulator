@@ -194,7 +194,5 @@ INSERT INTO emulator.device_settings (device_id, cfg_id, value)
 VALUES (0, 'RemotePort', '15502')
 ON CONFLICT (device_id, cfg_id) DO NOTHING;
 
--- Configuração padrão do WXS (será atualizada pela interface)
-INSERT INTO service.wxs_settings (host, port, database, username, password)
-SELECT '172.20.112.1', 1433, 'W_Access', 'W-Access', 'db_W-X-S@Wellcare924_'
-WHERE NOT EXISTS (SELECT 1 FROM service.wxs_settings LIMIT 1);
+-- Configuração do WXS: sem seed de credenciais.
+-- O usuário preenche host, banco, usuário e senha na tela /settings.

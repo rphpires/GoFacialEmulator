@@ -6,7 +6,7 @@ server:
 
 service_db:
   driver: "postgres"
-  host: "0.0.0.0"
+  host: "127.0.0.1"
   port: 5432
   username: "emulator"
   password: "emulator123"
@@ -17,7 +17,7 @@ service_db:
 
 emulator_db:
   driver: "postgres"
-  host: "0.0.0.0"
+  host: "127.0.0.1"
   port: 5432
   username: "emulator"
   password: "emulator123"
@@ -26,17 +26,18 @@ emulator_db:
   max_connections: 20
   max_idle_connections: 10
 
-# Configuração do banco de dados WXS (sistema externo)
+# Banco do W-Access (sistema externo).
+# NÃO preencher aqui. Configure pela tela http://localhost:7070/settings,
+# que grava no banco e tem precedência sobre este arquivo.
 wxsDB:
   driver: "mssql"
-  host: "172.16.17.67\\W_ACCESS"
+  host: ""
   port: 1433
   database: "W_Access"
-  username: "W-Access"
-  password: "db_W-X-S@Wellcare924_"
+  username: ""
+  password: ""
   timeout: "30s"
 
-# Configurações de logging
 logging:
   level: "info"
   format: "json"

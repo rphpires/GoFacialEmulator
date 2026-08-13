@@ -34,7 +34,7 @@ COPY --from=builder /app/configs ./configs
 RUN mkdir -p logs
 
 # Expor porta HTTP
-EXPOSE 8080
+EXPOSE 7070
 
 # Executar aplicação
 CMD ["./facial_emulator"]

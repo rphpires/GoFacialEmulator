@@ -29,15 +29,17 @@ services:
     container_name: facial-emulator-app
     environment:
       SERVER_HOST: "0.0.0.0"
-      SERVER_PORT: "8080"
+      SERVER_PORT: "7070"
       DB_HOST: postgres
       DB_PORT: "5432"
       DB_USER: emulator
       DB_PASSWORD: emulator123
       DB_DATABASE: emulator_db
     ports:
-      - "8080:8080"
-      - "4000-4999:4000-4999"
+      - "7070:7070"
+      # 100 emuladores. Para mais, troque pela linha abaixo:
+      # - "4000-4999:4000-4999"
+      - "4000-4099:4000-4099"
     depends_on:
       postgres:
         condition: service_healthy
