@@ -79,11 +79,29 @@ goto ligar_banco
 echo O banco de dados ja existe, verificando se esta completo ...
 
 "%PGBIN%\pg_isready.exe" -h 127.0.0.1 -p %PGPORT% >nul 2>&1
-if not errorlevel 1 (
+set "PGISREADY_RC=%ERRORLEVEL%"
+
+REM pg_isready: 0 = aceitando conexoes, 1 = de pe mas ainda nao aceita
+REM conexoes ^(ex.: recuperando de uma queda^), 2 = nao respondeu ^(nao esta
+REM rodando^). "if not errorlevel 1" testaria ">=1", o que confundiria 1
+REM com 2 — por isso a comparacao e feita direto no valor capturado.
+if "%PGISREADY_RC%"=="0" (
     REM Ja esta rodando — nao tentar ligar de novo ^(pg_ctl start falharia
     REM por causa do lock, mesmo com tudo saudavel^) e nao parar no final.
     set "PG_JA_RODANDO=1"
     goto verificar_usuario
+)
+
+if "%PGISREADY_RC%"=="1" (
+    REM Esta ligando mas ainda nao aceita conexoes — nao e nosso, nao
+    REM tentamos ligar de novo ^(bateria no lock^) nem seguimos para a
+    REM checagem de usuario/banco ^(o psql falharia de forma confusa^).
+    echo.
+    echo ^❌ O banco esta ligando ^(ainda nao aceita conexoes^).
+    echo    Espere alguns segundos e rode INSTALAR.bat de novo.
+    echo.
+    pause
+    exit /b 1
 )
 
 :ligar_banco
