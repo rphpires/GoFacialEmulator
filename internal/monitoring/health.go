@@ -219,17 +219,33 @@ func (hm *HealthMonitor) updateCache(results map[string]ComponentHealth) {
 
 // DatabaseHealthChecker verifica a saúde da conexão com banco de dados
 type DatabaseHealthChecker struct {
-	name    string
-	pingFn  func(ctx context.Context) error
-	getStatsFn func() map[string]interface{}
+	name          string
+	pingFn        func(ctx context.Context) error
+	getStatsFn    func() map[string]interface{}
+	failureStatus HealthStatus
 }
 
-// NewDatabaseHealthChecker cria um novo checker de banco de dados
+// NewDatabaseHealthChecker cria um novo checker de banco de dados. Falha de
+// ping reporta HealthStatusUnhealthy — use para dependências obrigatórias
+// (ex.: service_db, emulator_db) cuja indisponibilidade de fato impede a
+// aplicação de funcionar.
 func NewDatabaseHealthChecker(name string, pingFn func(ctx context.Context) error, getStatsFn func() map[string]interface{}) *DatabaseHealthChecker {
+	return NewDatabaseHealthCheckerWithFailureStatus(name, pingFn, getStatsFn, HealthStatusUnhealthy)
+}
+
+// NewDatabaseHealthCheckerWithFailureStatus é como NewDatabaseHealthChecker,
+// mas permite escolher o status reportado quando o ping falha. Use
+// HealthStatusDegraded para dependências opcionais (ex.: wxs_db) cuja
+// indisponibilidade não deve derrubar o status geral da aplicação para
+// unhealthy (e, por consequência, o HTTP 503 de /monitoring/health/quick) —
+// a aplicação continua funcionando, só as features que dependem dela ficam
+// degradadas.
+func NewDatabaseHealthCheckerWithFailureStatus(name string, pingFn func(ctx context.Context) error, getStatsFn func() map[string]interface{}, failureStatus HealthStatus) *DatabaseHealthChecker {
 	return &DatabaseHealthChecker{
-		name:       name,
-		pingFn:     pingFn,
-		getStatsFn: getStatsFn,
+		name:          name,
+		pingFn:        pingFn,
+		getStatsFn:    getStatsFn,
+		failureStatus: failureStatus,
 	}
 }
 
@@ -250,7 +266,7 @@ func (d *DatabaseHealthChecker) Check(ctx context.Context) ComponentHealth {
 	health.Duration = duration
 
 	if err != nil {
-		health.Status = HealthStatusUnhealthy
+		health.Status = d.failureStatus
 		health.Message = fmt.Sprintf("Database ping failed: %v", err)
 		health.ErrorCount = 1
 		return health

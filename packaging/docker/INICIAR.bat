@@ -50,7 +50,7 @@ echo [2/2] Aguardando a aplicacao responder ...
 set /a tentativas=0
 :esperar
 set /a tentativas+=1
-curl -s http://localhost:7070/monitoring/health/quick >nul 2>&1
+curl -sf http://localhost:7070/monitoring/health/quick >nul 2>&1
 if not errorlevel 1 goto pronto
 if %tentativas% geq 60 (
     echo.

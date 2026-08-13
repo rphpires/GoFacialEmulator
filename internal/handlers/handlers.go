@@ -67,10 +67,16 @@ func NewHandler(manager *emulator.Manager, serviceDB database.DBInterface, wxsDB
 	))
 
 	if wxsDB != nil {
-		healthMonitor.RegisterChecker(monitoring.NewDatabaseHealthChecker(
+		// wxs_db é uma dependência opcional (W-Access externo): os emuladores
+		// continuam servindo dispositivos sem ele, só refresh/comparação
+		// degradam. Ping falho reporta "degraded", não "unhealthy" — não deve
+		// derrubar o status geral (e o HTTP de /monitoring/health/quick) para
+		// um cliente com WXS configurado mas temporariamente fora do ar.
+		healthMonitor.RegisterChecker(monitoring.NewDatabaseHealthCheckerWithFailureStatus(
 			"wxs_db",
 			func(ctx context.Context) error { return wxsDB.Ping(ctx) },
 			func() map[string]interface{} { return map[string]interface{}{"connected": true} },
+			monitoring.HealthStatusDegraded,
 		))
 	}
 

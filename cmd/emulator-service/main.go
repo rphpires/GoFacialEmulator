@@ -61,15 +61,27 @@ func main() {
 		tracer.Warning("Failed to load WXS settings from database: %v", err)
 		tracer.Info("Falling back to config.yaml for WXS settings")
 
-		// Usar configurações do config.yaml como fallback
-		wxsDB, err = database.GetWxsDB(cfg.WxsDB)
-		if err != nil {
-			tracer.Warning("Failed to connect to WxsDB using config.yaml: %v", err)
-			tracer.Info("Service will continue without WxsDB connection")
-			wxsDB = nil
+		if cfg.WxsDB.Host == "" {
+			// WXS não configurado: isso não é uma falha, é o estado esperado
+			// de uma instalação nova antes de o cliente configurar em /settings.
+			// wxsDB permanece nil, o que faz o handler pular o registro do
+			// health checker de wxs_db (ver handlers.NewHandler).
+			tracer.Info("WXS not configured (no host in config.yaml) — service will run without WxsDB connection")
 		} else {
-			tracer.Info("WxsDB connected successfully using config.yaml")
+			// Usar configurações do config.yaml como fallback
+			wxsDB, err = database.GetWxsDB(cfg.WxsDB)
+			if err != nil {
+				tracer.Warning("Failed to connect to WxsDB using config.yaml: %v", err)
+				tracer.Info("Service will continue without WxsDB connection")
+				wxsDB = nil
+			} else {
+				tracer.Info("WxsDB connected successfully using config.yaml")
+			}
 		}
+	} else if wxsSettings.Host == "" {
+		// Mesma ideia, mas a fonte da configuração foi o banco (tela /settings
+		// gravou um registro, porém sem host preenchido).
+		tracer.Info("WXS not configured (no host in database settings) — service will run without WxsDB connection")
 	} else {
 		// Usar configurações do banco de dados
 		tracer.Info("Using WXS settings from database: %s:%d/%s", wxsSettings.Host, wxsSettings.Port, wxsSettings.Database)
