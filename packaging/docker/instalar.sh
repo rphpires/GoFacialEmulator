@@ -28,7 +28,7 @@ fi
 echo "      Aplicacao carregada."
 
 echo "[3/3] Preparando o banco de dados ..."
-if ! docker compose -f sistema/docker-compose.yml up -d postgres >>"$LOG" 2>&1; then
+if ! docker compose -f sistema/docker-compose.yml up -d --wait --wait-timeout 120 postgres >>"$LOG" 2>&1; then
     echo
     echo "❌ Falha ao preparar o banco — veja sistema/logs/instalacao.log"
     exit 1

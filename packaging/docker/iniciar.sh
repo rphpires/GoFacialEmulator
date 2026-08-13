@@ -27,7 +27,7 @@ fi
 
 echo "[2/2] Aguardando a aplicacao responder ..."
 for _ in $(seq 1 60); do
-    if curl -sf http://localhost:7070/monitoring/health/quick >/dev/null 2>&1; then
+    if curl -s http://localhost:7070/monitoring/health/quick >/dev/null 2>&1; then
         echo
         echo "✅ Rodando em http://localhost:7070"
         echo

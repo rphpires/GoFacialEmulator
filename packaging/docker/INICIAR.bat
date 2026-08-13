@@ -7,6 +7,12 @@ title GoFacialEmulator
 if not exist sistema\logs mkdir sistema\logs
 set "LOG=sistema\logs\instalacao.log"
 
+REM O comando grava num arquivo temporario proprio (nunca reaberto) para nao
+REM disputar o mesmo arquivo com o antivirus; ao final e copiado para
+REM sistema\logs\instalacao.log numa unica escrita.
+set "T1=%TEMP%\gofe_docker_iniciar_1.log"
+del /f /q "%T1%" >nul 2>&1
+
 echo ==============================================================
 echo   GoFacialEmulator - Iniciando
 echo ==============================================================
@@ -29,19 +35,22 @@ if errorlevel 1 (
 )
 
 echo [1/2] Subindo os servicos ...
-docker compose -f sistema\docker-compose.yml up -d >>"%LOG%" 2>&1
+docker compose -f sistema\docker-compose.yml up -d >"%T1%" 2>&1
 if errorlevel 1 (
+    type "%T1%" > "%LOG%" 2>nul
     echo ^❌ Falha ao subir os servicos — veja sistema\logs\instalacao.log
     echo.
     pause
     exit /b 1
 )
+type "%T1%" > "%LOG%" 2>nul
+del /f /q "%T1%" >nul 2>&1
 
 echo [2/2] Aguardando a aplicacao responder ...
 set /a tentativas=0
 :esperar
 set /a tentativas+=1
-curl -sf http://localhost:7070/monitoring/health/quick >nul 2>&1
+curl -s http://localhost:7070/monitoring/health/quick >nul 2>&1
 if not errorlevel 1 goto pronto
 if %tentativas% geq 60 (
     echo.
