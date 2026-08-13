@@ -13,7 +13,7 @@ import (
 
 const (
 	// FOLDER_NAME is the name of the folder where logs are stored
-	FOLDER_NAME = "traces"
+	FOLDER_NAME = "logs"
 
 	// LOG_MAX_SIZE is the maximum size of a log file before it's rotated
 	LOG_MAX_SIZE = 5 * 1024 * 1024 // 5MB

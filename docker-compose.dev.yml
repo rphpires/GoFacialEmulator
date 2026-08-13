@@ -47,7 +47,6 @@ services:
       - .:/app
       - /app/tmp
       - ./logs:/app/logs
-      - ./traces:/app/traces
       # Cache do Go para não redownload de módulos
       - go_modules:/go/pkg/mod
 

@@ -55,7 +55,6 @@ services:
     restart: unless-stopped
     volumes:
       - ./logs:/app/logs
-      - ./traces:/app/traces
 
 volumes:
   postgres_data:

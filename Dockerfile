@@ -31,7 +31,7 @@ COPY --from=builder /app/facial_emulator .
 COPY --from=builder /app/configs ./configs
 
 # Criar diretórios para dados
-RUN mkdir -p traces logs
+RUN mkdir -p logs
 
 # Expor porta HTTP
 EXPOSE 8080
