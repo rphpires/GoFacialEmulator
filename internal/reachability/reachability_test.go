@@ -50,6 +50,19 @@ func TestParseRanges(t *testing.T) {
 	}
 }
 
+// TestKindMarshalJSON garante que Kind serializa como string, igual a
+// Status — sem isso /api/reachability emitiria "kind":2, um número que
+// nenhum consumidor sabe interpretar, no campo mais específico do ambiente.
+func TestKindMarshalJSON(t *testing.T) {
+	b, err := json.Marshal(KindDocker)
+	if err != nil {
+		t.Fatalf("json.Marshal: %v", err)
+	}
+	if string(b) != `"docker"` {
+		t.Errorf("KindDocker serializado = %s, quero %q", b, `"docker"`)
+	}
+}
+
 // TestAnalyze cobre a matriz ambiente × porta. O caso que motivou o
 // trabalho inteiro é "docker com faixa publicada menor que a pedida pelo
 // W-Access": hoje o emulador sobe, escuta dentro do container e é
@@ -120,7 +133,7 @@ func TestAnalyze(t *testing.T) {
 			nome:        "linux nativo: emulador nem foi iniciado",
 			portas:      []DevicePort{{DeviceID: 7, Port: 4200, Started: false}},
 			env:         Environment{Kind: KindLinux},
-			queroStatus: []Status{StatusUnknown},
+			queroStatus: []Status{StatusNotStarted},
 			queroReason: []string{"o emulador ainda não foi iniciado"},
 		},
 		{
@@ -195,6 +208,25 @@ func TestAnalyzeContadores(t *testing.T) {
 	r := Analyze(portas, env)
 	if r.Unreachable != 2 {
 		t.Errorf("Unreachable = %d, quero 2", r.Unreachable)
+	}
+	if r.Unknown != 0 {
+		t.Errorf("Unknown = %d, quero 0", r.Unknown)
+	}
+}
+
+// TestAnalyzeContadoresNaoIniciado garante que um dispositivo nativo nunca
+// iniciado é contado em NotStarted, não em Unknown — os dois significam
+// coisas diferentes: um é o estado normal de um pacote recém-instalado, o
+// outro é "algo pode estar errado e não deu para verificar".
+func TestAnalyzeContadoresNaoIniciado(t *testing.T) {
+	env := Environment{Kind: KindLinux}
+	portas := []DevicePort{
+		{DeviceID: 1, Port: 4001, Started: false},
+	}
+
+	r := Analyze(portas, env)
+	if r.NotStarted != 1 {
+		t.Errorf("NotStarted = %d, quero 1", r.NotStarted)
 	}
 	if r.Unknown != 0 {
 		t.Errorf("Unknown = %d, quero 0", r.Unknown)

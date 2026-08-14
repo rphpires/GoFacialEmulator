@@ -124,16 +124,12 @@
           <td class="text-center">{{ .name }}</td>
           <td class="text-center" id="port_no">{{ .port }}</td>
           <td class="text-center">
-            {{ if eq .model "Dahua" }}
             <select class="form-select form-select-sm device-mode"
                     data-device-id="{{ .lc_id }}"
                     onchange="trocar_modo(this)">
               <option value="online" {{ if eq .local_auth "online" }}selected{{ end }}>Online</option>
               <option value="standalone" {{ if eq .local_auth "standalone" }}selected{{ end }}>Standalone</option>
             </select>
-            {{ else }}
-            <span class="text-muted" title="Este modelo não usa esta configuração">&mdash;</span>
-            {{ end }}
           </td>
           <td class="text-center">
             <input
@@ -301,6 +297,7 @@
 
           if (response.ok) {
             alert('Emuladores iniciados com sucesso!');
+            if (typeof carregar_alcancabilidade === 'function') carregar_alcancabilidade();
           } else {
             alert('Falha ao iniciar emuladores.');
           }
@@ -328,6 +325,7 @@
 
           if (response.ok) {
             alert('Emuladores parados com sucesso!');
+            if (typeof carregar_alcancabilidade === 'function') carregar_alcancabilidade();
           } else {
             alert('Falha ao parar emuladores.');
           }

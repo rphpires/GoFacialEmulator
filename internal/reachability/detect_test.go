@@ -67,7 +67,7 @@ func TestDetect(t *testing.T) {
 		{
 			nome: "wsl com modo espelhado",
 			fs: leitorFalso{
-				"/proc/version":                   "Linux version 5.15.0-microsoft-standard-WSL2",
+				"/proc/version":                    "Linux version 5.15.0-microsoft-standard-WSL2",
 				"/sys/class/net/loopback0/address": "00:00:00:00:00:00",
 			},
 			getenv:          semEnv,

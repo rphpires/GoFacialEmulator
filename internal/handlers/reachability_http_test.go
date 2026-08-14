@@ -50,13 +50,16 @@ func TestGetReachability_ContratoHTTP(t *testing.T) {
 			Reason   string `json:"reason"`
 		} `json:"devices"`
 		Environment struct {
-			Kind int `json:"kind"`
+			Kind string `json:"kind"`
 		} `json:"environment"`
 	}
 	if err := json.Unmarshal(w.Body.Bytes(), &corpo); err != nil {
 		t.Fatalf("JSON inválido: %v — corpo: %s", err, w.Body.String())
 	}
 
+	if corpo.Environment.Kind != "docker" {
+		t.Errorf("environment.kind = %q, quero \"docker\"", corpo.Environment.Kind)
+	}
 	if corpo.Unreachable != 1 {
 		t.Errorf("unreachable = %d, quero 1", corpo.Unreachable)
 	}

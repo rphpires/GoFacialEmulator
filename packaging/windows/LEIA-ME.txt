@@ -8,6 +8,14 @@ O QUE FAZER
 
   Nao e preciso instalar mais nada: o banco de dados ja vem junto.
 
+PORTAS
+  As portas dos emuladores vem do W-Access, nao do emulador.
+  Neste pacote nao ha limite de faixa publicada: a aplicacao roda
+  diretamente no Windows, sem Docker no meio.
+  O Firewall do Windows pode bloquear as portas. Se o Site Controller
+  nao conseguir se conectar, verifique se a faixa usada pelos
+  controladores esta liberada no Firewall do Windows.
+
 LOGS
   Aplicacao: sistema\logs\trace.log  (e trace.html, colorido)
   Banco:     sistema\logs\postgres.log

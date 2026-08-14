@@ -349,7 +349,12 @@ async function carregar_alcancabilidade() {
         return;
     }
 
-    const problemas = (relatorio.devices || []).filter((d) => d.status !== "ok");
+    // "nao_iniciado" não é problema: é o estado normal de um pacote recém
+    // instalado, com os emuladores ainda parados. Só "inalcancavel" e
+    // "desconhecido" indicam algo que vale avisar.
+    const problemas = (relatorio.devices || []).filter(
+        (d) => d.status === "inalcancavel" || d.status === "desconhecido"
+    );
     if (problemas.length === 0) {
         linha.style.display = "none";
         return;
@@ -358,10 +363,14 @@ async function carregar_alcancabilidade() {
     const inalcancaveis = relatorio.unreachable || 0;
     const desconhecidos = relatorio.unknown || 0;
 
-    const titulo =
-        inalcancaveis > 0
-            ? `${inalcancaveis} dispositivo(s) não vão ser alcançados pelo Site Controller.`
-            : `Não foi possível verificar ${desconhecidos} dispositivo(s).`;
+    let titulo;
+    if (inalcancaveis > 0 && desconhecidos > 0) {
+        titulo = `${inalcancaveis} dispositivo(s) não vão ser alcançados e ${desconhecidos} não puderam ser verificados.`;
+    } else if (inalcancaveis > 0) {
+        titulo = `${inalcancaveis} dispositivo(s) não vão ser alcançados pelo Site Controller.`;
+    } else {
+        titulo = `Não foi possível verificar ${desconhecidos} dispositivo(s).`;
+    }
 
     document.getElementById("reachability-headline").textContent = titulo;
     document.getElementById("reachability-reason").textContent = problemas[0].reason || "";

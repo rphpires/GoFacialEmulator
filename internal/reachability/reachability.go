@@ -10,8 +10,10 @@
 // Docker e WSL o veredito não depende de o emulador ter sido iniciado,
 // porque avisar que a porta não está publicada ANTES de o usuário iniciar
 // é o momento mais útil do aviso. Em ambiente nativo a única evidência
-// possível é a tentativa de bind, então não ter iniciado é genuinamente
-// "não sei".
+// possível é a tentativa de bind: não ter iniciado não é "algo está
+// errado", é o estado normal de um pacote recém-instalado — por isso tem
+// status próprio, StatusNotStarted, em vez de ser contado como
+// StatusUnknown.
 package reachability
 
 import (
@@ -43,6 +45,10 @@ func (k Kind) String() string {
 	default:
 		return "desconhecido"
 	}
+}
+
+func (k Kind) MarshalJSON() ([]byte, error) {
+	return []byte(strconv.Quote(k.String())), nil
 }
 
 // PortRange é uma faixa fechada de portas.
@@ -84,6 +90,11 @@ const (
 	StatusOK Status = iota
 	StatusUnreachable
 	StatusUnknown
+	// StatusNotStarted significa apenas que o emulador não está rodando —
+	// não que algo esteja errado e não tenha sido possível verificar. Um
+	// pacote recém-instalado, com todos os dispositivos parados, é o
+	// estado normal, e não pode ser contado junto com StatusUnknown.
+	StatusNotStarted
 )
 
 func (s Status) String() string {
@@ -92,6 +103,8 @@ func (s Status) String() string {
 		return "ok"
 	case StatusUnreachable:
 		return "inalcancavel"
+	case StatusNotStarted:
+		return "nao_iniciado"
 	default:
 		return "desconhecido"
 	}
@@ -107,7 +120,9 @@ type DevicePort struct {
 	DeviceID int
 	Port     int
 	// Started indica que o emulador chegou a ser iniciado. Sem isso não há
-	// informação de bind, e o veredito honesto é "desconhecido".
+	// informação de bind, e o veredito honesto é "não iniciado" — não
+	// "desconhecido", que fica reservado para quando algo pode estar
+	// errado e não deu para confirmar.
 	Started bool
 	// BindError é o erro do sistema operacional na abertura da porta, vazio
 	// quando o bind funcionou.
@@ -128,6 +143,7 @@ type Report struct {
 	Devices     []DeviceReachability `json:"devices"`
 	Unreachable int                  `json:"unreachable"`
 	Unknown     int                  `json:"unknown"`
+	NotStarted  int                  `json:"not_started"`
 }
 
 // ParseRanges lê o formato gravado em PUBLISHED_PORT_RANGE pelo compose:
@@ -208,6 +224,8 @@ func Analyze(ports []DevicePort, env Environment) Report {
 			r.Unreachable++
 		case StatusUnknown:
 			r.Unknown++
+		case StatusNotStarted:
+			r.NotStarted++
 		}
 		r.Devices = append(r.Devices, d)
 	}
@@ -229,7 +247,7 @@ func vereditoDocker(p DevicePort, env Environment) (Status, string) {
 
 func vereditoNativo(p DevicePort) (Status, string) {
 	if !p.Started {
-		return StatusUnknown, "o emulador ainda não foi iniciado"
+		return StatusNotStarted, "o emulador ainda não foi iniciado"
 	}
 	return StatusOK, ""
 }

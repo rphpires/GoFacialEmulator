@@ -59,6 +59,46 @@ func TestComposeCoerenteComVariavel(t *testing.T) {
 	}
 }
 
+// TestComposeLinuxCoerente: em docker-compose.linux.yml a variável
+// HOST_NETWORK é uma AFIRMAÇÃO sobre o modo de rede, não o modo em si —
+// quem garante o acesso direto às portas é network_mode: host. As duas
+// coisas não podem divergir: se alguém remover network_mode: host e
+// esquecer a variável, Analyze continua confiando em HOST_NETWORK=1 e
+// declara todo dispositivo alcançável enquanto nenhuma porta está
+// publicada, exatamente o falso-verde que este pacote existe para evitar.
+func TestComposeLinuxCoerente(t *testing.T) {
+	conteudo, err := os.ReadFile("../../packaging/docker/docker-compose.linux.yml")
+	if err != nil {
+		t.Fatalf("lendo o compose: %v", err)
+	}
+
+	var compose struct {
+		Services struct {
+			App struct {
+				NetworkMode string            `yaml:"network_mode"`
+				Environment map[string]string `yaml:"environment"`
+				Ports       []string          `yaml:"ports"`
+			} `yaml:"app"`
+		} `yaml:"services"`
+	}
+	if err := yaml.Unmarshal(conteudo, &compose); err != nil {
+		t.Fatalf("parseando o compose: %v", err)
+	}
+
+	if compose.Services.App.NetworkMode != "host" {
+		t.Errorf("network_mode = %q, quero \"host\"", compose.Services.App.NetworkMode)
+	}
+	if compose.Services.App.Environment["HOST_NETWORK"] != "1" {
+		t.Errorf("HOST_NETWORK = %q, quero \"1\"", compose.Services.App.Environment["HOST_NETWORK"])
+	}
+	if len(compose.Services.App.Ports) != 0 {
+		t.Errorf("ports = %v, quero nenhuma: rede de host não publica porta nenhuma", compose.Services.App.Ports)
+	}
+	if _, ok := compose.Services.App.Environment["PUBLISHED_PORT_RANGE"]; ok {
+		t.Error("PUBLISHED_PORT_RANGE presente no compose Linux: rede de host não tem faixa publicada")
+	}
+}
+
 func cortarMapeamento(s string) (host, container string, ok bool) {
 	for i := len(s) - 1; i >= 0; i-- {
 		if s[i] == ':' {
