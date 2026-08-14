@@ -25,6 +25,11 @@ const (
 // dahua/repository.go lê e grava.
 const chaveModo = "LocalAuthentication"
 
+// errModoInvalido separa erro do cliente (modo desconhecido) de falha de
+// infraestrutura. Sem essa distinção, um banco fora do ar seria reportado
+// como erro de quem clicou.
+var errModoInvalido = errors.New("modo inválido")
+
 func modoParaBanco(modo string) (string, error) {
 	switch modo {
 	case modoOnline:
@@ -32,7 +37,7 @@ func modoParaBanco(modo string) (string, error) {
 	case modoStandalone:
 		return "1", nil
 	default:
-		return "", fmt.Errorf("modo inválido: %q", modo)
+		return "", fmt.Errorf("%w: %q", errModoInvalido, modo)
 	}
 }
 
@@ -115,8 +120,12 @@ func (h *Handler) apiSetDeviceMode(c *gin.Context) {
 	}
 
 	if err := h.setDeviceMode(c.Request.Context(), id, corpo.Mode); err != nil {
+		if errors.Is(err, errModoInvalido) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": `Modo inválido. Use "online" ou "standalone".`})
+			return
+		}
 		h.tracer.Error("Failed to set device mode for %d: %v", id, err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Não foi possível trocar o modo do dispositivo"})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"mode": corpo.Mode})

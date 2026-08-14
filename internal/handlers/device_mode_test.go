@@ -4,9 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
+	"GoFacialEmulator/internal/trace"
+
+	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx/v4"
 )
@@ -37,6 +43,7 @@ type dbFalso struct {
 	linha       linhaFalsa
 	execChamado bool
 	execArgs    []interface{}
+	execErr     error
 }
 
 func (d *dbFalso) QueryRow(ctx context.Context, query string, args ...interface{}) pgx.Row {
@@ -46,7 +53,7 @@ func (d *dbFalso) QueryRow(ctx context.Context, query string, args ...interface{
 func (d *dbFalso) Exec(ctx context.Context, query string, args ...interface{}) (pgconn.CommandTag, error) {
 	d.execChamado = true
 	d.execArgs = args
-	return pgconn.CommandTag{}, nil
+	return pgconn.CommandTag{}, d.execErr
 }
 
 func (d *dbFalso) Query(ctx context.Context, query string, args ...interface{}) (pgx.Rows, error) {
@@ -170,4 +177,122 @@ func TestSetDeviceModeGravaOValorCerto(t *testing.T) {
 			}
 		})
 	}
+}
+
+// tracerDeTeste devolve um *trace.Tracer utilizável em testes deste
+// pacote, sem gravar nada em disco. trace.NewTracer() é um singleton
+// (sync.Once): a primeira chamada no processo decide o comportamento para
+// sempre. tracer.init() só evita abrir logs/trace.log quando encontra um
+// arquivo-marcador (DisableTrace.txt) no diretório de trabalho atual — o
+// mesmo mecanismo já usado por
+// internal/emulator/hikvision/test_helpers_test.go. Por isso escrevemos o
+// marcador antes da primeira chamada e o removemos logo em seguida: nenhum
+// arquivo fica no repositório depois do teste.
+func tracerDeTeste(t *testing.T) *trace.Tracer {
+	t.Helper()
+	const marcador = "DisableTrace.txt"
+	if err := os.WriteFile(marcador, []byte(""), 0644); err != nil {
+		t.Fatalf("escrevendo marcador do tracer: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Remove(marcador) })
+	return trace.NewTracer()
+}
+
+// TestApiSetDeviceModeHTTP dirige o handler de verdade (apiSetDeviceMode)
+// através de um motor gin com httptest, cobrindo o contrato HTTP que a
+// finding do fix round 1 corrigiu: modo inválido não pode expor erro de
+// driver nem virar 500, id inválido continua 400, e um pedido válido grava
+// e responde 200 com o modo já traduzido.
+func TestApiSetDeviceModeHTTP(t *testing.T) {
+	t.Run("modo invalido responde 400 em portugues, sem tocar no banco", func(t *testing.T) {
+		db := &dbFalso{}
+		h := &Handler{serviceDB: db, tracer: tracerDeTeste(t)}
+		r := gin.New()
+		r.POST("/api/devices/:id/mode", h.apiSetDeviceMode)
+
+		req := httptest.NewRequest(http.MethodPost, "/api/devices/1/mode", strings.NewReader(`{"mode":"turbo"}`))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("HTTP status = %d, quero %d — corpo: %s", w.Code, http.StatusBadRequest, w.Body.String())
+		}
+		corpo := w.Body.String()
+		if !strings.Contains(corpo, "Modo inválido") {
+			t.Errorf("corpo = %s, quero a mensagem em português sobre modo inválido", corpo)
+		}
+		if strings.Contains(corpo, `"turbo"`) {
+			t.Errorf("corpo = %s, não deveria ecoar o valor cru enviado pelo cliente", corpo)
+		}
+		if db.execChamado {
+			t.Error("o banco foi chamado mesmo com um modo inválido")
+		}
+	})
+
+	t.Run("id nao numerico responde 400", func(t *testing.T) {
+		db := &dbFalso{}
+		h := &Handler{serviceDB: db, tracer: tracerDeTeste(t)}
+		r := gin.New()
+		r.POST("/api/devices/:id/mode", h.apiSetDeviceMode)
+
+		req := httptest.NewRequest(http.MethodPost, "/api/devices/abc/mode", strings.NewReader(`{"mode":"online"}`))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("HTTP status = %d, quero %d — corpo: %s", w.Code, http.StatusBadRequest, w.Body.String())
+		}
+		if db.execChamado {
+			t.Error("o banco foi chamado mesmo com um id inválido")
+		}
+	})
+
+	t.Run("modo valido grava e responde 200 com o modo traduzido", func(t *testing.T) {
+		db := &dbFalso{}
+		h := &Handler{serviceDB: db, tracer: tracerDeTeste(t)}
+		r := gin.New()
+		r.POST("/api/devices/:id/mode", h.apiSetDeviceMode)
+
+		req := httptest.NewRequest(http.MethodPost, "/api/devices/1/mode", strings.NewReader(`{"mode":"standalone"}`))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("HTTP status = %d, quero %d — corpo: %s", w.Code, http.StatusOK, w.Body.String())
+		}
+		if !db.execChamado {
+			t.Error("o banco não foi chamado para um modo válido")
+		}
+		corpo := w.Body.String()
+		if !strings.Contains(corpo, `"mode":"standalone"`) {
+			t.Errorf("corpo = %s, quero {\"mode\":\"standalone\"}", corpo)
+		}
+	})
+
+	t.Run("falha de banco responde 500 generico em portugues, sem vazar erro de driver", func(t *testing.T) {
+		erroDriver := errors.New("pq: connection refused at 10.0.0.5:5432")
+		db := &dbFalso{execErr: erroDriver}
+		h := &Handler{serviceDB: db, tracer: tracerDeTeste(t)}
+		r := gin.New()
+		r.POST("/api/devices/:id/mode", h.apiSetDeviceMode)
+
+		req := httptest.NewRequest(http.MethodPost, "/api/devices/1/mode", strings.NewReader(`{"mode":"online"}`))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		if w.Code != http.StatusInternalServerError {
+			t.Errorf("HTTP status = %d, quero %d — corpo: %s", w.Code, http.StatusInternalServerError, w.Body.String())
+		}
+		corpo := w.Body.String()
+		if strings.Contains(corpo, "connection refused") || strings.Contains(corpo, "pq:") {
+			t.Errorf("corpo = %s, não deveria vazar a string crua do driver", corpo)
+		}
+		if !strings.Contains(corpo, "Não foi possível trocar o modo do dispositivo") {
+			t.Errorf("corpo = %s, quero a mensagem genérica em português", corpo)
+		}
+	})
 }
