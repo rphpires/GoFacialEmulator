@@ -114,7 +114,7 @@ Quando a variável estiver ausente ou malformada, `RangesKnown` é `false` e a i
 ### 6.3 Relatório de alcançabilidade
 
 ```go
-type Status int // StatusOK, StatusUnreachable, StatusUnknown
+type Status int // StatusOK, StatusUnreachable, StatusUnknown, StatusNotStarted
 
 type DeviceReachability struct {
     DeviceID int
@@ -128,6 +128,7 @@ type Report struct {
     Devices      []DeviceReachability
     Unreachable  int
     Unknown      int
+    NotStarted   int
 }
 
 func Analyze(ports []DevicePort, env Environment) Report
@@ -135,13 +136,20 @@ func Analyze(ports []DevicePort, env Environment) Report
 
 `Analyze` é função pura sobre os dois argumentos — sem I/O, sem relógio, sem banco. Toda a matriz de casos vira teste de tabela.
 
+A evidência é lida na ordem em que é confiável. **Um bind que falhou vale em qualquer ambiente** e tem precedência sobre a regra de ambiente: sem isso, um dispositivo cujo bind falhou dentro do container, mas cuja porta cai na faixa publicada, seria reportado como alcançável — exatamente a falha que esta funcionalidade existe para pegar. Sem erro de bind, vale a regra do ambiente.
+
 Regras por ambiente:
 
 - **Docker com `RangesKnown`** — porta fora de todas as faixas publicadas é `StatusUnreachable`
 - **Docker sem `RangesKnown`** — tudo `StatusUnknown`
+- **Docker com rede de host** — tratado como nativo
 - **Linux e Windows nativos** — o bind é direto; o teste real é o bind ter funcionado. Falha de bind vira `StatusUnreachable` com o erro do sistema operacional em `Reason`. Hoje esse erro morre no log
 - **WSL não espelhado** — todos os dispositivos ficam `StatusUnreachable` com motivo próprio: alcançáveis apenas a partir desta máquina
 - **WSL espelhado** — mesma regra do Linux nativo
+
+Em Docker e WSL o veredito de ambiente **não depende de o emulador ter sido iniciado**: avisar que a porta não está publicada antes de o usuário iniciar é o momento mais útil do aviso. Em ambiente nativo a única evidência possível é a tentativa de bind, então um emulador não iniciado é `StatusNotStarted`.
+
+`StatusNotStarted` existe separado de `StatusUnknown` por uma razão de produto: um dispositivo apenas parado é o estado normal de uma instalação recém-feita, e contá-lo como problema faria o aviso da seção 6.4 disparar com centenas de linhas numa máquina onde nada está errado. Aviso que dispara no estado normal treina o usuário a ignorá-lo. `NotStarted` é contado à parte e não levanta o aviso.
 
 ### 6.4 Exposição
 
