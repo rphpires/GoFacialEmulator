@@ -111,6 +111,37 @@ if errorlevel 1 (
 echo [windows] OK: %OUT%\GoFacialEmulator-windows.zip
 if /i not "%ALVO%"=="todos" goto fim
 
+REM ==================== LINUX ====================
+:build_linux
+set "STAGE=%OUT%\linux"
+if exist "%STAGE%" rmdir /s /q "%STAGE%"
+mkdir "%STAGE%\sistema\logs"
+mkdir "%STAGE%\sistema\configs"
+
+echo [linux] Compilando ...
+set CGO_ENABLED=0
+set GOOS=linux
+set GOARCH=amd64
+go build -ldflags="-s -w" -o "%STAGE%\sistema\emulator-service" cmd\emulator-service\main.go
+if errorlevel 1 (
+    echo [ERRO] Falha na compilacao.
+    exit /b 1
+)
+
+copy /Y packaging\linux\config.yaml  "%STAGE%\sistema\configs\config.yaml" >nul
+copy /Y packaging\linux\instalar.sh  "%STAGE%\" >nul
+copy /Y packaging\linux\iniciar.sh   "%STAGE%\" >nul
+copy /Y packaging\linux\parar.sh     "%STAGE%\" >nul
+copy /Y packaging\linux\LEIA-ME.txt  "%STAGE%\" >nul
+
+if exist "%OUT%\GoFacialEmulator-linux.zip" del "%OUT%\GoFacialEmulator-linux.zip"
+powershell -NoProfile -Command "Compress-Archive -Path '%STAGE%\*' -DestinationPath '%OUT%\GoFacialEmulator-linux.zip' -Force"
+if errorlevel 1 (
+    echo [ERRO] Falha ao gerar o ZIP.
+    exit /b 1
+)
+echo [linux] OK: %OUT%\GoFacialEmulator-linux.zip
+
 :fim
 echo.
 echo Pacotes gerados em %OUT%\

@@ -1,0 +1,20 @@
+GoFacialEmulator - versao Linux (serve tambem para WSL2)
+
+O QUE FAZER
+  1. sudo ./instalar.sh    (so na primeira vez)
+  2. ./iniciar.sh
+  3. Abra http://localhost:7070 no navegador.
+  Para parar: ./parar.sh
+
+  No WSL2 os mesmos comandos valem: o instalador detecta o ambiente
+  sozinho e usa "service" no lugar de "systemctl".
+
+  Se ./instalar.sh ou ./iniciar.sh nao rodarem por falta de permissao de
+  execucao, use: sudo bash instalar.sh   /   bash iniciar.sh
+
+LOGS
+  Aplicacao: sistema/logs/trace.log  (e trace.html, colorido)
+  Saida bruta: sistema/logs/app.out
+  Banco:     /var/log/postgresql/
+
+O manual completo esta no arquivo MANUAL.md do projeto.
