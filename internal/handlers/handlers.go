@@ -260,6 +260,8 @@ func (h *Handler) setupAPIRoutes(router *gin.Engine) {
 			devices.POST("/:id/start", h.startSingleDevice)
 			devices.POST("/:id/stop", h.stopSingleDevice)
 			devices.PUT("/:id/settings", h.updateDeviceSettings)
+			devices.GET("/:id/mode", h.apiGetDeviceMode)
+			devices.POST("/:id/mode", h.apiSetDeviceMode)
 		}
 
 		// Status do sistema
