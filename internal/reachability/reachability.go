@@ -4,6 +4,14 @@
 // A aplicação obedece o BaseCommPort de cada controlador e nunca o
 // contradiz: este pacote não escolhe porta nem recusa dispositivo, apenas
 // aponta quais não vão funcionar e por quê.
+//
+// A evidência é lida na ordem em que é confiável. Um bind que falhou vale
+// em qualquer ambiente. Sem erro de bind, vale a regra do ambiente: em
+// Docker e WSL o veredito não depende de o emulador ter sido iniciado,
+// porque avisar que a porta não está publicada ANTES de o usuário iniciar
+// é o momento mais útil do aviso. Em ambiente nativo a única evidência
+// possível é a tentativa de bind, então não ter iniciado é genuinamente
+// "não sei".
 package reachability
 
 import (
@@ -175,6 +183,11 @@ func Analyze(ports []DevicePort, env Environment) Report {
 		d := DeviceReachability{DeviceID: p.DeviceID, Port: p.Port}
 
 		switch {
+		// Um bind que falhou é evidência direta e vale em qualquer
+		// ambiente: nenhuma regra de ambiente pode mascará-la.
+		case p.BindError != "":
+			d.Status = StatusUnreachable
+			d.Reason = fmt.Sprintf("a porta %d não pôde ser aberta: %s", p.Port, p.BindError)
 		case env.Kind == KindDocker && !env.HostNetwork:
 			d.Status, d.Reason = vereditoDocker(p, env)
 		case env.Kind == KindWSL && !env.WSLMirrored:
@@ -209,9 +222,6 @@ func vereditoDocker(p DevicePort, env Environment) (Status, string) {
 }
 
 func vereditoNativo(p DevicePort) (Status, string) {
-	if p.BindError != "" {
-		return StatusUnreachable, fmt.Sprintf("a porta %d não pôde ser aberta: %s", p.Port, p.BindError)
-	}
 	if !p.Started {
 		return StatusUnknown, "o emulador ainda não foi iniciado"
 	}

@@ -134,6 +134,27 @@ func TestAnalyze(t *testing.T) {
 			queroStatus: []Status{StatusOK},
 			queroReason: []string{""},
 		},
+		{
+			nome:        "docker: bind falhou dentro do container, porta publicada",
+			portas:      []DevicePort{{DeviceID: 10, Port: 4001, Started: true, BindError: "address already in use"}},
+			env:         dockerPublicado,
+			queroStatus: []Status{StatusUnreachable},
+			queroReason: []string{"a porta 4001 não pôde ser aberta: address already in use"},
+		},
+		{
+			nome:        "wsl sem espelho: bind falhou tem precedência sobre o aviso de NAT",
+			portas:      []DevicePort{{DeviceID: 11, Port: 4001, Started: true, BindError: "permission denied"}},
+			env:         Environment{Kind: KindWSL, WSLMirrored: false},
+			queroStatus: []Status{StatusUnreachable},
+			queroReason: []string{"a porta 4001 não pôde ser aberta: permission denied"},
+		},
+		{
+			nome:        "docker: emulador parado com porta publicada continua ok",
+			portas:      []DevicePort{{DeviceID: 12, Port: 4001, Started: false}},
+			env:         dockerPublicado,
+			queroStatus: []Status{StatusOK},
+			queroReason: []string{""},
+		},
 	}
 
 	for _, c := range casos {
