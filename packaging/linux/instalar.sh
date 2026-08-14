@@ -31,10 +31,14 @@ printf "Faixa [4000-4499]: "
 read -r FAIXA
 FAIXA="${FAIXA:-4000-4499}"
 
-PORTA_INICIO="${FAIXA%%-*}"
-PORTA_FIM="${FAIXA##*-}"
+case "$FAIXA" in
+    *-*) PORTA_INICIO="${FAIXA%%-*}"; PORTA_FIM="${FAIXA##*-}" ;;
+    *)   PORTA_INICIO="$FAIXA"; PORTA_FIM="$FAIXA" ;;
+esac
 
-if ! echo "$PORTA_INICIO$PORTA_FIM" | grep -qE '^[0-9]+$' || [ "$PORTA_INICIO" -gt "$PORTA_FIM" ]; then
+if ! echo "$PORTA_INICIO" | grep -qE '^[0-9]+$' \
+   || ! echo "$PORTA_FIM" | grep -qE '^[0-9]+$' \
+   || [ "$PORTA_INICIO" -gt "$PORTA_FIM" ]; then
     echo
     echo "❌ Faixa invalida: $FAIXA. Use o formato 4000-4499."
     exit 1
@@ -116,7 +120,22 @@ echo "[5/5] Conferindo o limite de arquivos abertos ..."
 # Cada emulador abre um socket de escuta e mantém conexões. A folga de
 # 2 vezes o número de portas mais 1024 cobre as conexões simultâneas.
 NECESSARIO=$((QTD_PORTAS * 2 + 1024))
-ATUAL="$(ulimit -n)"
+
+# O script roda sob sudo, mas quem inicia a aplicacao depois e o usuario
+# comum, via ./iniciar.sh. O limite que importa e o dele, nao o do root.
+USUARIO_ALVO="${SUDO_USER:-}"
+if [ -z "$USUARIO_ALVO" ]; then
+    USUARIO_ALVO="$(logname 2>/dev/null || true)"
+fi
+
+ATUAL=""
+if [ -n "$USUARIO_ALVO" ]; then
+    ATUAL="$(su - "$USUARIO_ALVO" -c 'ulimit -n' 2>/dev/null || true)"
+fi
+if ! echo "${ATUAL:-}" | grep -qE '^[0-9]+$'; then
+    ATUAL="$(ulimit -n)"
+    USUARIO_ALVO="root"
+fi
 
 if [ "$ATUAL" -lt "$NECESSARIO" ]; then
     cat > /etc/security/limits.d/gofacialemulator.conf <<EOF
@@ -124,11 +143,11 @@ if [ "$ATUAL" -lt "$NECESSARIO" ]; then
 * soft nofile $NECESSARIO
 * hard nofile $NECESSARIO
 EOF
-    echo "      Limite atual ($ATUAL) e menor que o necessario ($NECESSARIO)."
+    echo "      Limite atual do usuario $USUARIO_ALVO ($ATUAL) e menor que o necessario ($NECESSARIO)."
     echo "      ⚠  Ajustado em /etc/security/limits.d/gofacialemulator.conf."
     echo "         Saia e entre de novo na sessao antes de rodar ./iniciar.sh."
 else
-    echo "      Limite atual ($ATUAL) e suficiente."
+    echo "      Limite atual do usuario $USUARIO_ALVO ($ATUAL) e suficiente."
 fi
 
 if [ "$NO_WSL" -eq 1 ] && [ ! -e /sys/class/net/loopback0 ]; then
