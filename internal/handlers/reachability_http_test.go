@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"GoFacialEmulator/internal/models"
 	"GoFacialEmulator/internal/reachability"
 
 	"github.com/gin-gonic/gin"
@@ -70,5 +71,54 @@ func TestGetReachability_ContratoHTTP(t *testing.T) {
 	}
 	if corpo.Devices[1].Reason == "" {
 		t.Error("devices[1].reason vazio, quero a explicação em português")
+	}
+}
+
+// TestPortasDeDispositivos cobre o mapeamento de models.Device para
+// reachability.DevicePort, que é a parte que TestGetReachability_ContratoHTTP
+// não alcança: aquele teste monta o DevicePort na mão e só fixa os nomes dos
+// campos do JSON. Aqui é onde um Status errado ou um erro de bind
+// grudado no dispositivo errado seria pego.
+func TestPortasDeDispositivos(t *testing.T) {
+	dispositivos := []*models.Device{
+		{ID: 1, Port: 4001, Status: "running"},
+		{ID: 2, Port: 4002, Status: "stopped"},
+		{ID: 3, Port: 4003, Status: "running"},
+	}
+
+	// Só o dispositivo 3 tem erro de bind registrado — prova que o erro
+	// não vaza para os outros dois.
+	ultimoErro := func(deviceID int) string {
+		if deviceID == 3 {
+			return "address already in use"
+		}
+		return ""
+	}
+
+	portas := portasDeDispositivos(dispositivos, ultimoErro)
+
+	if len(portas) != 3 {
+		t.Fatalf("len(portas) = %d, quero 3", len(portas))
+	}
+
+	if !portas[0].Started {
+		t.Errorf("dispositivo 1 (running): Started = false, quero true")
+	}
+	if portas[0].BindError != "" {
+		t.Errorf("dispositivo 1: BindError = %q, quero vazio", portas[0].BindError)
+	}
+
+	if portas[1].Started {
+		t.Errorf("dispositivo 2 (stopped): Started = true, quero false")
+	}
+
+	if portas[2].DeviceID != 3 {
+		t.Fatalf("portas[2].DeviceID = %d, quero 3", portas[2].DeviceID)
+	}
+	if portas[2].BindError != "address already in use" {
+		t.Errorf("dispositivo 3: BindError = %q, quero \"address already in use\"", portas[2].BindError)
+	}
+	if portas[0].BindError != "" || portas[1].BindError != "" {
+		t.Error("o erro de bind do dispositivo 3 vazou para outro dispositivo")
 	}
 }

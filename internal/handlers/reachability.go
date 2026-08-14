@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 
+	"GoFacialEmulator/internal/models"
 	"GoFacialEmulator/internal/reachability"
 
 	"github.com/gin-gonic/gin"
@@ -21,15 +22,23 @@ func (h *Handler) getReachability(c *gin.Context) {
 		return
 	}
 
+	portas := portasDeDispositivos(dispositivos, h.manager.LastStartError)
+
+	c.JSON(http.StatusOK, reachability.Analyze(portas, h.env))
+}
+
+// portasDeDispositivos traduz a lista de dispositivos para a entrada de
+// reachability.Analyze. Fica separada do handler para poder ser testada sem
+// Manager nem banco: é aqui que um erro de mapeamento passaria batido.
+func portasDeDispositivos(dispositivos []*models.Device, ultimoErro func(int) string) []reachability.DevicePort {
 	portas := make([]reachability.DevicePort, 0, len(dispositivos))
 	for _, d := range dispositivos {
 		portas = append(portas, reachability.DevicePort{
 			DeviceID:  d.ID,
 			Port:      d.Port,
 			Started:   d.Status == "running",
-			BindError: h.manager.LastStartError(d.ID),
+			BindError: ultimoErro(d.ID),
 		})
 	}
-
-	c.JSON(http.StatusOK, reachability.Analyze(portas, h.env))
+	return portas
 }

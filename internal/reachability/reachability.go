@@ -180,7 +180,10 @@ func porta(s string) (int, error) {
 // Analyze é pura: mesmo par de argumentos, mesmo relatório. Sem I/O, sem
 // relógio, sem banco.
 func Analyze(ports []DevicePort, env Environment) Report {
-	r := Report{Environment: env}
+	// Devices começa como slice vazia, não nil: um slice nil vira "null" no
+	// JSON, e a tela de dispositivos espera uma lista mesmo quando não há
+	// nenhum dispositivo cadastrado.
+	r := Report{Environment: env, Devices: []DeviceReachability{}}
 
 	for _, p := range ports {
 		d := DeviceReachability{DeviceID: p.DeviceID, Port: p.Port}

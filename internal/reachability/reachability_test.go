@@ -1,6 +1,9 @@
 package reachability
 
-import "testing"
+import (
+	"encoding/json"
+	"testing"
+)
 
 // TestParseRanges cobre o formato que o compose grava em
 // PUBLISHED_PORT_RANGE. Entrada malformada precisa virar erro, não faixa
@@ -195,5 +198,35 @@ func TestAnalyzeContadores(t *testing.T) {
 	}
 	if r.Unknown != 0 {
 		t.Errorf("Unknown = %d, quero 0", r.Unknown)
+	}
+}
+
+// TestAnalyzeSemDispositivos garante que uma lista vazia de portas produz
+// "devices":[] no JSON, não "devices":null. Um slice nil viraria null no
+// JSON, e a tela de dispositivos não espera esse caso — é uma armadilha
+// para qualquer consumidor futuro que não faça essa checagem.
+func TestAnalyzeSemDispositivos(t *testing.T) {
+	env := Environment{Kind: KindLinux}
+
+	r := Analyze(nil, env)
+	if r.Devices == nil {
+		t.Fatal("Devices veio nil, quero slice vazia (não nil)")
+	}
+	if len(r.Devices) != 0 {
+		t.Fatalf("len(Devices) = %d, quero 0", len(r.Devices))
+	}
+
+	b, err := json.Marshal(r)
+	if err != nil {
+		t.Fatalf("json.Marshal: %v", err)
+	}
+	var corpo struct {
+		Devices json.RawMessage `json:"devices"`
+	}
+	if err := json.Unmarshal(b, &corpo); err != nil {
+		t.Fatalf("json.Unmarshal: %v", err)
+	}
+	if string(corpo.Devices) != "[]" {
+		t.Errorf(`devices no JSON = %s, quero "[]"`, corpo.Devices)
 	}
 }
