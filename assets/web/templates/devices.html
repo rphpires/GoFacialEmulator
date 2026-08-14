@@ -15,6 +15,22 @@
     </div>
   </div>
 
+  <div class="row" id="reachability-alert-row" style="display: none;">
+    <div class="col-12">
+      <div class="alert alert-warning d-flex align-items-start" id="reachability-alert" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2 mt-1"></i>
+        <div class="flex-grow-1">
+          <div id="reachability-headline" class="fw-semibold"></div>
+          <div id="reachability-reason" class="small"></div>
+          <div id="reachability-help" class="small"></div>
+          <button type="button" class="btn btn-link btn-sm p-0 mt-1" id="reachability-toggle"
+                  onclick="toggle_reachability_list()">ver a lista</button>
+          <div id="reachability-list" class="small mt-2" style="display: none;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="row mt-2">
     <div class="col-12">
       <div class="card filters-expanded" id="filters-card">

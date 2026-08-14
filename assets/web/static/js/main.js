@@ -328,3 +328,59 @@ window.App = {
     smoothScrollTo: smoothScrollTo,
     debounce: debounce
 };
+
+// ========================================
+// Aviso de alcançabilidade
+// ========================================
+
+// Aviso de alcançabilidade: mostra quais dispositivos não vão ser
+// alcançados pelo Site Controller neste ambiente. Sem ele, a tela fica
+// toda verde enquanto o W-Access mostra tudo offline.
+async function carregar_alcancabilidade() {
+    const linha = document.getElementById("reachability-alert-row");
+    if (!linha) return;
+
+    let relatorio;
+    try {
+        const resposta = await fetch("/api/reachability");
+        if (!resposta.ok) return;
+        relatorio = await resposta.json();
+    } catch (e) {
+        return;
+    }
+
+    const problemas = (relatorio.devices || []).filter((d) => d.status !== "ok");
+    if (problemas.length === 0) {
+        linha.style.display = "none";
+        return;
+    }
+
+    const inalcancaveis = relatorio.unreachable || 0;
+    const desconhecidos = relatorio.unknown || 0;
+
+    const titulo =
+        inalcancaveis > 0
+            ? `${inalcancaveis} dispositivo(s) não vão ser alcançados pelo Site Controller.`
+            : `Não foi possível verificar ${desconhecidos} dispositivo(s).`;
+
+    document.getElementById("reachability-headline").textContent = titulo;
+    document.getElementById("reachability-reason").textContent = problemas[0].reason || "";
+    document.getElementById("reachability-help").textContent =
+        "O que fazer: veja o capítulo Portas e rede do manual.";
+
+    document.getElementById("reachability-list").innerHTML = problemas
+        .map((d) => `Dispositivo ${d.device_id} — porta ${d.port}: ${d.reason}`)
+        .join("<br>");
+
+    linha.style.display = "";
+}
+
+function toggle_reachability_list() {
+    const lista = document.getElementById("reachability-list");
+    const botao = document.getElementById("reachability-toggle");
+    const escondida = lista.style.display === "none";
+    lista.style.display = escondida ? "" : "none";
+    botao.textContent = escondida ? "esconder a lista" : "ver a lista";
+}
+
+document.addEventListener("DOMContentLoaded", carregar_alcancabilidade);
