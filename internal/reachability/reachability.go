@@ -68,9 +68,12 @@ type Environment struct {
 	PublishedRanges []PortRange `json:"published_ranges"`
 	// RangesKnown falso significa que não foi possível descobrir o que o
 	// host publica. Nesse caso nenhum aviso é inventado.
-	RangesKnown  bool   `json:"ranges_known"`
-	HostNetwork  bool   `json:"host_network"`
-	WSLMirrored  bool   `json:"wsl_mirrored"`
+	RangesKnown bool `json:"ranges_known"`
+	HostNetwork bool `json:"host_network"`
+	WSLMirrored bool `json:"wsl_mirrored"`
+	// MaxOpenFiles não entra em nenhuma regra de Analyze: é só diagnóstico,
+	// exposto em /api/reachability para quem for investigar um ambiente com
+	// muitos dispositivos e limite de descritores de arquivo apertado.
 	MaxOpenFiles uint64 `json:"max_open_files"`
 }
 
