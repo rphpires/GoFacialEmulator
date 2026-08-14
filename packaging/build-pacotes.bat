@@ -45,6 +45,7 @@ if errorlevel 1 (
 )
 
 copy /Y packaging\docker\docker-compose.yml "%STAGE%\sistema\" >nul
+copy /Y packaging\docker\docker-compose.linux.yml "%STAGE%\sistema\" >nul
 copy /Y packaging\docker\INSTALAR.bat  "%STAGE%\" >nul
 copy /Y packaging\docker\INICIAR.bat   "%STAGE%\" >nul
 copy /Y packaging\docker\PARAR.bat     "%STAGE%\" >nul

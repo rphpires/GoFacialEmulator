@@ -2,6 +2,14 @@
 set -uo pipefail
 cd "$(dirname "$0")"
 
+# Em Linux usamos a rede do host, que não tem limite de portas. No Docker
+# Desktop (Windows/Mac) a rede de host é experimental, então lá vale o
+# compose que publica por faixa.
+COMPOSE=sistema/docker-compose.yml
+if [ "$(uname -s)" = "Linux" ] && ! grep -qiE "microsoft|wsl" /proc/version 2>/dev/null; then
+    COMPOSE=sistema/docker-compose.linux.yml
+fi
+
 mkdir -p sistema/logs
 LOG=sistema/logs/instalacao.log
 : > "$LOG"
@@ -28,7 +36,7 @@ fi
 echo "      Aplicacao carregada."
 
 echo "[3/3] Preparando o banco de dados ..."
-if ! docker compose -f sistema/docker-compose.yml up -d postgres >>"$LOG" 2>&1; then
+if ! docker compose -f "$COMPOSE" up -d postgres >>"$LOG" 2>&1; then
     echo
     echo "❌ Falha ao preparar o banco — veja sistema/logs/instalacao.log"
     exit 1
