@@ -15,6 +15,7 @@ import (
 	"GoFacialEmulator/internal/database"
 	"GoFacialEmulator/internal/emulator"
 	"GoFacialEmulator/internal/monitoring"
+	"GoFacialEmulator/internal/reachability"
 	"GoFacialEmulator/internal/trace"
 
 	"github.com/gin-gonic/gin"
@@ -31,6 +32,7 @@ type Handler struct {
 	upgrader      websocket.Upgrader
 	healthMonitor *monitoring.HealthMonitor
 	metrics       *monitoring.Metrics
+	env           reachability.Environment
 }
 
 // NewHandler cria uma nova instância de Handler
@@ -94,6 +96,7 @@ func NewHandler(manager *emulator.Manager, serviceDB database.DBInterface, wxsDB
 		tracer:        tracer,
 		healthMonitor: healthMonitor,
 		metrics:       metrics,
+		env:           reachability.Detect(),
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {
 				return true // Permitir todas as origens em desenvolvimento
@@ -264,6 +267,7 @@ func (h *Handler) setupAPIRoutes(router *gin.Engine) {
 		api.GET("/comparison", h.getUserComparisons)
 		api.GET("/pool-stats", h.getPoolStats)
 		api.GET("/refresh-status", h.getRefreshStatus)
+		api.GET("/reachability", h.getReachability)
 
 		// Configurações
 		settings := api.Group("/settings")
