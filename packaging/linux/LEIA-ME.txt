@@ -12,6 +12,12 @@ O QUE FAZER
   Se ./instalar.sh ou ./iniciar.sh nao rodarem por falta de permissao de
   execucao, use: sudo bash instalar.sh   /   bash iniciar.sh
 
+PORTAS
+  As portas dos emuladores vem do W-Access, nao do emulador.
+  O instalar.sh pergunta a faixa e libera no firewall.
+  Em WSL2, o Site Controller de outra maquina so alcanca os emuladores
+  com o modo espelhado ligado. O instalar.sh avisa e mostra como fazer.
+
 LOGS
   Aplicacao: sistema/logs/trace.log  (e trace.html, colorido)
   Saida bruta: sistema/logs/app.out
