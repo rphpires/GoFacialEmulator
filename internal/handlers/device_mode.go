@@ -67,6 +67,36 @@ func (h *Handler) getDeviceMode(ctx context.Context, deviceID int) (string, erro
 	return bancoParaModo(valor), nil
 }
 
+// getDeviceModes lê o modo de vários dispositivos numa consulta só. A
+// alternativa — uma consulta por dispositivo dentro do laço da listagem —
+// seriam centenas de idas ao banco a cada carregamento de página.
+// Dispositivo sem linha não aparece no mapa; quem chama usa o padrão
+// standalone, o mesmo recuo de getDeviceMode.
+func (h *Handler) getDeviceModes(ctx context.Context, ids []int32) (map[int]string, error) {
+	modos := make(map[int]string, len(ids))
+	if len(ids) == 0 {
+		return modos, nil
+	}
+
+	rows, err := h.serviceDB.Query(ctx,
+		`SELECT device_id, value FROM emulator.device_settings
+		  WHERE cfg_id = $1 AND device_id = ANY($2)`, chaveModo, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var id int
+		var valor string
+		if err := rows.Scan(&id, &valor); err != nil {
+			return nil, err
+		}
+		modos[id] = bancoParaModo(valor)
+	}
+	return modos, rows.Err()
+}
+
 // setDeviceMode grava o modo de um dispositivo em
 // emulator.device_settings.
 func (h *Handler) setDeviceMode(ctx context.Context, deviceID int, modo string) error {

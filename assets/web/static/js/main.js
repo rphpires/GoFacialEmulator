@@ -375,6 +375,33 @@ async function carregar_alcancabilidade() {
     linha.style.display = "";
 }
 
+// Troca o modo de operação do dispositivo. Online: o Site Controller
+// valida o acesso. Standalone: o dispositivo valida sozinho e gera o
+// evento.
+async function trocar_modo(select) {
+    const id = select.dataset.deviceId;
+    const modo = select.value;
+    const anterior = modo === "online" ? "standalone" : "online";
+
+    select.disabled = true;
+    try {
+        const resposta = await fetch(`/api/devices/${id}/mode`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ mode: modo }),
+        });
+        if (!resposta.ok) {
+            select.value = anterior;
+            alert("Não foi possível trocar o modo do dispositivo " + id + ".");
+        }
+    } catch (e) {
+        select.value = anterior;
+        alert("Não foi possível trocar o modo do dispositivo " + id + ".");
+    } finally {
+        select.disabled = false;
+    }
+}
+
 function toggle_reachability_list() {
     const lista = document.getElementById("reachability-list");
     const botao = document.getElementById("reachability-toggle");

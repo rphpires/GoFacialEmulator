@@ -14,6 +14,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgconn"
+	"github.com/jackc/pgproto3/v2"
 	"github.com/jackc/pgx/v4"
 )
 
@@ -37,13 +38,17 @@ func (l linhaFalsa) Scan(dest ...any) error {
 }
 
 // dbFalso implementa database.DBInterface para os testes deste arquivo.
-// Só QueryRow e Exec importam; Query, Begin e Ping existem para satisfazer
-// a interface e devolvem zero.
+// QueryRow, Exec e Query importam; Begin e Ping existem para satisfazer a
+// interface e devolvem zero.
 type dbFalso struct {
-	linha       linhaFalsa
-	execChamado bool
-	execArgs    []interface{}
-	execErr     error
+	linha        linhaFalsa
+	execChamado  bool
+	execArgs     []interface{}
+	execErr      error
+	queryChamado bool
+	queryArgs    []interface{}
+	queryRows    pgx.Rows
+	queryErr     error
 }
 
 func (d *dbFalso) QueryRow(ctx context.Context, query string, args ...interface{}) pgx.Row {
@@ -57,10 +62,56 @@ func (d *dbFalso) Exec(ctx context.Context, query string, args ...interface{}) (
 }
 
 func (d *dbFalso) Query(ctx context.Context, query string, args ...interface{}) (pgx.Rows, error) {
-	return nil, nil
+	d.queryChamado = true
+	d.queryArgs = args
+	return d.queryRows, d.queryErr
 }
 func (d *dbFalso) Begin(ctx context.Context) (pgx.Tx, error) { return nil, nil }
 func (d *dbFalso) Ping(ctx context.Context) error            { return nil }
+
+// linhaModo é uma linha (device_id, value) devolvida pela consulta de
+// getDeviceModes.
+type linhaModo struct {
+	id    int
+	valor string
+}
+
+// rowsFalsas implementa pgx.Rows para exercitar getDeviceModes sem banco.
+type rowsFalsas struct {
+	linhas []linhaModo
+	pos    int
+	err    error
+}
+
+func (r *rowsFalsas) Close()                                         {}
+func (r *rowsFalsas) Err() error                                     { return r.err }
+func (r *rowsFalsas) CommandTag() pgconn.CommandTag                  { return pgconn.CommandTag{} }
+func (r *rowsFalsas) FieldDescriptions() []pgproto3.FieldDescription { return nil }
+func (r *rowsFalsas) Values() ([]interface{}, error)                 { return nil, nil }
+func (r *rowsFalsas) RawValues() [][]byte                            { return nil }
+
+func (r *rowsFalsas) Next() bool {
+	if r.pos >= len(r.linhas) {
+		return false
+	}
+	r.pos++
+	return true
+}
+
+func (r *rowsFalsas) Scan(dest ...interface{}) error {
+	linha := r.linhas[r.pos-1]
+	id, ok := dest[0].(*int)
+	if !ok {
+		return errors.New("destino[0] não é *int")
+	}
+	valor, ok := dest[1].(*string)
+	if !ok {
+		return errors.New("destino[1] não é *string")
+	}
+	*id = linha.id
+	*valor = linha.valor
+	return nil
+}
 
 // execArgsTexto junta os argumentos do Exec em uma string, para que o
 // teste possa afirmar sobre o valor gravado sem depender da posição.
@@ -130,6 +181,70 @@ func TestGetDeviceModeErroDeBanco(t *testing.T) {
 	if !errors.Is(err, erroBanco) {
 		t.Errorf("erro = %v, quero que contenha %v", err, erroBanco)
 	}
+}
+
+// TestGetDeviceModes cobre a leitura em lote usada pela listagem de
+// dispositivos: sem isso, a tela faria uma consulta por dispositivo dentro
+// do laço — centenas de idas ao banco a cada carregamento de página.
+func TestGetDeviceModes(t *testing.T) {
+	t.Run("lista vazia não consulta o banco", func(t *testing.T) {
+		db := &dbFalso{}
+		h := &Handler{serviceDB: db}
+
+		modos, err := h.getDeviceModes(context.Background(), nil)
+		if err != nil {
+			t.Fatalf("getDeviceModes: %v", err)
+		}
+		if len(modos) != 0 {
+			t.Errorf("modos = %v, quero mapa vazio", modos)
+		}
+		if db.queryChamado {
+			t.Error("o banco foi consultado mesmo com a lista de ids vazia")
+		}
+	})
+
+	t.Run("dois dispositivos: 0 vira online, 1 vira standalone", func(t *testing.T) {
+		db := &dbFalso{queryRows: &rowsFalsas{linhas: []linhaModo{
+			{id: 1, valor: "0"},
+			{id: 2, valor: "1"},
+		}}}
+		h := &Handler{serviceDB: db}
+
+		modos, err := h.getDeviceModes(context.Background(), []int32{1, 2})
+		if err != nil {
+			t.Fatalf("getDeviceModes: %v", err)
+		}
+		if modos[1] != "online" {
+			t.Errorf("modos[1] = %q, quero %q", modos[1], "online")
+		}
+		if modos[2] != "standalone" {
+			t.Errorf("modos[2] = %q, quero %q", modos[2], "standalone")
+		}
+		if !db.queryChamado {
+			t.Error("o banco não foi consultado")
+		}
+	})
+
+	t.Run("dispositivo sem linha fica ausente do mapa", func(t *testing.T) {
+		// Só o dispositivo 1 tem linha em emulator.device_settings; o 2 é
+		// pedido mas não devolvido pela consulta — quem chama usa o padrão
+		// standalone, o mesmo recuo de getDeviceMode.
+		db := &dbFalso{queryRows: &rowsFalsas{linhas: []linhaModo{
+			{id: 1, valor: "0"},
+		}}}
+		h := &Handler{serviceDB: db}
+
+		modos, err := h.getDeviceModes(context.Background(), []int32{1, 2})
+		if err != nil {
+			t.Fatalf("getDeviceModes: %v", err)
+		}
+		if _, ok := modos[2]; ok {
+			t.Errorf("modos = %v, dispositivo 2 não deveria aparecer no mapa", modos)
+		}
+		if len(modos) != 1 {
+			t.Errorf("modos = %v, quero só o dispositivo 1", modos)
+		}
+	})
 }
 
 // TestSetDeviceModeRecusaValorInvalido: um modo desconhecido não pode

@@ -961,6 +961,22 @@ func (h *Handler) getCurrentDevicesWithFilters(filters map[string]string) ([]map
 		return nil, 0, err
 	}
 
+	// Modo de operação de todos os dispositivos numa consulta só. Uma
+	// consulta por dispositivo dentro do laço abaixo giraria centenas de
+	// idas ao banco a cada carregamento de página.
+	ids := make([]int32, 0, len(devices))
+	for _, device := range devices {
+		ids = append(ids, int32(device.ID))
+	}
+	modos, err := h.getDeviceModes(context.Background(), ids)
+	if err != nil {
+		// Falha de leitura não derruba a listagem: a coluna mostra o
+		// padrão e o erro fica no log. Uma tela de dispositivos em
+		// branco seria pior que uma coluna imprecisa.
+		h.tracer.Error("Failed to read device modes: %v", err)
+		modos = map[int]string{}
+	}
+
 	var currentDevices []map[string]interface{}
 	deviceStatusRunning := 0
 
@@ -971,6 +987,13 @@ func (h *Handler) getCurrentDevicesWithFilters(filters map[string]string) ([]map
 			status = "disabled"
 		} else if device.Status == "running" {
 			deviceStatusRunning++
+		}
+
+		// Dispositivo sem linha em emulator.device_settings usa o padrão
+		// standalone — o mesmo recuo de getDeviceMode.
+		modo, ok := modos[device.ID]
+		if !ok {
+			modo = modoStandalone
 		}
 
 		currentDevices = append(currentDevices, map[string]interface{}{
@@ -984,6 +1007,7 @@ func (h *Handler) getCurrentDevicesWithFilters(filters map[string]string) ([]map
 			"enabled":     device.Enabled,
 			"interval":    device.EventInterval,
 			"total":       device.TotalUsers,
+			"local_auth":  modo,
 		})
 	}
 
