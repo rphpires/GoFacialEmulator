@@ -104,7 +104,7 @@
       {{ range .devices }}
         <tr id="device_{{ .lc_id }}">
           <td class="text-center" id="lc_id">{{ .lc_id }}</td>
-          <td class="text-center">{{ .name }}</td>
+          <td class="text-center device-name-cell">{{ .name }}</td>
           <td class="text-center" id="port_no">{{ .port }}</td>
           <td class="text-center">
             <input 
@@ -129,6 +129,12 @@
               onclick="{{ if ne .status "disabled" }}stopSingleEmulator('{{.lc_id}}'){{ end }}"
               {{ if eq .status "disabled" }}title="Dispositivo desabilitado"{{ end }}>
                 <i class="bi bi-pause-fill"></i>
+            </a>
+            <a href="#"
+              class="btn btn-outline-primary btn-sm device-details-btn"
+              data-device-id="{{ .lc_id }}"
+              title="Acessar dados do dispositivo">
+                <i class="bi bi-eye"></i> Detalhes
             </a>
           </td>
           <td class="text-center">
@@ -594,4 +600,88 @@
 
 </style>
 
+
+<!-- Modal de detalhes do dispositivo -->
+<div class="modal fade" id="device-details-modal" tabindex="-1" aria-labelledby="device-details-title" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="device-details-title">Dispositivo</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body">
+        <ul class="nav nav-tabs" id="device-details-tabs" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="tab-users-btn" data-bs-toggle="tab" data-bs-target="#tab-users" type="button" role="tab">
+              <i class="bi bi-people"></i> Usuários
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-settings-btn" data-bs-toggle="tab" data-bs-target="#tab-settings" type="button" role="tab">
+              <i class="bi bi-sliders"></i> Configurações
+            </button>
+          </li>
+        </ul>
+
+        <div class="tab-content pt-3">
+          <div class="tab-pane fade show active" id="tab-users" role="tabpanel">
+            <div class="input-group mb-3">
+              <span class="input-group-text"><i class="bi bi-search"></i></span>
+              <input type="text" class="form-control" id="device-users-search" placeholder="Buscar por nome ou ID">
+            </div>
+
+            <div class="table-responsive">
+              <table class="table table-striped table-sm mb-2">
+                <thead>
+                  <tr>
+                    <th class="text-center">ID</th>
+                    <th>Nome</th>
+                    <th class="text-center">Cartão</th>
+                    <th class="text-center">Face</th>
+                    <th class="text-center">Validade</th>
+                  </tr>
+                </thead>
+                <tbody id="device-users-body">
+                  <tr><td colspan="5" class="text-center text-muted">Carregando...</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center">
+              <small class="text-muted" id="device-users-summary"></small>
+              <div class="btn-group">
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="device-users-prev">Anterior</button>
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="device-users-next">Próxima</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="tab-pane fade" id="tab-settings" role="tabpanel">
+            <div class="table-responsive">
+              <table class="table table-striped table-sm mb-0">
+                <thead>
+                  <tr>
+                    <th>Configuração</th>
+                    <th>Valor</th>
+                  </tr>
+                </thead>
+                <tbody id="device-settings-body">
+                  <tr><td colspan="2" class="text-center text-muted">Carregando...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{{ end }}
+
+{{ define "additional_js" }}
+<script src="/static/js/device-details.js"></script>
 {{ end }}
