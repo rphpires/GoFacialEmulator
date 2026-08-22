@@ -1,308 +1,36 @@
-<div class="col-auto px-0 bg-light" style="min-height: 100vh; transition: width 0.3s ease;" id="sidebar">
-  <div class="d-flex flex-column align-items-start px-2 pt-2">
+<nav class="rail" id="rail" aria-label="Navegação principal">
+  <button type="button" class="rail__item" id="rail-toggle"
+          aria-expanded="false" aria-controls="rail">
+    <svg class="icon" aria-hidden="true"><use href="/static/icons.svg#menu"></use></svg>
+    <span class="rail__label">Expandir</span>
+  </button>
 
-    <!-- Botão para expandir/compactar sidebar -->
-    <div class="w-100 mb-2 d-flex" id="toggleBtnContainer">
-      <button id="toggleSidebarBtn" class="btn btn-sm sidebar-toggle-btn" onclick="toggleSidebar()" title="Expandir menu">
-        <i class="bi bi-list fs-5" id="toggleSidebarIcon"></i>
-      </button>
-    </div>
+  <div class="rail__divider"></div>
 
-    <!-- Menu sempre visível em desktop, texto esconde em mobile -->
-    <ul class="nav flex-column w-100">
-      <li class="nav-item">
-        <a href="/" class="nav-link text-dark d-flex align-items-center p-2 sidebar-link">
-          <i class="bi bi-tablet fs-5 sidebar-icon"></i>
-          <span class="sidebar-text ms-2">Dispositivos</span>
-        </a>
-      </li>
-      <li class="nav-item">
-        <a href="/comparison" class="nav-link text-dark d-flex align-items-center p-2 sidebar-link">
-          <i class="bi bi-arrow-left-right fs-5 sidebar-icon"></i>
-          <span class="sidebar-text ms-2">Comparação</span>
-        </a>
-      </li>
-      <li class="nav-item">
-        <button class="nav-link text-success d-flex align-items-center w-100 border-0 bg-transparent p-2 sidebar-link"
-                onclick="start_all_emulators()"
-                title="Iniciar Todos">
-          <i class="bi bi-play-circle fs-5 sidebar-icon"></i>
-          <span class="sidebar-text ms-2">Iniciar Todos</span>
-        </button>
-      </li>
-      <li class="nav-item">
-        <button class="nav-link text-danger d-flex align-items-center w-100 border-0 bg-transparent p-2 sidebar-link"
-                onclick="stop_all_emulators()"
-                title="Parar Todos">
-          <i class="bi bi-stop-circle fs-5 sidebar-icon"></i>
-          <span class="sidebar-text ms-2">Parar Todos</span>
-        </button>
-      </li>
-      <li class="nav-item position-relative">
-        <button id="refresh-db-btn" class="nav-link text-primary d-flex align-items-center w-100 border-0 bg-transparent p-2 sidebar-link"
-                onclick="refreshDatabase()"
-                title="Refresh DB">
-          <i class="bi bi-arrow-clockwise fs-5 sidebar-icon" id="refresh-db-icon"></i>
-          <span class="sidebar-text ms-2">Refresh DB</span>
-          <span id="refresh-spinner" class="ms-2 spinner-border spinner-border-sm text-warning" role="status" style="display: none;">
-            <span class="visually-hidden">Sincronizando...</span>
-          </span>
-        </button>
-      </li>
-    </ul>
-  </div>
-</div>
+  <a href="/" class="rail__item" data-nav="/">
+    <svg class="icon" aria-hidden="true"><use href="/static/icons.svg#devices"></use></svg>
+    <span class="rail__label">Dispositivos</span>
+  </a>
 
-<script>
-  // Função para expandir/compactar sidebar
-  let sidebarExpanded = false;
+  <a href="/comparison" class="rail__item" data-nav="/comparison">
+    <svg class="icon" aria-hidden="true"><use href="/static/icons.svg#compare"></use></svg>
+    <span class="rail__label">Comparação</span>
+  </a>
 
-  function toggleSidebar() {
-    const sidebar = document.getElementById('sidebar');
-    const icon = document.getElementById('toggleSidebarIcon');
-    const toggleBtnContainer = document.getElementById('toggleBtnContainer');
-    const sidebarTexts = document.querySelectorAll('.sidebar-text');
-    const sidebarLinks = document.querySelectorAll('.sidebar-link');
+  <div class="rail__divider"></div>
 
-    sidebarExpanded = !sidebarExpanded;
+  <button type="button" class="rail__item rail__item--go" id="start-all" title="Iniciar todos">
+    <svg class="icon" aria-hidden="true"><use href="/static/icons.svg#play"></use></svg>
+    <span class="rail__label">Iniciar todos</span>
+  </button>
 
-    if (sidebarExpanded) {
-      // Expandir
-      sidebar.style.width = '200px';
-      icon.className = 'bi bi-chevron-double-left fs-5';
-      toggleBtnContainer.style.justifyContent = 'flex-end';
+  <button type="button" class="rail__item rail__item--danger" id="stop-all" title="Parar todos">
+    <svg class="icon" aria-hidden="true"><use href="/static/icons.svg#stop"></use></svg>
+    <span class="rail__label">Parar todos</span>
+  </button>
 
-      // Ajustar alinhamento dos links antes de mostrar textos
-      sidebarLinks.forEach(link => {
-        link.style.justifyContent = 'flex-start';
-      });
-
-      // Mostrar textos com delay para animação suave
-      setTimeout(() => {
-        sidebarTexts.forEach(text => {
-          text.style.display = 'inline';
-          text.style.opacity = '1';
-        });
-      }, 150);
-    } else {
-      // Compactar - fade out dos textos primeiro
-      sidebarTexts.forEach(text => {
-        text.style.opacity = '0';
-      });
-
-      // Aguardar fade out completar antes de esconder
-      setTimeout(() => {
-        sidebarTexts.forEach(text => {
-          text.style.display = 'none';
-        });
-      }, 200);
-
-      // Reduzir largura e ajustar elementos imediatamente (em paralelo com fade)
-      sidebar.style.width = '60px';
-      icon.className = 'bi bi-list fs-5';
-      toggleBtnContainer.style.justifyContent = 'center';
-
-      // Centralizar ícones
-      sidebarLinks.forEach(link => {
-        link.style.justifyContent = 'center';
-      });
-    }
-  }
-
-  // Inicializar sidebar compactado
-  document.addEventListener('DOMContentLoaded', function() {
-    const sidebar = document.getElementById('sidebar');
-    const toggleBtnContainer = document.getElementById('toggleBtnContainer');
-    const sidebarTexts = document.querySelectorAll('.sidebar-text');
-    const sidebarLinks = document.querySelectorAll('.sidebar-link');
-
-    sidebar.style.width = '60px';
-    toggleBtnContainer.style.justifyContent = 'center';
-    sidebarTexts.forEach(text => {
-      text.style.display = 'none';
-      text.style.opacity = '0';
-    });
-    sidebarLinks.forEach(link => {
-      link.style.justifyContent = 'center';
-    });
-  });
-
-  window.start_all_emulators = async () => {
-    try {
-      const response = await fetch('/start', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ devices: ["all"], enable_log: {} }),
-      });
-      
-      if (response.ok) {
-        console.log('Todos os emuladores iniciados');
-      } else {
-        console.error('Falha ao iniciar emuladores');
-      }
-    } catch (error) {
-      console.error('Erro ao iniciar emuladores:', error);
-      alert('Erro ao iniciar emuladores.');
-    }
-  };
-
-  window.stop_all_emulators = async () => {
-    try {
-      const response = await fetch('/stop', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ devices: ["all"] }),
-      });
-
-      if (response.ok) {
-        console.log('Todos os emuladores parados');
-      } else {
-        console.error('Falha ao parar emuladores');
-      }
-    } catch (error) {
-      console.error('Erro ao parar emuladores:', error);
-      alert('Erro ao parar emuladores.');
-    }
-  };
-
-  window.refreshDatabase = async () => {
-    // Criar e exibir modal informativo
-    const modalHtml = `
-      <div class="modal fade" id="refreshDbModal" tabindex="-1" aria-labelledby="refreshDbModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h5 class="modal-title" id="refreshDbModalLabel">
-                <i class="bi bi-info-circle text-primary me-2"></i>
-                Sincronização com W-Access
-              </h5>
-            </div>
-            <div class="modal-body">
-              <p>Esta operação irá sincronizar o serviço com a base de dados do <strong>W-Access</strong>.</p>
-              <p class="mb-0">Os dispositivos disponíveis e suas configurações serão atualizados. Isso pode levar alguns segundos...</p>
-            </div>
-            <div class="modal-footer">
-              <button type="button" class="btn btn-primary" data-bs-dismiss="modal" onclick="executeRefresh()">OK</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
-
-    // Remover modal anterior se existir
-    const existingModal = document.getElementById('refreshDbModal');
-    if (existingModal) {
-      existingModal.remove();
-    }
-
-    // Adicionar modal ao DOM
-    document.body.insertAdjacentHTML('beforeend', modalHtml);
-
-    // Exibir modal
-    const modal = new bootstrap.Modal(document.getElementById('refreshDbModal'));
-    modal.show();
-  };
-
-  window.executeRefresh = async () => {
-    const btn = document.getElementById('refresh-db-btn');
-    const spinner = document.getElementById('refresh-spinner');
-
-    // Desabilitar botão e mostrar badge de warning
-    btn.disabled = true;
-    spinner.style.display = 'inline-block';
-
-    try {
-      const response = await fetch('/refresh', {
-        method: 'GET',
-      });
-
-      if (response.ok) {
-        console.log('Database refresh iniciado em background');
-
-        // Polling para verificar quando a operação terminou
-        const checkCompletion = setInterval(async () => {
-          try {
-            const statusResponse = await fetch('/api/refresh-status');
-            const statusData = await statusResponse.json();
-
-            if (statusData.completed) {
-              clearInterval(checkCompletion);
-
-              // Restaurar botão e esconder spinner
-              btn.disabled = false;
-              spinner.style.display = 'none';
-
-              console.log('Database refresh concluído');
-            }
-          } catch (error) {
-            console.error('Erro ao verificar status:', error);
-          }
-        }, 1000); // Verificar a cada 1 segundo
-
-        // Timeout de segurança (60 segundos)
-        setTimeout(() => {
-          clearInterval(checkCompletion);
-          btn.disabled = false;
-          spinner.style.display = 'none';
-          console.log('Timeout na verificação de status - operação pode ainda estar em andamento');
-        }, 60000);
-
-      } else {
-        console.error('Falha ao iniciar refresh do database');
-        btn.disabled = false;
-        spinner.style.display = 'none';
-        alert('Erro ao iniciar atualização do database.');
-      }
-    } catch (error) {
-      console.error('Erro ao iniciar refresh:', error);
-      btn.disabled = false;
-      spinner.style.display = 'none';
-      alert('Erro ao iniciar atualização do database.');
-    }
-  };
-</script>
-
-<style>
-  /* Melhorar aparência dos botões do sidebar */
-  .nav-link {
-    transition: background-color 0.2s ease;
-  }
-
-  .nav-link:hover {
-    background-color: rgba(0,0,0,0.05) !important;
-  }
-
-  /* Botão toggle do sidebar */
-  .sidebar-toggle-btn {
-    border: 1px solid #dee2e6;
-    border-radius: 4px;
-    padding: 4px 8px;
-    background-color: white;
-    transition: all 0.2s ease;
-  }
-
-  .sidebar-toggle-btn:hover {
-    background-color: #f8f9fa;
-    border-color: #adb5bd;
-  }
-
-  /* Transições suaves para textos do sidebar */
-  .sidebar-text {
-    transition: opacity 0.2s ease;
-    white-space: nowrap;
-    opacity: 0;
-  }
-
-  .sidebar-link {
-    transition: justify-content 0.3s ease;
-  }
-
-  /* Transição suave do container do botão toggle */
-  #toggleBtnContainer {
-    transition: justify-content 0.3s ease;
-  }
-</style>
+  <button type="button" class="rail__item" id="sync-db" title="Sincronizar com o W-Access">
+    <svg class="icon" aria-hidden="true"><use href="/static/icons.svg#refresh"></use></svg>
+    <span class="rail__label">Sincronizar W-Access</span>
+  </button>
+</nav>

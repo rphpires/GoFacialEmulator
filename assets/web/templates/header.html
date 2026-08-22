@@ -1,58 +1,33 @@
-<nav class="navbar clean-header">
-  <div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center w-100">
-      <!-- Brand -->
-      <a class="navbar-brand" href="#">
-        <div class="brand-icon">
-          <i class="bi bi-cpu"></i>
-        </div>
-        <span>Facial Emulators</span>
-        {{ if .app_version }}
-        <span class="app-version">v{{ .app_version }}</span>
-        {{ end }}
-      </a>
+<header class="topbar">
+  <a class="topbar__brand" href="/">
+    <span class="topbar__mark">
+      <svg class="icon" aria-hidden="true"><use href="/static/icons.svg#devices"></use></svg>
+    </span>
+    Facial Emulators
+    {{ if .app_version }}
+    <span class="topbar__version">v{{ .app_version }}</span>
+    {{ end }}
+  </a>
 
-      <!-- Header Right -->
-      <div class="header-right">
-        <!-- Total de Emuladores -->
-        <div class="status-badge" id="totalBadge">
-          <span id="totalText"> Total: {{ .counter_cards.total | default 0 }} Emuladores </span>
-        </div>
-
-        <!-- Status dos Emuladores Ativos -->
-        <div class="status-badge" id="systemStatus">
-          <div class="status-dot" id="statusDot"></div>
-          <span id="statusText">{{ .counter_cards.running | default 0 }} Ativos</span>
-        </div>
-
-        <!-- Divider -->
-        <div class="header-divider"></div>
-
-        <!-- Botão Configurações -->
-        <a href="/settings" class="settings-btn" title="Configurações">
-          <i class="bi bi-gear"></i>
-        </a>
-
-        <!-- Logo da Empresa -->
-        <div class="logo-container">
-          <img src="/static/images/logo.png" 
-               alt="Invenzi Logo" 
-               class="company-logo" 
-               onerror="this.style.display='none'; document.getElementById('logoFallback').style.display='flex';">
-          
-          <!-- Fallback se a imagem não carregar -->
-          <div id="logoFallback" class="logo-fallback">INVENZI</div>
-        </div>
-      </div>
-    </div>
+  <!-- Fleet meter: um segmento por emulador. As contagens do servidor
+       semeiam o estado inicial; o FleetStream assume a partir do snapshot. -->
+  <div class="meter" id="fleet-meter"
+       data-total="{{ .counter_cards.total | default 0 }}"
+       data-running="{{ .counter_cards.running | default 0 }}"
+       data-stopped="{{ .counter_cards.stopped | default 0 }}"
+       data-disabled="{{ .counter_cards.disabled | default 0 }}">
+    <div class="meter__bar" id="meter-bar" role="img"
+         aria-label="Estado da frota de emuladores"></div>
+    <span class="meter__reading" id="meter-reading"></span>
+    <span class="meter__health" id="meter-health"></span>
   </div>
 
-  <!-- Dados para JavaScript (hidden) -->
-  <script type="application/json" id="headerData">
-    {
-      "total": {{ .counter_cards.total | default 0 }},
-      "running": {{ .counter_cards.running | default 0 }},
-      "stopped": {{ .counter_cards.stopped | default 0 }}
-    }
-  </script>
-</nav>
+  <span class="topbar__spacer"></span>
+
+  <a href="/settings" class="btn btn--icon" title="Configurações" aria-label="Configurações">
+    <svg class="icon" aria-hidden="true"><use href="/static/icons.svg#gear"></use></svg>
+  </a>
+
+  <img src="/static/images/logo.png" alt="Invenzi" class="topbar__logo" id="brand-logo">
+  <span class="topbar__logo-fallback" id="brand-logo-fallback" hidden>INVENZI</span>
+</header>

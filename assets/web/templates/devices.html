@@ -1,687 +1,246 @@
-{{ template "base.html" . }} {{ define "content" }}
+{{ define "title" }}Dispositivos - Facial Emulators{{ end }}
 
-<div class="container-fluid px-3">
-  <div class="row align-items-center mt-2 mb-2">
-    <div class="col-md-6">
-      <h4 class="mb-0">Dispositivos</h4>
-    </div>
-    <div class="col-md-6 text-end">
-      <button class="btn btn-outline-success btn-sm ms-2" onclick="start_emulators()">
-        <i class="bi bi-play-fill"></i> Iniciar
-      </button>
-      <button class="btn btn-outline-danger btn-sm ms-2" onclick="stop_emulators()">
-        <i class="bi bi-stop-fill"></i> Parar
-      </button>
-    </div>
+{{ define "content" }}
+
+<div class="page-head">
+  <h1>Dispositivos</h1>
+  <div class="page-head__actions">
+    <button type="button" class="btn btn--go" id="start-selected" disabled>
+      <svg class="icon" aria-hidden="true"><use href="/static/icons.svg#play"></use></svg>
+      Iniciar selecionados
+    </button>
+    <button type="button" class="btn btn--halt" id="stop-selected" disabled>
+      <svg class="icon" aria-hidden="true"><use href="/static/icons.svg#stop"></use></svg>
+      Parar selecionados
+    </button>
   </div>
+</div>
 
-  <div class="row mt-2">
-    <div class="col-12">
-      <div class="card filters-expanded" id="filters-card">
-        <div class="card-body">
-          <div class="d-flex justify-content-between align-items-center mb-3">
-            <h6 class="card-title mb-0">
-              <i class="bi bi-funnel"></i> Filtros
-            </h6>
-            <button 
-              type="button" 
-              class="btn btn-sm btn-outline-secondary" 
-              id="toggle-filters-btn"
-              onclick="toggleFilters()"
-              title="Expandir/Recolher filtros"
-            >
-              <i class="bi bi-chevron-up" id="toggle-filters-icon"></i>
-            </button>
-          </div>
-          
-          <div id="filters-content" class="collapse show">
-            <form id="filter-form" class="row g-3" onsubmit="applyFilters(event)">
-              <div class="col-md-3">
-                <label for="filter-id" class="form-label">LocalControllerID</label>
-                <input 
-                  type="number" 
-                  class="form-control" 
-                  id="filter-id" 
-                  name="id" 
-                  placeholder="Ex: 123"
-                  value="{{ .filters.id }}"
-                >
-              </div>
-              <div class="col-md-4">
-                <label for="filter-name" class="form-label">Nome</label>
-                <input 
-                  type="text" 
-                  class="form-control" 
-                  id="filter-name" 
-                  name="name" 
-                  placeholder="Ex: Dispositivo Principal"
-                  value="{{ .filters.name }}"
-                >
-              </div>
-              <div class="col-md-3">
-                <label for="filter-port" class="form-label">Port</label>
-                <input 
-                  type="number" 
-                  class="form-control" 
-                  id="filter-port" 
-                  name="port" 
-                  placeholder="Ex: 7070"
-                  value="{{ .filters.port }}"
-                >
-              </div>
-              <div class="col-md-2 d-flex align-items-end">
-                <button type="submit" class="btn btn-primary me-2">
-                  <i class="bi bi-search"></i> Filtrar
-                </button>
-                <button type="button" class="btn btn-outline-secondary" onclick="clearFilters()">
-                  Limpar
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      </div>
-    </div>
+<!-- Filtros sempre visíveis. O card colapsável antigo custava dois cliques
+     e mais um estado para três campos de texto. -->
+<form class="filters" id="filter-form" method="get" action="/">
+  <div class="field">
+    <label class="field__label" for="filter-id">LocalControllerID</label>
+    <input class="input input--mono" type="number" id="filter-id" name="id"
+           placeholder="123" value="{{ .filters.id }}">
   </div>
+  <div class="field">
+    <label class="field__label" for="filter-name">Nome</label>
+    <input class="input" type="text" id="filter-name" name="name"
+           placeholder="Portaria" value="{{ .filters.name }}">
+  </div>
+  <div class="field">
+    <label class="field__label" for="filter-port">Porta</label>
+    <input class="input input--mono" type="number" id="filter-port" name="port"
+           placeholder="7070" value="{{ .filters.port }}">
+  </div>
+  <input type="hidden" name="per_page" value="{{ .per_page }}">
+  <div class="filters__actions">
+    <button type="submit" class="btn btn--action">
+      <svg class="icon" aria-hidden="true"><use href="/static/icons.svg#search"></use></svg>
+      Filtrar
+    </button>
+    <a class="btn" href="/?per_page={{ .per_page }}">Limpar</a>
+  </div>
+</form>
 
-  <table class="table table-striped table-hover mt-3" id="device-table">
+<div class="table-wrap">
+  <table class="grid" id="device-grid">
     <thead>
       <tr>
-        <th scope="col" class="text-center">LocalControllerID</th>
-        <th scope="col" class="text-center">Nome</th>
-        <th scope="col" class="text-center">Port</th>
-        <th scope="col" class="text-center">Log</th>
-        <th scope="col" class="text-center">Event Interval (s)</th>
-        <th scope="col" class="text-center">Total Users</th>
-        <th scope="col" class="text-center">Commands</th>
-        <th scope="col" class="text-center">
-          <input type="checkbox" id="select-all" />
+        <th class="center">
+          <input type="checkbox" class="check" id="select-all"
+                 aria-label="Selecionar todos os dispositivos">
         </th>
-        <th scope="col" class="text-center">Status</th>
+        <th>ID</th>
+        <th>Nome</th>
+        <th>Modelo</th>
+        <th class="num">Porta</th>
+        <th class="center">Log</th>
+        <th class="num">Intervalo</th>
+        <th class="num">Usuários</th>
+        <th>Estado</th>
+        <th class="center">Ações</th>
       </tr>
     </thead>
     <tbody>
       {{ range .devices }}
-        <tr id="device_{{ .lc_id }}">
-          <td class="text-center" id="lc_id">{{ .lc_id }}</td>
-          <td class="text-center device-name-cell">{{ .name }}</td>
-          <td class="text-center" id="port_no">{{ .port }}</td>
-          <td class="text-center">
-            <input 
-              type="checkbox" 
-              class="log-checkbox" 
-              id="log_enabled_{{ .lc_id }}" 
-              {{ if eq .log_enabled 1 }}checked{{ end }}
-              {{ if or (eq .status "running") (eq .status "disabled") }} disabled {{ end }}
-            />
-          </td>
-          <td class="text-center">{{ .interval }}</td>
-          <td class="text-center">{{ .total }}</td>
-          <td class="text-center">
-            <a href="#" 
-              class="btn btn-outline-success btn-sm {{ if or (eq .status "running") (eq .status "disabled") }}btn-custom-disabled{{ end }}"
-              onclick="{{ if ne .status "disabled" }}startSingleEmulator('{{.lc_id}}', document.getElementById('log_enabled_{{ .lc_id }}').checked){{ end }}"
-              {{ if eq .status "disabled" }}title="Dispositivo desabilitado"{{ end }}>
-                <i class="bi bi-play-fill"></i>
-            </a>
-            <a href="#" 
-              class="btn btn-outline-danger btn-sm {{ if or (eq .status "stopped") (eq .status "disabled") }}btn-custom-disabled{{ end }}"
-              onclick="{{ if ne .status "disabled" }}stopSingleEmulator('{{.lc_id}}'){{ end }}"
-              {{ if eq .status "disabled" }}title="Dispositivo desabilitado"{{ end }}>
-                <i class="bi bi-pause-fill"></i>
-            </a>
-            <a href="#"
-              class="btn btn-outline-primary btn-sm device-details-btn"
-              data-device-id="{{ .lc_id }}"
-              title="Acessar dados do dispositivo">
-                <i class="bi bi-eye"></i> Detalhes
-            </a>
-          </td>
-          <td class="text-center">
-            <input type="checkbox" class="device-checkbox" />
-          </td>
-          
-          {{ if eq .status "running" }}
-          <td class="text-center">
-            <span class="border border-success" style="padding: 5px; border-radius: 5px; color: #117529;">{{ .status }}</span>
-          </td>
-          {{ else if eq .status "disabled" }}
-          <td class="text-center">
-            <span class="border border-secondary" style="padding: 5px; border-radius: 5px; color: #6c757d;">{{ .status }}</span>
-          </td>
-          {{ else }}
-          <td class="text-center">
-            <span class="border border-danger" style="padding: 5px; border-radius: 5px; color: #a70000;">{{ .status }}</span>
-          </td>
-          {{ end }}
-          
-        </tr>
+      <tr id="device-{{ .lc_id }}" data-id="{{ .lc_id }}" data-state="{{ .status }}">
+        <td class="center">
+          <input type="checkbox" class="check device-check"
+                 aria-label="Selecionar {{ .name }}">
+        </td>
+        <td>
+          <span class="grid__id">
+            <span class="led" data-state="{{ .status }}" aria-hidden="true"></span>
+            {{ .lc_id }}
+          </span>
+        </td>
+        <td class="grid__name device-name-cell" title="{{ .name }}">{{ .name }}</td>
+        <td>{{ .model }}</td>
+        <td class="num">{{ .port }}</td>
+        <td class="center">
+          <input type="checkbox" class="check log-check" data-id="{{ .lc_id }}"
+                 aria-label="Habilitar log para {{ .name }}"
+                 {{ if eq .log_enabled 1 }}checked{{ end }}
+                 {{ if ne .status "stopped" }}disabled{{ end }}>
+        </td>
+        <td class="num">{{ .interval }}s</td>
+        <td class="num">{{ .total }}</td>
+        <td>
+          <span class="badge" data-state="{{ .status }}">
+            <span class="led" data-state="{{ .status }}" aria-hidden="true"></span>
+            {{ if eq .status "running" }}ativo{{ else if eq .status "disabled" }}desabilitado{{ else }}parado{{ end }}
+          </span>
+        </td>
+        <td>
+          <!-- <button disabled>, não <a class="disabled">: o link falso
+               continuava focável e acionável por teclado. -->
+          <div class="row-actions">
+            <button type="button" class="btn btn--sm btn--go device-start"
+                    data-id="{{ .lc_id }}" title="Iniciar"
+                    {{ if ne .status "stopped" }}disabled{{ end }}>
+              <svg class="icon" aria-hidden="true"><use href="/static/icons.svg#play"></use></svg>
+              <span class="visually-hidden">Iniciar {{ .name }}</span>
+            </button>
+            <button type="button" class="btn btn--sm btn--halt device-stop"
+                    data-id="{{ .lc_id }}" title="Parar"
+                    {{ if ne .status "running" }}disabled{{ end }}>
+              <svg class="icon" aria-hidden="true"><use href="/static/icons.svg#stop"></use></svg>
+              <span class="visually-hidden">Parar {{ .name }}</span>
+            </button>
+            <button type="button" class="btn btn--sm device-details-btn"
+                    data-device-id="{{ .lc_id }}" title="Acessar dados do dispositivo">
+              <svg class="icon" aria-hidden="true"><use href="/static/icons.svg#users"></use></svg>
+              <span class="visually-hidden">Detalhes de {{ .name }}</span>
+            </button>
+          </div>
+        </td>
+      </tr>
+      {{ else }}
+      <tr>
+        <td colspan="10">
+          <div class="empty">
+            <p class="empty__title">Nenhum dispositivo encontrado</p>
+            <p>Ajuste os filtros ou sincronize com o W-Access para trazer os dispositivos.</p>
+            <a class="btn btn--action" href="/?per_page={{ .per_page }}">Limpar filtros</a>
+          </div>
+        </td>
+      </tr>
       {{ end }}
     </tbody>
   </table>
-
-  <div class="d-flex justify-content-center align-items-center position-relative">
-    <div class="d-flex align-items-center position-absolute start-0">
-      <label for="per-page-select" class="form-label mb-0 me-2">Itens por página:</label>
-      <select id="per-page-select" class="form-select" style="width: auto;" onchange="changePerPage()">
-        <option value="5" {{ if eq .per_page 5 }}selected{{ end }}>5</option>
-        <option value="10" {{ if eq .per_page 10 }}selected{{ end }}>10</option>
-        <option value="20" {{ if eq .per_page 20 }}selected{{ end }}>20</option>
-      </select>
-    </div>
-
-    <nav>
-      <ul class="pagination mb-0">
-        <li class="page-item {{ if eq .page 1 }}disabled{{ end }}">
-          <a class="page-link" href="/?page={{ sub .page 1 }}&per_page={{ .per_page }}{{ if .filters.id }}&id={{ .filters.id }}{{ end }}{{ if .filters.name }}&name={{ .filters.name }}{{ end }}{{ if .filters.port }}&port={{ .filters.port }}{{ end }}">Anterior</a>
-        </li>
-        {{ range $p := .page_range }}
-        <li class="page-item {{ if eq $.page $p }}active{{ end }}">
-          <a class="page-link" href="/?page={{ $p }}&per_page={{ $.per_page }}{{ if $.filters.id }}&id={{ $.filters.id }}{{ end }}{{ if $.filters.name }}&name={{ $.filters.name }}{{ end }}{{ if $.filters.port }}&port={{ $.filters.port }}{{ end }}">{{ $p }}</a>
-        </li>
-        {{ end }}
-        <li class="page-item {{ if eq .page .total_pages }}disabled{{ end }}">
-          <a class="page-link" href="/?page={{ add .page 1 }}&per_page={{ .per_page }}{{ if .filters.id }}&id={{ .filters.id }}{{ end }}{{ if .filters.name }}&name={{ .filters.name }}{{ end }}{{ if .filters.port }}&port={{ .filters.port }}{{ end }}">Próxima</a>
-        </li>
-      </ul>
-    </nav>
-  </div>
-
 </div>
 
-<!-- SUBSTITUIR o script existente no final de devices.html por este: -->
+<div class="pager">
+  <div class="field field--inline">
+    <label class="field__label" for="per-page">Itens por página</label>
+    <select class="select" id="per-page">
+      <option value="5" {{ if eq .per_page 5 }}selected{{ end }}>5</option>
+      <option value="10" {{ if eq .per_page 10 }}selected{{ end }}>10</option>
+      <option value="20" {{ if eq .per_page 20 }}selected{{ end }}>20</option>
+      <option value="50" {{ if eq .per_page 50 }}selected{{ end }}>50</option>
+    </select>
+  </div>
 
-<script>
-  function changePerPage() {
-    const perPage = document.getElementById('per-page-select').value;
-    window.location.href = `/?page=1&per_page=${perPage}`;
-  }
+  <nav class="pager__pages" aria-label="Paginação">
+    <a class="pager__page" href="/?page={{ sub .page 1 }}&per_page={{ .per_page }}{{ if .filters.id }}&id={{ .filters.id }}{{ end }}{{ if .filters.name }}&name={{ .filters.name }}{{ end }}{{ if .filters.port }}&port={{ .filters.port }}{{ end }}"
+       {{ if eq .page 1 }}aria-disabled="true"{{ end }} aria-label="Página anterior">
+      <svg class="icon" aria-hidden="true"><use href="/static/icons.svg#chevron-left"></use></svg>
+    </a>
+    {{ range $p := .page_range }}
+    <a class="pager__page" href="/?page={{ $p }}&per_page={{ $.per_page }}{{ if $.filters.id }}&id={{ $.filters.id }}{{ end }}{{ if $.filters.name }}&name={{ $.filters.name }}{{ end }}{{ if $.filters.port }}&port={{ $.filters.port }}{{ end }}"
+       {{ if eq $.page $p }}aria-current="page"{{ end }}>{{ $p }}</a>
+    {{ end }}
+    <a class="pager__page" href="/?page={{ add .page 1 }}&per_page={{ .per_page }}{{ if .filters.id }}&id={{ .filters.id }}{{ end }}{{ if .filters.name }}&name={{ .filters.name }}{{ end }}{{ if .filters.port }}&port={{ .filters.port }}{{ end }}"
+       {{ if eq .page .total_pages }}aria-disabled="true"{{ end }} aria-label="Próxima página">
+      <svg class="icon" aria-hidden="true"><use href="/static/icons.svg#chevron-right"></use></svg>
+    </a>
+  </nav>
+</div>
 
-  document.addEventListener('DOMContentLoaded', () => {
-    const selectAllCheckbox = document.getElementById('select-all');
-    const deviceCheckboxes = document.querySelectorAll('.device-checkbox');
+<div class="drawer-scrim" id="drawer-scrim" hidden></div>
 
-    function setAllCheckboxes(checked) {
-      deviceCheckboxes.forEach(checkbox => {
-        checkbox.checked = checked;
-      });
-    }
-    
-    selectAllCheckbox.addEventListener('change', (event) => {
-      setAllCheckboxes(event.target.checked);
-    });
+<aside class="drawer" id="device-drawer" data-open="false"
+       role="dialog" aria-modal="true" aria-labelledby="drawer-title" hidden>
+  <div class="drawer__head">
+    <h2 class="drawer__title" id="drawer-title">
+      <span class="led" id="drawer-led" aria-hidden="true"></span>
+      <span id="drawer-name">Dispositivo</span>
+    </h2>
+    <button type="button" class="btn btn--icon drawer__close" id="drawer-close"
+            aria-label="Fechar">
+      <svg class="icon" aria-hidden="true"><use href="/static/icons.svg#close"></use></svg>
+    </button>
+  </div>
 
-    deviceCheckboxes.forEach(checkbox => {
-      checkbox.addEventListener('change', () => {
-        const allChecked = Array.from(deviceCheckboxes).every(checkbox => checkbox.checked);
-        const anyChecked = Array.from(deviceCheckboxes).some(checkbox => checkbox.checked);
-        
-        selectAllCheckbox.checked = allChecked;
-        selectAllCheckbox.indeterminate = !allChecked && anyChecked;
-      });
-    });
+  <div class="drawer__tabs" role="tablist">
+    <button type="button" class="drawer__tab" role="tab" id="tab-users"
+            data-tab="users" aria-selected="true" aria-controls="panel-users">Usuários</button>
+    <button type="button" class="drawer__tab" role="tab" id="tab-settings"
+            data-tab="settings" aria-selected="false" aria-controls="panel-settings">Configurações</button>
+  </div>
 
-    // Função para obter IDs dos dispositivos selecionados
-    function getSelectedDevices() {
-      console.log("getSelectedDevices")
-      const selectedDevices = [];
-      const deviceCheckboxes = document.querySelectorAll('input.device-checkbox');
+  <div class="drawer__body">
+    <section id="panel-users" role="tabpanel" aria-labelledby="tab-users">
+      <input class="input input--block" type="search" id="users-search"
+             placeholder="Buscar por nome ou ID" aria-label="Buscar usuário">
 
-      deviceCheckboxes.forEach((checkbox) => {
-        if (checkbox.checked) {
-          const row = checkbox.closest('tr');
-          const portElement = row.querySelector('td#lc_id');
-
-          if (row && portElement) {
-            const port = portElement.textContent.trim();
-            selectedDevices.push(port);
-          }
-        }
-      });
-      return selectedDevices;
-    }
-
-    // Função para obter configurações de log
-    function getSelectedDevicesLog() {
-      const selectedDevicesLog = {};
-      const deviceCheckboxes = document.querySelectorAll('input.device-checkbox');
-
-      deviceCheckboxes.forEach((checkbox) => {
-        if (checkbox.checked) {
-          const row = checkbox.closest('tr');
-          const portElement = row.querySelector('td#lc_id');
-          const logCheckbox = row.querySelector('.log-checkbox');
-
-          if (row && portElement && logCheckbox) {
-            const port = portElement.textContent.trim();
-            selectedDevicesLog[port] = logCheckbox.checked;
-          }
-        }
-      });
-      return selectedDevicesLog;
-    }
-
-    // Função chamada ao clicar em "Iniciar"
-    window.start_emulators = async () => {
-      const selectedDevices = getSelectedDevices();
-      const selectedDevicesLog = getSelectedDevicesLog();
-
-      if (selectedDevices.length > 0) {
-        try {
-          const response = await fetch('/start', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ devices: selectedDevices, enable_log: selectedDevicesLog }),
-          });
-
-          if (response.ok) {
-            alert('Emuladores iniciados com sucesso!');
-          } else {
-            alert('Falha ao iniciar emuladores.');
-          }
-        } catch (error) {
-          console.error('Erro ao iniciar emuladores:', error);
-          alert('Erro ao iniciar emuladores.');
-        }
-      } else {
-        alert('Nenhum dispositivo selecionado.');
-      }
-    };
-
-    // Função chamada ao clicar em "Parar"
-    window.stop_emulators = async () => {
-      const selectedDevices = getSelectedDevices();
-      if (selectedDevices.length > 0) {
-        try {
-          const response = await fetch('/stop', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ devices: selectedDevices }),
-          });
-
-          if (response.ok) {
-            alert('Emuladores parados com sucesso!');
-          } else {
-            alert('Falha ao parar emuladores.');
-          }
-        } catch (error) {
-          console.error('Erro ao parar emuladores:', error);
-          alert('Erro ao parar emuladores.');
-        }
-      } else {
-        alert('Nenhum dispositivo selecionado.');
-      }
-    };
-
-    // NOVA FUNCIONALIDADE: Server-Sent Events para atualizações em tempo real
-    const eventSource = new EventSource('/events');
-    
-    eventSource.onopen = function(event) {
-      console.log('SSE connection opened:', event);
-    };
-
-    eventSource.onmessage = function(event) {
-      console.log('SSE message received:', event.data); // LOG ADICIONADO
-      try {
-        const data = JSON.parse(event.data);
-        console.log('Status update received:', data);
-        
-        // Atualizar status do dispositivo específico
-        updateDeviceStatus(data.device_id, data.status);
-        
-        // Atualizar contadores
-        updateCounters(data.running_count, data.stopped_count, data.total_count);
-        
-      } catch (error) {
-        console.error('Error parsing SSE data:', error);
-      }
-    };
-    
-    eventSource.onerror = function(event) {
-      console.error('SSE connection error:', event);
-      console.log('SSE readyState:', eventSource.readyState); // LOG ADICIONADO
-    };
-
-    // Função para atualizar status de um dispositivo específico
-    function updateDeviceStatus(deviceId, status) {
-      const deviceRow = document.querySelector(`#device_${deviceId}`);
-      if (!deviceRow) return;
-      
-      // Encontrar a célula de status
-      const statusCells = deviceRow.querySelectorAll('td');
-      const statusCell = statusCells[statusCells.length - 1]; // Última coluna é o status
-      
-      if (statusCell) {
-        let statusClass = '';
-        let statusColor = '';
-        
-        if (status === 'running') {
-          statusClass = 'border-success';
-          statusColor = '#117529';
-        } else if (status === 'disabled') {
-          statusClass = 'border-secondary';
-          statusColor = '#6c757d';
-        } else if (status === 'error') {
-          statusClass = 'border-warning';
-          statusColor = '#856404';
-          status = 'error'; // Mostrar erro temporariamente
-        } else {
-          statusClass = 'border-danger';
-          statusColor = '#a70000';
-        }
-        
-        statusCell.innerHTML = `
-          <span class="border ${statusClass}" style="padding: 5px; border-radius: 5px; color: ${statusColor};">
-            ${status}
-          </span>
-        `;
-      }
-      
-      // Atualizar botões de controle
-      const startButton = deviceRow.querySelector('.btn-outline-success');
-      const stopButton = deviceRow.querySelector('.btn-outline-danger');
-      const logCheckbox = deviceRow.querySelector('.log-checkbox');
-      
-      if (startButton && stopButton && logCheckbox) {
-        if (status === 'running') {
-          startButton.classList.add('btn-custom-disabled');
-          stopButton.classList.remove('btn-custom-disabled');
-          logCheckbox.disabled = true;
-        } else if (status === 'disabled') {
-          // Dispositivo desabilitado - todos os controles ficam desabilitados
-          startButton.classList.add('btn-custom-disabled');
-          stopButton.classList.add('btn-custom-disabled');
-          logCheckbox.disabled = true;
-        } else {
-          startButton.classList.remove('btn-custom-disabled');
-          stopButton.classList.add('btn-custom-disabled');
-          logCheckbox.disabled = false;
-        }
-      }
-    }
-
-    // Função para atualizar contadores no header
-    function updateCounters(runningCount, stoppedCount, totalCount) {
-      const runningCounter = document.querySelector('#counter_running');
-      const stoppedCounter = document.querySelector('#counter_stopped');
-      const totalCounter = document.querySelector('#counter_total');
-      
-      if (runningCounter) runningCounter.textContent = runningCount;
-      if (stoppedCounter) stoppedCounter.textContent = stoppedCount;
-      if (totalCounter) totalCounter.textContent = totalCount;
-    }
-  });
-
-  function startSingleEmulator(port, isChecked) {
-    console.log("##startSingleEmulator ");
-    const enableLog = {};
-    enableLog[port] = isChecked;
-    
-    const body = JSON.stringify({ devices: [port], enable_log: enableLog })
-    console.log(`startSingleEmulator: body= ${body}`)
-    
-    fetch('/start', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: body,
-    })
-    .catch(error => {
-      console.error(`Erro ao iniciar o emulador na porta ${port}:`, error);
-      alert(`Erro ao iniciar o emulador na porta ${port}.`);
-    });
-  }
-
-  function stopSingleEmulator(port) {
-    fetch('/stop', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ devices: [port] }),
-    })
-    .catch(error => {
-      console.error(`Erro ao parar o emulador na porta ${port}:`, error);
-      alert(`Erro ao parar o emulador na porta ${port}.`);
-    });
-  }
-  
-  function applyFilters(event) {
-    event.preventDefault();
-    
-    const formData = new FormData(event.target);
-    const params = new URLSearchParams();
-    
-    // Adicionar filtros apenas se tiverem valor
-    const id = formData.get('id');
-    const name = formData.get('name');
-    const port = formData.get('port');
-    
-    if (id && id.trim()) params.append('id', id.trim());
-    if (name && name.trim()) params.append('name', name.trim());
-    if (port && port.trim()) params.append('port', port.trim());
-    
-    // Resetar para página 1 quando aplicar filtros
-    params.append('page', '1');
-    params.append('per_page', document.getElementById('per-page-select').value);
-    
-    // Redirecionar com os filtros
-    window.location.href = `/?${params.toString()}`;
-  }
-
-  function clearFilters() {
-    window.location.href = `/?page=1&per_page=${document.getElementById('per-page-select').value}`;
-  }
-
-  // Atualizar a função changePerPage para manter os filtros
-  function changePerPage() {
-    const perPage = document.getElementById('per-page-select').value;
-    const urlParams = new URLSearchParams(window.location.search);
-    
-    urlParams.set('page', '1');
-    urlParams.set('per_page', perPage);
-    
-    window.location.href = `/?${urlParams.toString()}`;
-  }
-
-  function toggleFilters() {
-    const filtersContent = document.getElementById('filters-content');
-    const toggleIcon = document.getElementById('toggle-filters-icon');
-    const filtersCard = document.getElementById('filters-card');
-    
-    if (filtersContent.classList.contains('show')) {
-      // Recolher filtros
-      filtersContent.classList.remove('show');
-      toggleIcon.className = 'bi bi-chevron-down';
-      filtersCard.className = 'card filters-collapsed';
-    } else {
-      // Expandir filtros
-      filtersContent.classList.add('show');
-      toggleIcon.className = 'bi bi-chevron-up';
-      filtersCard.className = 'card filters-expanded';
-    }
-  }
-
-  // Verificar se há filtros ativos e manter expandido se houver
-  document.addEventListener('DOMContentLoaded', function() {
-    const filterInputs = document.querySelectorAll('#filter-form input');
-    const filtersContent = document.getElementById('filters-content');
-    const toggleIcon = document.getElementById('toggle-filters-icon');
-    const filtersCard = document.getElementById('filters-card');
-    let hasActiveFilters = false;
-    
-    filterInputs.forEach(input => {
-      if (input.value && input.value.trim() !== '') {
-        hasActiveFilters = true;
-      }
-    });
-    
-    // Se houver filtros ativos, manter expandido
-    if (hasActiveFilters) {
-      filtersContent.classList.add('show');
-      toggleIcon.className = 'bi bi-chevron-up';
-      filtersCard.className = 'card filters-expanded';
-    } else {
-      // Se não houver filtros, iniciar recolhido
-      filtersContent.classList.remove('show');
-      toggleIcon.className = 'bi bi-chevron-down';
-      filtersCard.className = 'card filters-collapsed';
-    }
-  });
-
-</script>
-
-<style>
-  .btn-custom-disabled {
-    background-color: #d3d3d3; /* Cinza claro */
-    border-color: #d3d3d3; /* Cinza claro */
-    color: #a9a9a9; /* Cinza escuro para o texto */
-    cursor: not-allowed;
-  }
-
-  .btn-custom-disabled i {
-    color: #a9a9a9; /* Cinza escuro para o ícone */
-  }
-
-  .btn-custom-disabled:hover {
-    background-color: #d3d3d3; /* Mantém a cor cinza claro ao passar o mouse */
-    border-color: #d3d3d3; /* Mantém a cor cinza claro ao passar o mouse */
-  }    
-
-  
-  .collapse {
-    visibility: hidden;
-    height: 0;
-    overflow: hidden;
-    transition: height 0.3s ease, visibility 0.3s ease;
-  }
-
-  .collapse.show {
-    visibility: visible;
-    height: auto;
-  }
-
-  /* Ajustar espaçamento baseado no estado dos filtros */
-  .filters-collapsed .card-body {
-    padding-bottom: 0.5rem !important;
-  }
-
-  .filters-collapsed .d-flex.justify-content-between.align-items-center.mb-3 {
-    margin-bottom: 5px !important;
-  }
-
-  .filters-expanded .card-body {
-    padding-bottom: 1.25rem !important;
-  }
-
-  .filters-expanded .d-flex.justify-content-between.align-items-center.mb-3 {
-    margin-bottom: 1rem !important;
-  }
-
-  #toggle-filters-btn {
-    border: 1px solid #dee2e6;
-    background-color: #f8f9fa;
-    transition: all 0.2s ease;
-  }
-
-  #toggle-filters-btn:hover {
-    background-color: #e9ecef;
-    border-color: #adb5bd;
-  }
-
-  #toggle-filters-icon {
-    transition: transform 0.2s ease;
-  }
-
-</style>
-
-
-<!-- Modal de detalhes do dispositivo -->
-<div class="modal fade" id="device-details-modal" tabindex="-1" aria-labelledby="device-details-title" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-scrollable">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="device-details-title">Dispositivo</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      <div class="table-wrap">
+        <table class="grid">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Nome</th>
+              <th>Cartão</th>
+              <th class="center">Face</th>
+              <th class="num">Validade</th>
+            </tr>
+          </thead>
+          <tbody id="users-body"></tbody>
+        </table>
       </div>
-      <div class="modal-body">
-        <ul class="nav nav-tabs" id="device-details-tabs" role="tablist">
-          <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="tab-users-btn" data-bs-toggle="tab" data-bs-target="#tab-users" type="button" role="tab">
-              <i class="bi bi-people"></i> Usuários
-            </button>
-          </li>
-          <li class="nav-item" role="presentation">
-            <button class="nav-link" id="tab-settings-btn" data-bs-toggle="tab" data-bs-target="#tab-settings" type="button" role="tab">
-              <i class="bi bi-sliders"></i> Configurações
-            </button>
-          </li>
-        </ul>
 
-        <div class="tab-content pt-3">
-          <div class="tab-pane fade show active" id="tab-users" role="tabpanel">
-            <div class="input-group mb-3">
-              <span class="input-group-text"><i class="bi bi-search"></i></span>
-              <input type="text" class="form-control" id="device-users-search" placeholder="Buscar por nome ou ID">
-            </div>
-
-            <div class="table-responsive">
-              <table class="table table-striped table-sm mb-2">
-                <thead>
-                  <tr>
-                    <th class="text-center">ID</th>
-                    <th>Nome</th>
-                    <th class="text-center">Cartão</th>
-                    <th class="text-center">Face</th>
-                    <th class="text-center">Validade</th>
-                  </tr>
-                </thead>
-                <tbody id="device-users-body">
-                  <tr><td colspan="5" class="text-center text-muted">Carregando...</td></tr>
-                </tbody>
-              </table>
-            </div>
-
-            <div class="d-flex justify-content-between align-items-center">
-              <small class="text-muted" id="device-users-summary"></small>
-              <div class="btn-group">
-                <button type="button" class="btn btn-outline-secondary btn-sm" id="device-users-prev">Anterior</button>
-                <button type="button" class="btn btn-outline-secondary btn-sm" id="device-users-next">Próxima</button>
-              </div>
-            </div>
-          </div>
-
-          <div class="tab-pane fade" id="tab-settings" role="tabpanel">
-            <div class="table-responsive">
-              <table class="table table-striped table-sm mb-0">
-                <thead>
-                  <tr>
-                    <th>Configuração</th>
-                    <th>Valor</th>
-                  </tr>
-                </thead>
-                <tbody id="device-settings-body">
-                  <tr><td colspan="2" class="text-center text-muted">Carregando...</td></tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
+      <div class="pager">
+        <span class="meter__reading" id="users-summary"></span>
+        <div class="pager__pages">
+          <button type="button" class="btn btn--sm" id="users-prev">Anterior</button>
+          <button type="button" class="btn btn--sm" id="users-next">Próxima</button>
         </div>
       </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+    </section>
+
+    <section id="panel-settings" role="tabpanel" aria-labelledby="tab-settings" hidden>
+      <div class="panel panel--wide">
+        <div class="panel__head">Emulador</div>
+        <div class="panel__body">
+          <label class="field field--inline">
+            <input type="checkbox" class="check" id="drawer-log">
+            <span>Gravar log de eventos</span>
+          </label>
+          <button type="button" class="btn btn--action self-start" id="drawer-save-log">Salvar</button>
+        </div>
       </div>
-    </div>
+
+      <p class="label">Configurações gravadas pelo gerenciador</p>
+      <div class="table-wrap">
+        <table class="grid">
+          <thead>
+            <tr>
+              <th>Configuração</th>
+              <th>Valor</th>
+            </tr>
+          </thead>
+          <tbody id="settings-body"></tbody>
+        </table>
+      </div>
+    </section>
   </div>
-</div>
+</aside>
 
 {{ end }}
 
 {{ define "additional_js" }}
-<script src="/static/js/device-details.js"></script>
+<script src="/static/js/device-drawer.js"></script>
+<script src="/static/js/devices.js"></script>
 {{ end }}

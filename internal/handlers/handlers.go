@@ -900,6 +900,12 @@ func (h *Handler) testWxsConnection(c *gin.Context) {
 		return
 	}
 
+	// Mesma regra do salvar: senha em branco significa "usar a gravada",
+	// senão testar sem redigitar a senha falharia sempre.
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	manterSenhaGravada(ctx, h, &settings)
+
 	// Testar conexão
 	err := database.TestWxsConnection(&settings)
 	if err != nil {
@@ -916,6 +922,28 @@ func (h *Handler) testWxsConnection(c *gin.Context) {
 	})
 }
 
+// manterSenhaGravada preenche a senha a partir do que já está no banco
+// quando o formulário a envia em branco.
+//
+// A página de configurações não devolve a senha gravada para o browser —
+// antes ela vinha no atributo value= do HTML. Sem esta guarda, salvar sem
+// redigitar a senha apagaria a credencial do W-Access e derrubaria a
+// integração inteira.
+func manterSenhaGravada(ctx context.Context, h *Handler, settings *database.WxsSettings) {
+	if settings.Password != "" {
+		return
+	}
+
+	atual, err := database.GetWxsSettingsFromDB(ctx, h.serviceDB)
+	if err != nil {
+		h.tracer.Error("Failed to load current WXS settings: %v", err)
+		return
+	}
+	if atual != nil {
+		settings.Password = atual.Password
+	}
+}
+
 // saveWxsSettings salva as configurações WXS e reconecta
 func (h *Handler) saveWxsSettings(c *gin.Context) {
 	var settings database.WxsSettings
@@ -929,6 +957,8 @@ func (h *Handler) saveWxsSettings(c *gin.Context) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+
+	manterSenhaGravada(ctx, h, &settings)
 
 	// Salvar no banco
 	err := database.SaveWxsSettingsFromDB(ctx, h.serviceDB, &settings)

@@ -1,0 +1,115 @@
+/* ========================================
+   Base — reset e elementos
+   ======================================== */
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html {
+    -webkit-text-size-adjust: 100%;
+}
+
+body {
+    margin: 0;
+    /* Pintado explicitamente: a aplicação assume tema escuro único, então
+       nada pode herdar o fundo do agente do usuário. */
+    background: var(--ink-900);
+    color: var(--text-hi);
+    font-family: var(--font-ui);
+    font-size: var(--size-md);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+    margin: 0;
+    font-weight: 600;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+}
+
+h1 {
+    font-size: var(--size-lg);
+}
+
+h2 {
+    font-size: var(--size-md);
+}
+
+h3 {
+    font-size: var(--size-sm);
+}
+
+p {
+    margin: 0 0 var(--gap-3);
+}
+
+a {
+    color: var(--signal);
+    text-decoration: none;
+}
+
+a:hover {
+    color: var(--signal-hi);
+}
+
+/* Um único anel de foco para toda a aplicação. Laranja porque foco é
+   affordance de ação, e o laranja está reservado para isso. */
+:focus-visible {
+    outline: 2px solid var(--signal);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+}
+
+:focus:not(:focus-visible) {
+    outline: none;
+}
+
+/* Números em tabela precisam alinhar coluna a coluna. */
+.mono {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: var(--size-sm);
+}
+
+.label {
+    font-size: var(--size-xs);
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-mid);
+}
+
+.icon {
+    width: 1em;
+    height: 1em;
+    fill: currentColor;
+    flex: none;
+}
+
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}

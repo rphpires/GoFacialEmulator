@@ -1,0 +1,722 @@
+/* ========================================
+   Componentes
+   ======================================== */
+
+/* ----------------------------------------
+   Fleet meter — elemento assinatura.
+   Um segmento por emulador, colorido por estado: a frota inteira legível
+   sem ler número nenhum. O mesmo vocabulário de cor reaparece no LED de
+   cada linha da tabela.
+   ---------------------------------------- */
+
+.meter {
+    display: flex;
+    align-items: center;
+    gap: var(--gap-3);
+}
+
+.meter__bar {
+    display: flex;
+    gap: 2px;
+    align-items: stretch;
+    height: 20px;
+    min-width: 120px;
+    padding: 3px;
+    background: var(--ink-800);
+    border: 1px solid var(--ink-600);
+    border-radius: var(--radius-sm);
+}
+
+.meter__seg {
+    flex: 1 1 3px;
+    min-width: 2px;
+    max-width: 6px;
+    border-radius: 1px;
+    background: var(--idle);
+    transition: background 0.3s var(--ease);
+}
+
+.meter__seg[data-state='running'] {
+    background: var(--live);
+}
+
+.meter__seg[data-state='stopped'] {
+    background: var(--halt);
+}
+
+.meter__seg[data-state='disabled'] {
+    background: var(--ink-600);
+}
+
+.meter__reading {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: var(--size-sm);
+    color: var(--text-mid);
+    white-space: nowrap;
+}
+
+.meter__reading b {
+    color: var(--live);
+    font-weight: 500;
+}
+
+/* Saúde do stream. 'live' não mostra nada: silêncio é o estado normal e
+   um selo verde permanente vira ruído. */
+.meter__health {
+    font-size: var(--size-xs);
+    color: var(--warn);
+    white-space: nowrap;
+}
+
+.meter__health:empty {
+    display: none;
+}
+
+/* ----------------------------------------
+   LED de estado
+   ---------------------------------------- */
+
+.led {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--idle);
+    vertical-align: middle;
+}
+
+.led[data-state='running'] {
+    background: var(--live);
+    box-shadow: 0 0 6px color-mix(in srgb, var(--live) 55%, transparent);
+}
+
+.led[data-state='stopped'] {
+    background: var(--halt);
+}
+
+.led[data-state='disabled'] {
+    background: var(--ink-500);
+}
+
+/* Flash de transição: a mudança em tempo real precisa ser percebida, não
+   só refletida. */
+@keyframes led-flash {
+    0% {
+        transform: scale(1);
+    }
+
+    35% {
+        transform: scale(2.1);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+.led--flash {
+    animation: led-flash 0.5s var(--ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .led--flash {
+        animation: none;
+    }
+}
+
+/* ----------------------------------------
+   Botões
+   ---------------------------------------- */
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--gap-2);
+    height: 32px;
+    padding: 0 var(--gap-3);
+    border: 1px solid var(--ink-500);
+    border-radius: var(--radius-md);
+    background: var(--ink-700);
+    color: var(--text-hi);
+    font: inherit;
+    font-size: var(--size-sm);
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background 0.15s var(--ease), border-color 0.15s var(--ease);
+}
+
+.btn:hover:not(:disabled) {
+    background: var(--ink-600);
+    border-color: var(--ink-500);
+}
+
+.btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.btn--action {
+    background: var(--signal-dim);
+    border-color: var(--signal);
+    color: var(--signal);
+}
+
+.btn--action:hover:not(:disabled) {
+    background: var(--signal);
+    color: var(--ink-900);
+}
+
+.btn--go:hover:not(:disabled) {
+    border-color: var(--live);
+    color: var(--live);
+}
+
+.btn--halt:hover:not(:disabled) {
+    border-color: var(--halt);
+    color: var(--halt);
+}
+
+.btn--icon {
+    width: 32px;
+    padding: 0;
+}
+
+.btn--sm {
+    height: 26px;
+    padding: 0 var(--gap-2);
+}
+
+/* Estado pendente: a ação foi enviada e ainda não voltou. Antes, start e
+   stop eram fire-and-forget e a linha ficava idêntica até o SSE chegar. */
+.btn[data-pending='true'] {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+/* ----------------------------------------
+   Campos
+   ---------------------------------------- */
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-1);
+    min-width: 0;
+}
+
+.field--inline {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--gap-2);
+}
+
+.field__label {
+    font-size: var(--size-xs);
+    font-weight: 500;
+    color: var(--text-mid);
+}
+
+.input,
+.select {
+    height: 32px;
+    padding: 0 var(--gap-2);
+    border: 1px solid var(--ink-500);
+    border-radius: var(--radius-md);
+    background: var(--ink-900);
+    color: var(--text-hi);
+    font: inherit;
+    font-size: var(--size-sm);
+}
+
+.input::placeholder {
+    color: var(--text-low);
+}
+
+.input:focus,
+.select:focus {
+    border-color: var(--signal);
+    outline: none;
+    box-shadow: 0 0 0 2px var(--signal-dim);
+}
+
+.input--mono {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+}
+
+.input--block {
+    width: 100%;
+}
+
+.filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: var(--gap-3);
+    padding: var(--gap-3);
+    margin-bottom: var(--gap-4);
+    background: var(--ink-800);
+    border: 1px solid var(--ink-600);
+    border-radius: var(--radius-lg);
+}
+
+.filters .field {
+    flex: 1 1 10rem;
+}
+
+.filters__actions {
+    display: flex;
+    gap: var(--gap-2);
+}
+
+/* ----------------------------------------
+   Tabela
+   ---------------------------------------- */
+
+.table-wrap {
+    overflow-x: auto;
+    background: var(--ink-800);
+    border: 1px solid var(--ink-600);
+    border-radius: var(--radius-lg);
+}
+
+.grid {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--size-sm);
+}
+
+.grid thead th {
+    position: sticky;
+    top: var(--topbar-height);
+    z-index: 10;
+    padding: var(--gap-2) var(--gap-3);
+    background: var(--ink-700);
+    border-bottom: 1px solid var(--ink-600);
+    font-size: var(--size-xs);
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-mid);
+    text-align: left;
+    white-space: nowrap;
+}
+
+.grid td {
+    height: var(--row-height);
+    padding: 0 var(--gap-3);
+    border-bottom: 1px solid var(--ink-700);
+    color: var(--text-hi);
+    white-space: nowrap;
+}
+
+.grid tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.grid tbody tr:hover td {
+    background: var(--ink-700);
+}
+
+/* Números alinham à direita para as ordens de grandeza serem comparáveis
+   de relance; nome e modelo ficam à esquerda, que é como se lê texto. */
+.grid .num {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+}
+
+.grid .center {
+    text-align: center;
+}
+
+.grid__id {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--gap-2);
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+}
+
+.grid__name {
+    max-width: 20rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.grid tr[data-state='disabled'] td {
+    color: var(--text-low);
+}
+
+/* Divergência na comparação: faixa na borda esquerda, não fundo inteiro.
+   Fundo vermelho em linha larga compete com o texto e cansa a leitura. */
+.grid tr[data-state='error'] td {
+    background: color-mix(in srgb, var(--warn) 6%, transparent);
+}
+
+.grid tr[data-state='error'] td:first-child {
+    box-shadow: inset 2px 0 0 var(--warn);
+}
+
+.row-actions {
+    display: flex;
+    gap: var(--gap-1);
+}
+
+/* ----------------------------------------
+   Badge de estado
+   ---------------------------------------- */
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--gap-1);
+    padding: 2px var(--gap-2);
+    border-radius: 999px;
+    font-size: var(--size-xs);
+    font-weight: 500;
+    background: var(--idle-dim);
+    color: var(--text-mid);
+}
+
+.badge[data-state='running'] {
+    background: var(--live-dim);
+    color: var(--live);
+}
+
+.badge[data-state='stopped'] {
+    background: var(--halt-dim);
+    color: var(--halt);
+}
+
+.badge[data-state='disabled'] {
+    background: var(--idle-dim);
+    color: var(--text-low);
+}
+
+.badge[data-state='error'] {
+    background: var(--warn-dim);
+    color: var(--warn);
+}
+
+/* ----------------------------------------
+   Empty state
+   ---------------------------------------- */
+
+.empty {
+    padding: var(--gap-6) var(--gap-4);
+    text-align: center;
+    color: var(--text-mid);
+    white-space: normal;
+}
+
+.empty__title {
+    margin-bottom: var(--gap-2);
+    color: var(--text-hi);
+    font-weight: 500;
+}
+
+.empty--erro .empty__title {
+    color: var(--halt);
+}
+
+/* ----------------------------------------
+   Paginação
+   ---------------------------------------- */
+
+.pager {
+    display: flex;
+    align-items: center;
+    gap: var(--gap-3);
+    margin-top: var(--gap-4);
+}
+
+.pager__pages {
+    display: flex;
+    gap: var(--gap-1);
+    margin-left: auto;
+}
+
+.pager__page {
+    display: grid;
+    place-items: center;
+    min-width: 30px;
+    height: 30px;
+    padding: 0 var(--gap-1);
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    background: none;
+    color: var(--text-mid);
+    font: inherit;
+    font-family: var(--font-mono);
+    font-size: var(--size-sm);
+    cursor: pointer;
+}
+
+.pager__page:hover {
+    background: var(--ink-700);
+    color: var(--text-hi);
+}
+
+.pager__page[aria-current='page'] {
+    border-color: var(--signal);
+    color: var(--signal);
+}
+
+.pager__page[aria-disabled='true'],
+.pager__page:disabled {
+    color: var(--text-low);
+    pointer-events: none;
+}
+
+/* ----------------------------------------
+   Drawer
+   ---------------------------------------- */
+
+.drawer {
+    position: fixed;
+    inset: 0 0 0 auto;
+    z-index: 40;
+    width: min(640px, 100vw);
+    display: flex;
+    flex-direction: column;
+    background: var(--ink-800);
+    border-left: 1px solid var(--ink-600);
+    box-shadow: var(--shadow-float);
+    transform: translateX(100%);
+    transition: transform 0.2s var(--ease);
+}
+
+.drawer[data-open='true'] {
+    transform: translateX(0);
+}
+
+.drawer__head {
+    display: flex;
+    align-items: center;
+    gap: var(--gap-3);
+    padding: var(--gap-3) var(--gap-4);
+    border-bottom: 1px solid var(--ink-600);
+}
+
+.drawer__title {
+    display: flex;
+    align-items: center;
+    gap: var(--gap-2);
+    font-weight: 600;
+}
+
+.drawer__close {
+    margin-left: auto;
+}
+
+.drawer__tabs {
+    display: flex;
+    gap: var(--gap-1);
+    padding: 0 var(--gap-4);
+    border-bottom: 1px solid var(--ink-600);
+}
+
+.drawer__tab {
+    padding: var(--gap-2) var(--gap-3);
+    border: 0;
+    border-bottom: 2px solid transparent;
+    background: none;
+    color: var(--text-mid);
+    font: inherit;
+    font-size: var(--size-sm);
+    cursor: pointer;
+}
+
+.drawer__tab[aria-selected='true'] {
+    border-bottom-color: var(--signal);
+    color: var(--text-hi);
+}
+
+.drawer__body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-4);
+    padding: var(--gap-4);
+    overflow-y: auto;
+}
+
+.drawer__body>section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-3);
+}
+
+.drawer-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 35;
+    background: rgb(0 0 0 / 55%);
+}
+
+.drawer-scrim[hidden] {
+    display: none;
+}
+
+/* Dentro do drawer o cabeçalho de tabela gruda no topo do próprio corpo
+   rolável, não na topbar da página. */
+.drawer__body .grid thead th {
+    top: 0;
+}
+
+/* ----------------------------------------
+   Painéis de formulário
+   ---------------------------------------- */
+
+.panel {
+    max-width: 34rem;
+    margin-bottom: var(--gap-5);
+    background: var(--ink-800);
+    border: 1px solid var(--ink-600);
+    border-radius: var(--radius-lg);
+}
+
+.panel--wide {
+    max-width: none;
+    margin-bottom: 0;
+}
+
+.panel__head {
+    display: flex;
+    align-items: center;
+    gap: var(--gap-2);
+    padding: var(--gap-3) var(--gap-4);
+    border-bottom: 1px solid var(--ink-600);
+    font-weight: 600;
+    font-size: var(--size-sm);
+}
+
+.panel__body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-3);
+    padding: var(--gap-4);
+}
+
+.panel__note {
+    color: var(--text-mid);
+    font-size: var(--size-sm);
+}
+
+.panel__note code {
+    font-family: var(--font-mono);
+    font-size: var(--size-xs);
+    color: var(--signal);
+}
+
+.panel__note--ok {
+    color: var(--live);
+}
+
+.panel__note--erro {
+    color: var(--halt);
+}
+
+.input-group {
+    display: flex;
+    gap: var(--gap-1);
+}
+
+.input-group .input {
+    flex: 1;
+}
+
+.self-start {
+    align-self: flex-start;
+}
+
+/* ----------------------------------------
+   Toasts
+   ---------------------------------------- */
+
+.toast-region {
+    position: fixed;
+    right: var(--gap-4);
+    bottom: var(--gap-4);
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-2);
+    pointer-events: none;
+}
+
+.toast {
+    display: flex;
+    align-items: center;
+    gap: var(--gap-2);
+    max-width: 24rem;
+    padding: var(--gap-2) var(--gap-3);
+    background: var(--ink-700);
+    border: 1px solid var(--ink-500);
+    border-left: 3px solid var(--text-mid);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-float);
+    font-size: var(--size-sm);
+    animation: toast-in 0.2s var(--ease);
+}
+
+.toast--ok {
+    border-left-color: var(--live);
+}
+
+.toast--ok .icon {
+    color: var(--live);
+}
+
+.toast--err {
+    border-left-color: var(--halt);
+}
+
+.toast--err .icon {
+    color: var(--halt);
+}
+
+.toast--info {
+    border-left-color: var(--signal);
+}
+
+.toast--info .icon {
+    color: var(--signal);
+}
+
+.toast--saindo {
+    opacity: 0;
+    transition: opacity 0.2s var(--ease);
+}
+
+@keyframes toast-in {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ----------------------------------------
+   Checkbox
+   ---------------------------------------- */
+
+.check {
+    width: 15px;
+    height: 15px;
+    accent-color: var(--signal);
+    cursor: pointer;
+}
+
+.check:disabled {
+    cursor: not-allowed;
+    opacity: 0.4;
+}

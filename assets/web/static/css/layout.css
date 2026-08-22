@@ -1,0 +1,236 @@
+/* ========================================
+   Layout — shell da aplicação
+   ======================================== */
+
+.shell {
+    display: grid;
+    grid-template-columns: var(--rail-collapsed) 1fr;
+    grid-template-rows: var(--topbar-height) 1fr auto;
+    grid-template-areas:
+        'topbar topbar'
+        'rail   content'
+        'rail   footer';
+    min-height: 100vh;
+    transition: grid-template-columns 0.2s var(--ease);
+}
+
+.shell[data-rail='expanded'] {
+    grid-template-columns: var(--rail-expanded) 1fr;
+}
+
+/* ----------------------------------------
+   Topbar
+   ---------------------------------------- */
+
+.topbar {
+    grid-area: topbar;
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    gap: var(--gap-5);
+    padding: 0 var(--gap-4);
+    background: var(--ink-700);
+    border-bottom: 1px solid var(--ink-600);
+}
+
+.topbar__brand {
+    display: flex;
+    align-items: center;
+    gap: var(--gap-2);
+    color: var(--text-hi);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+}
+
+.topbar__brand:hover {
+    color: var(--text-hi);
+}
+
+.topbar__mark {
+    width: 22px;
+    height: 22px;
+    display: grid;
+    place-items: center;
+    border-radius: var(--radius-sm);
+    background: var(--signal);
+    color: var(--ink-900);
+}
+
+.topbar__version {
+    font-family: var(--font-mono);
+    font-size: var(--size-xs);
+    color: var(--text-low);
+}
+
+.topbar__spacer {
+    flex: 1;
+}
+
+.topbar__logo {
+    max-height: 26px;
+    max-width: 96px;
+    object-fit: contain;
+}
+
+.topbar__logo-fallback {
+    font-size: var(--size-xs);
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: var(--text-mid);
+}
+
+/* ----------------------------------------
+   Rail
+   ---------------------------------------- */
+
+.rail {
+    grid-area: rail;
+    position: sticky;
+    top: var(--topbar-height);
+    align-self: start;
+    height: calc(100vh - var(--topbar-height));
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-1);
+    padding: var(--gap-3) var(--gap-2);
+    background: var(--ink-800);
+    border-right: 1px solid var(--ink-600);
+    overflow: hidden;
+}
+
+.rail__item {
+    display: flex;
+    align-items: center;
+    gap: var(--gap-3);
+    padding: var(--gap-2) var(--gap-3);
+    border: 0;
+    border-left: 2px solid transparent;
+    border-radius: var(--radius-md);
+    background: none;
+    color: var(--text-mid);
+    font: inherit;
+    font-size: var(--size-sm);
+    text-align: left;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background 0.15s var(--ease), color 0.15s var(--ease);
+}
+
+.rail__item .icon {
+    width: 18px;
+    height: 18px;
+}
+
+.rail__item:hover {
+    background: var(--ink-700);
+    color: var(--text-hi);
+}
+
+/* Item ativo: barra laranja na borda. É a única marcação permanente de
+   laranja na navegação — o resto do rail fica neutro. */
+.rail__item[aria-current='page'] {
+    background: var(--ink-700);
+    border-left-color: var(--signal);
+    color: var(--text-hi);
+}
+
+.rail__item--danger:hover {
+    color: var(--halt);
+}
+
+.rail__item--go:hover {
+    color: var(--live);
+}
+
+.rail__item:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.rail__label {
+    opacity: 1;
+    transition: opacity 0.15s var(--ease);
+}
+
+.shell:not([data-rail='expanded']) .rail__label {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.rail__divider {
+    height: 1px;
+    margin: var(--gap-2);
+    background: var(--ink-600);
+}
+
+/* ----------------------------------------
+   Conteúdo
+   ---------------------------------------- */
+
+.content {
+    grid-area: content;
+    /* deixa a tabela rolar sem estourar o grid */
+    min-width: 0;
+    padding: var(--gap-5) var(--gap-5) var(--gap-6);
+}
+
+.page-head {
+    display: flex;
+    align-items: center;
+    gap: var(--gap-4);
+    margin-bottom: var(--gap-4);
+}
+
+.page-head__actions {
+    margin-left: auto;
+    display: flex;
+    gap: var(--gap-2);
+}
+
+.footer {
+    grid-area: footer;
+    padding: var(--gap-4);
+    color: var(--text-low);
+    font-size: var(--size-xs);
+    text-align: center;
+}
+
+.page-error {
+    max-width: 34rem;
+    margin: var(--gap-6) auto;
+    padding: var(--gap-5);
+    background: var(--ink-800);
+    border: 1px solid var(--ink-600);
+    border-left: 3px solid var(--halt);
+    border-radius: var(--radius-lg);
+}
+
+.page-error__title {
+    margin-bottom: var(--gap-3);
+}
+
+.page-error__detail {
+    font-family: var(--font-mono);
+    font-size: var(--size-sm);
+    color: var(--halt);
+    word-break: break-word;
+}
+
+.page-error__hint {
+    color: var(--text-mid);
+}
+
+@media (max-width: 720px) {
+
+    .shell,
+    .shell[data-rail='expanded'] {
+        grid-template-columns: var(--rail-collapsed) 1fr;
+    }
+
+    .content {
+        padding: var(--gap-4) var(--gap-3) var(--gap-5);
+    }
+}
