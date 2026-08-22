@@ -561,7 +561,20 @@ func (h *Handler) renderPage(c *gin.Context, name string, status int, data gin.H
 	c.Status(status)
 	c.Header("Content-Type", "text/html; charset=utf-8")
 
-	if err := tmpl.ExecuteTemplate(c.Writer, "base.html", h.withBaseContext(data)); err != nil {
+	ctx := h.withBaseContext(data)
+
+	// O header é comum a todas as páginas e lê counter_cards. settingsPage
+	// nunca passou a chave e error.html também não tem de onde tirá-la:
+	// sem este default, a renderização aborta no meio do header e a página
+	// sai truncada. O erro passava despercebido porque o retorno de
+	// ExecuteTemplate era descartado nos três pontos de render.
+	if _, ok := ctx["counter_cards"]; !ok {
+		ctx["counter_cards"] = FleetCounts{}.toMap()
+	}
+
+	// O erro é registrado, não engolido: uma página truncada precisa
+	// aparecer no log em vez de virar mistério de suporte.
+	if err := tmpl.ExecuteTemplate(c.Writer, "base.html", ctx); err != nil {
 		h.tracer.Error("Failed to render %q: %v", name, err)
 	}
 }
