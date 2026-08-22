@@ -2,8 +2,6 @@ package handlers
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"html/template"
 	"net/http"
 	"runtime"
@@ -185,7 +183,7 @@ func (h *Handler) setupWebRoutes(router *gin.Engine) {
 	// Página de configurações
 	router.GET("/settings", h.settingsPage)
 
-	router.GET("/events", h.handleSSE)
+	router.GET("/events", h.handleStream)
 }
 
 // setupMonitoringRoutes configura rotas de monitoramento e observabilidade
@@ -823,87 +821,6 @@ func (h *Handler) refreshUsersComparison() {
 	h.tracer.Info("Users comparison refreshed successfully")
 }
 
-func (h *Handler) handleSSE(c *gin.Context) {
-	h.tracer.Info("SSE client connected")
-
-	// Configurar headers para SSE
-	c.Header("Content-Type", "text/event-stream")
-	c.Header("Cache-Control", "no-cache")
-	c.Header("Connection", "keep-alive")
-	c.Header("Access-Control-Allow-Origin", "*")
-
-	// Adicionar listener para mudanças de status
-	listener := h.manager.AddStatusListener()
-	defer h.manager.RemoveStatusListener(listener)
-
-	h.tracer.Info("SSE listener added successfully")
-
-	// Canal para detectar desconexão do cliente
-	clientGone := c.Request.Context().Done()
-
-	for {
-		select {
-		case event, ok := <-listener:
-			if !ok {
-				h.tracer.Info("SSE listener closed")
-				return
-			}
-
-			h.tracer.Info("SSE received event: Device %d -> %s", event.DeviceID, event.Status)
-
-			// Obter contadores atualizados de TODOS os dispositivos
-			allDevices, err := h.manager.ListDevices()
-			if err != nil {
-				h.tracer.Error("Failed to get devices for SSE: %v", err)
-				continue
-			}
-
-			runningCount := 0
-			for _, device := range allDevices {
-				if device.Status == "running" {
-					runningCount++
-				}
-			}
-
-			totalCount := len(allDevices)
-			stoppedCount := totalCount - runningCount
-
-			// Enviar evento SSE
-			data := map[string]interface{}{
-				"device_id":     event.DeviceID,
-				"status":        event.Status,
-				"name":          event.Name,
-				"running_count": runningCount,
-				"stopped_count": stoppedCount,
-				"total_count":   totalCount,
-			}
-
-			jsonData, err := json.Marshal(data)
-			if err != nil {
-				h.tracer.Error("Failed to marshal SSE data: %v", err)
-				continue
-			}
-
-			h.tracer.Info("Sending SSE data: %s", string(jsonData))
-
-			// Formato SSE: data: {json}\n\n
-			_, err = fmt.Fprintf(c.Writer, "data: %s\n\n", jsonData)
-			if err != nil {
-				h.tracer.Error("Failed to write SSE data: %v", err)
-				return
-			}
-
-			// Forçar envio imediato
-			if f, ok := c.Writer.(http.Flusher); ok {
-				f.Flush()
-			}
-
-		case <-clientGone:
-			h.tracer.Info("SSE client disconnected")
-			return
-		}
-	}
-}
 func (h *Handler) getPoolStats(c *gin.Context) {
 	stats := h.manager.GetPoolStats()
 	c.JSON(http.StatusOK, stats)
