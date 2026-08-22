@@ -1,0 +1,13 @@
+{{ define "title" }}Erro - Facial Emulator Service{{ end }}
+
+{{ define "content" }}
+<section class="page-error">
+  <h1 class="page-error__title">Não foi possível carregar esta página</h1>
+  <p class="page-error__detail">{{ .error }}</p>
+  <p class="page-error__hint">
+    Verifique a conexão com o banco em <a href="/settings">Configurações</a>,
+    ou tente novamente.
+  </p>
+  <a class="btn btn--action" href="/">Voltar para Dispositivos</a>
+</section>
+{{ end }}

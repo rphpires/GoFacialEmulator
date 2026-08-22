@@ -4,10 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"net/http"
 	"runtime"
 	"strconv"
-	"text/template"
 	"time"
 
 	"GoFacialEmulator/assets"
@@ -31,6 +31,7 @@ type Handler struct {
 	upgrader      websocket.Upgrader
 	healthMonitor *monitoring.HealthMonitor
 	metrics       *monitoring.Metrics
+	templates     map[string]*template.Template
 }
 
 // NewHandler cria uma nova instância de Handler
@@ -94,6 +95,7 @@ func NewHandler(manager *emulator.Manager, serviceDB database.DBInterface, wxsDB
 		tracer:        tracer,
 		healthMonitor: healthMonitor,
 		metrics:       metrics,
+		templates:     buildTemplateCache(),
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {
 				return true // Permitir todas as origens em desenvolvimento
@@ -163,37 +165,6 @@ func (h *Handler) Router() http.Handler {
 	h.setupMonitoringRoutes(router)
 
 	return router
-}
-
-func (h *Handler) loadTemplate(templateName string) *template.Template {
-	funcMap := template.FuncMap{
-		"sub": func(a, b int) int { return a - b },
-		"add": func(a, b int) int { return a + b },
-		"le":  func(a, b int) bool { return a <= b },
-		"ge":  func(a, b int) bool { return a >= b },
-		"lt":  func(a, b int) bool { return a < b },
-		"gt":  func(a, b int) bool { return a > b },
-		"eq":  func(a, b interface{}) bool { return a == b },
-		"ne":  func(a, b interface{}) bool { return a != b },
-		"default": func(defaultValue interface{}, value interface{}) interface{} {
-			if value == nil {
-				return defaultValue
-			}
-			return value
-		},
-	}
-
-	baseFiles := []string{
-		"web/templates/base.html",
-		"web/templates/header.html",
-		"web/templates/footer.html",
-		"web/templates/sidebar.html",
-		"web/templates/metrics.html",
-		"web/templates/pagination.html",
-	}
-
-	files := append(baseFiles, templateName)
-	return template.Must(template.New("").Funcs(funcMap).ParseFS(assets.Templates(), files...))
 }
 
 // setupWebRoutes configura rotas da interface web
@@ -308,7 +279,7 @@ func (h *Handler) mainPage(c *gin.Context) {
 	devices, _, err := h.getCurrentDevicesWithFilters(filters)
 	if err != nil {
 		h.tracer.Error("Failed to get current devices: %v", err)
-		c.HTML(http.StatusInternalServerError, "error.html", gin.H{"error": err.Error()})
+		h.renderPage(c, "error.html", http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -346,8 +317,7 @@ func (h *Handler) mainPage(c *gin.Context) {
 		"filters":       filters,
 	}
 
-	tmpl := h.loadTemplate("web/templates/devices.html")
-	tmpl.ExecuteTemplate(c.Writer, "base.html", h.withBaseContext(context))
+	h.renderPage(c, "devices.html", http.StatusOK, context)
 }
 
 // startEmulators inicia emuladores selecionados
@@ -461,7 +431,7 @@ func (h *Handler) comparisonPage(c *gin.Context) {
 	devices, deviceStatusOk, err := h.getCurrentDevices()
 	if err != nil {
 		h.tracer.Error("Failed to get current devices: %v", err)
-		c.HTML(http.StatusInternalServerError, "error.html", gin.H{"error": err.Error()})
+		h.renderPage(c, "error.html", http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -504,8 +474,7 @@ func (h *Handler) comparisonPage(c *gin.Context) {
 		"counter_cards": counterCards,
 	}
 
-	tmpl := h.loadTemplate("web/templates/comparison.html")
-	tmpl.ExecuteTemplate(c.Writer, "base.html", h.withBaseContext(context))
+	h.renderPage(c, "comparison.html", http.StatusOK, context)
 }
 
 // comparisonRefresh atualiza dados de comparação
@@ -994,16 +963,13 @@ func (h *Handler) settingsPage(c *gin.Context) {
 	wxsSettings, err := database.GetWxsSettingsFromDB(ctx, h.serviceDB)
 	if err != nil {
 		h.tracer.Error("Failed to load WXS settings: %v", err)
-		c.HTML(http.StatusInternalServerError, "error.html", gin.H{
+		h.renderPage(c, "error.html", http.StatusInternalServerError, gin.H{
 			"error": "Erro ao carregar configurações",
 		})
 		return
 	}
 
-	tmpl := h.loadTemplate("web/templates/settings.html")
-	tmpl.ExecuteTemplate(c.Writer, "base.html", h.withBaseContext(gin.H{
-		"wxs_settings": wxsSettings,
-	}))
+	h.renderPage(c, "settings.html", http.StatusOK, gin.H{"wxs_settings": wxsSettings})
 }
 
 // testWxsConnection testa a conexão com o WXS
