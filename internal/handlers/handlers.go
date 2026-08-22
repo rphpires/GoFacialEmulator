@@ -312,16 +312,6 @@ func (h *Handler) mainPage(c *gin.Context) {
 		return
 	}
 
-	// Contadores baseados em TODOS os dispositivos (sem filtros)
-	allDevices, deviceStatusRunning, err := h.getCurrentDevices()
-	if err != nil {
-		h.tracer.Error("Failed to get all devices for counters: %v", err)
-		c.HTML(http.StatusInternalServerError, "error.html", gin.H{"error": err.Error()})
-		return
-	}
-
-	h.tracer.Info("DEBUG: Filtered devices: %d, All devices: %d", len(devices), len(allDevices))
-
 	// Paginação dos dispositivos filtrados
 	totalDevices := len(devices)
 	start := (page - 1) * perPage
@@ -337,20 +327,22 @@ func (h *Handler) mainPage(c *gin.Context) {
 
 	totalPages := (totalDevices + perPage - 1) / perPage
 
-	// Contadores baseados em TODOS os dispositivos
-	totalAllDevices := len(allDevices)
-	counterCards := map[string]interface{}{
-		"total":   totalAllDevices,
-		"running": deviceStatusRunning,
-		"stopped": totalAllDevices - deviceStatusRunning,
+	// Contadores vêm de countFleet para o header concordar com a tabela:
+	// desabilitado é um estado próprio, não um "parado".
+	fleetDevices, err := h.manager.ListDevices()
+	if err != nil {
+		h.tracer.Error("Failed to list devices for counters: %v", err)
+		fleetDevices = nil
 	}
+	counts := countFleet(fleetDevices)
 
 	context := gin.H{
 		"devices":       paginatedDevices,
 		"page":          page,
 		"total_pages":   totalPages,
 		"per_page":      perPage,
-		"counter_cards": counterCards,
+		"page_range":    paginationRange(page, totalPages),
+		"counter_cards": counts.toMap(),
 		"filters":       filters,
 	}
 
@@ -507,6 +499,7 @@ func (h *Handler) comparisonPage(c *gin.Context) {
 		"values":        paginatedValues,
 		"page":          page,
 		"total_pages":   totalPages,
+		"page_range":    paginationRange(page, totalPages),
 		"per_page":      perPage,
 		"counter_cards": counterCards,
 	}
@@ -659,18 +652,14 @@ func (h *Handler) getSystemStatus(c *gin.Context) {
 		return
 	}
 
-	runningCount := 0
-	for _, device := range devices {
-		if device.Status == "running" {
-			runningCount++
-		}
-	}
+	counts := countFleet(devices)
 
 	c.JSON(http.StatusOK, gin.H{
-		"total_devices":   len(devices),
-		"running_devices": runningCount,
-		"stopped_devices": len(devices) - runningCount,
-		"timestamp":       time.Now().UTC(),
+		"total_devices":    counts.Total,
+		"running_devices":  counts.Running,
+		"stopped_devices":  counts.Stopped,
+		"disabled_devices": counts.Disabled,
+		"timestamp":        time.Now().UTC(),
 	})
 }
 
