@@ -69,19 +69,6 @@
     flex: 1;
 }
 
-.topbar__logo {
-    max-height: 26px;
-    max-width: 96px;
-    object-fit: contain;
-}
-
-.topbar__logo-fallback {
-    font-size: var(--size-xs);
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    color: var(--text-mid);
-}
-
 /* ----------------------------------------
    Rail
    ---------------------------------------- */

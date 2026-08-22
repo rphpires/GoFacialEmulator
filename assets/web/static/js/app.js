@@ -245,21 +245,9 @@
         });
     }
 
-    function iniciarLogo() {
-        var logo = document.getElementById('brand-logo');
-        var fallback = document.getElementById('brand-logo-fallback');
-        if (!logo || !fallback) { return; }
-
-        logo.addEventListener('error', function () {
-            logo.hidden = true;
-            fallback.hidden = false;
-        });
-    }
-
     document.addEventListener('DOMContentLoaded', function () {
         iniciarRail();
         marcarNavAtiva();
-        iniciarLogo();
         iniciarMeter();
         iniciarAcoesGlobais();
         window.FleetStream.start();
