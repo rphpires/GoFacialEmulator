@@ -48,3 +48,21 @@ docker-compose.yml
 # Dados temporários
 tmp/
 temp/
+
+# Artefatos de empacotamento e cache de build local.
+# Sem estas linhas o contexto enviado ao daemon passa de 1 GB: o
+# .build-cache carrega um PostgreSQL portátil inteiro, e cada dist-* é uma
+# cópia do pacote de distribuição. Nada disso entra na imagem — o Dockerfile
+# só precisa de go.mod/go.sum, do código, de assets/ e de configs/.
+.build-cache/
+dist/
+dist-*/
+*.zip
+*.rar
+GoFacialEmulator-v1.0-win64/
+.worktrees/
+.superpowers/
+aux_files/
+packaging/
+scripts/
+.air.toml
