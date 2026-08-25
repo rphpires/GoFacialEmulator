@@ -33,14 +33,24 @@ export async function imprimir(caminhoHtml, caminhoPdf) {
     const page = await browser.newPage()
     await page.goto(pathToFileURL(caminhoHtml).href, { waitUntil: 'load' })
 
+    // O paged.js pagina documentos grandes em varios ciclos, acrescentando
+    // paginas ao DOM aos poucos enquanto processa o conteudo. Esperar pelo
+    // primeiro ".pagedjs_page" pega uma paginacao parcial — um documento de
+    // 181 paginas reais pode ter so 4 no DOM nesse instante. O hook "after"
+    // do PagedConfig e documentado pelo proprio pacote e so dispara depois
+    // que "previewer.preview(...)" termina, ou seja, quando a paginacao
+    // inteira acabou. Ele precisa ser definido ANTES do polyfill carregar,
+    // porque o polyfill le "window.PagedConfig" uma unica vez, no topo do
+    // arquivo, assim que e executado.
+    await page.evaluate(() => {
+      window.PagedConfig = {
+        after: () => { window.__pagedjsPronto = true }
+      }
+    })
     await page.addScriptTag({ path: PAGEDJS })
-    // O paged.js avisa que terminou de paginar pelo atributo no <html>.
-    await page.waitForFunction(
-      () => document.documentElement.classList.contains('pagedjs_clearfix') ||
-            document.querySelectorAll('.pagedjs_page').length > 0,
-      null,
-      { timeout: 120000 }
-    )
+    await page.waitForFunction(() => window.__pagedjsPronto === true, null, {
+      timeout: 120000
+    })
 
     const paginas = await page.evaluate(
       () => document.querySelectorAll('.pagedjs_page').length
@@ -66,10 +76,16 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const manifesto = JSON.parse(await readFile(join(RAIZ, 'manifesto.json'), 'utf8'))
   await mkdir(join(RAIZ, '.out'), { recursive: true })
 
+  // Um alvo com problema (por exemplo, o HTML ainda nao foi montado) nao
+  // deve derrubar os outros dois — cada alvo e independente.
   for (const alvo of Object.keys(manifesto.alvos)) {
     const html = join(RAIZ, '.out', `${alvo}.html`)
     const pdf = join(RAIZ, '.out', `MANUAL-${alvo}.pdf`)
-    const { paginas } = await imprimir(html, pdf)
-    console.log(`[manual] ${alvo}: ${paginas} paginas -> ${pdf}`)
+    try {
+      const { paginas } = await imprimir(html, pdf)
+      console.log(`[manual] ${alvo}: ${paginas} paginas -> ${pdf}`)
+    } catch (erro) {
+      console.error(`[manual] ${alvo}: falhou — ${erro.message}`)
+    }
   }
 }
