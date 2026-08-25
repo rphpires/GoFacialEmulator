@@ -267,7 +267,7 @@ Parâmetros fixos: viewport 1440×900, `deviceScaleFactor: 2`. Abaixo disso a fi
 
 ### 8.5 Conteúdo dos três PDFs
 
-Capítulos comuns aos três, na mesma ordem final. A ordem por PDF é `antes-de-comecar` → `instalar-*` → `portas-e-rede` → `conhecer-o-console` → `configurar-wxs` → `validacao` → `logs` → `problemas`: o técnico instala, abre, entende o que está vendo, e só então configura.
+Capítulos comuns aos três, na mesma ordem final. A ordem por PDF é `antes-de-comecar` → `instalar-*` → `conhecer-o-console` → `configurar-wxs` → `validacao` → `portas-e-rede` → `logs` → `problemas`: o técnico instala, abre, entende o que está vendo, e só então configura. `portas-e-rede` fica depois da validação de propósito — é para onde a validação manda quando os dispositivos aparecem verdes no emulador e offline no W-Access.
 
 | Capítulo | Conteúdo |
 |---|---|
@@ -384,7 +384,7 @@ Comum aos três PDFs, escrito uma vez. Cobre, nesta ordem:
 
 O texto explica o que o técnico vê, não como foi implementado. `SSE`, `template` e `handler` não aparecem no texto do usuário final.
 
-Posição no PDF: depois de `portas-e-rede`, antes de `configurar-wxs`.
+Posição no PDF: depois do capítulo de instalação do alvo, antes de `configurar-wxs`.
 
 ### 11.5 Ambiente de captura
 
