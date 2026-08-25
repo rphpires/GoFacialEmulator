@@ -8,5 +8,5 @@
 | Um dispositivo não inicia | A porta já está em uso por outro processo | Veja o log da aplicação: ele traz o erro do sistema operacional explicando qual porta e por quê |
 | A coluna Modo mostra um traço em vez do seletor | O dispositivo não é do modelo Dahua — só esse modelo usa essa configuração | Nada a fazer; é o comportamento esperado para os demais modelos |
 | A tela parou de se atualizar sozinha | A atualização automática com o servidor caiu | Recarregue a página; a atualização automática se refaz sozinha |
-| Ao iniciar, aparece que a aplicação não respondeu em 60 segundos | A aplicação demorou demais para subir, ou não subiu | Veja `trace.log`; no pacote Docker, rode `docker compose logs app` para ver a saída do contêiner |
+| Ao iniciar, aparece que a aplicação não respondeu em 60 segundos | A aplicação demorou demais para subir, ou não subiu | Veja `trace.log` — o caminho exato para o seu pacote está no capítulo Onde estao os logs |
 | A página abre sem formatação, só texto puro | O pacote está incompleto — faltaram arquivos na instalação | Baixe o pacote de novo; isso não deveria acontecer com uma instalação íntegra |

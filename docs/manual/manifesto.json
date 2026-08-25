@@ -3,17 +3,46 @@
     "docker": {
       "titulo": "GoFacialEmulator — Manual do pacote Docker",
       "subtitulo": "Instalacao, configuracao e validacao",
-      "capitulos": []
+      "capitulos": [
+        "docker/antes-de-comecar.md",
+        "docker/instalar-docker-desktop.md",
+        "docker/instalar-emulador.md",
+        "comum/conhecer-o-console.md",
+        "comum/configurar-wxs.md",
+        "comum/validacao.md",
+        "docker/portas-e-rede.md",
+        "comum/logs.md",
+        "comum/problemas.md"
+      ]
     },
     "windows": {
       "titulo": "GoFacialEmulator — Manual do pacote Windows",
       "subtitulo": "Instalacao, configuracao e validacao",
-      "capitulos": []
+      "capitulos": [
+        "windows/antes-de-comecar.md",
+        "windows/instalar-emulador.md",
+        "comum/conhecer-o-console.md",
+        "comum/configurar-wxs.md",
+        "comum/validacao.md",
+        "windows/portas-e-rede.md",
+        "comum/logs.md",
+        "comum/problemas.md"
+      ]
     },
     "linux": {
       "titulo": "GoFacialEmulator — Manual do pacote Linux e WSL2",
       "subtitulo": "Instalacao, configuracao e validacao",
-      "capitulos": []
+      "capitulos": [
+        "linux/antes-de-comecar.md",
+        "linux/instalar-wsl.md",
+        "linux/instalar-emulador.md",
+        "comum/conhecer-o-console.md",
+        "comum/configurar-wxs.md",
+        "comum/validacao.md",
+        "linux/portas-e-rede.md",
+        "comum/logs.md",
+        "comum/problemas.md"
+      ]
     }
   }
 }
