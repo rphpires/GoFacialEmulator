@@ -277,6 +277,49 @@
 }
 
 /* ----------------------------------------
+   Aviso de alcançabilidade. Um bloco só, sem variantes especulativas: hoje
+   existe um único aviso na aplicação.
+   ---------------------------------------- */
+
+.notice {
+    display: flex;
+    gap: var(--gap-3);
+    padding: var(--gap-3) var(--gap-4);
+    margin-bottom: var(--gap-4);
+    border-radius: var(--radius-lg);
+}
+
+.notice--warn {
+    border: 1px solid var(--warn);
+    background: var(--warn-dim);
+    color: var(--warn);
+}
+
+.notice__body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-1);
+    min-width: 0;
+}
+
+.notice__headline {
+    font-weight: 600;
+}
+
+.notice__reason,
+.notice__help {
+    color: var(--text-mid);
+    font-size: var(--size-sm);
+}
+
+.notice__list {
+    margin-top: var(--gap-2);
+    padding-left: var(--gap-4);
+    font-size: var(--size-sm);
+    color: var(--text-mid);
+}
+
+/* ----------------------------------------
    Tabela
    ---------------------------------------- */
 
@@ -372,6 +415,13 @@
 .row-actions {
     display: flex;
     gap: var(--gap-1);
+}
+
+/* Placeholder de célula sem valor aplicável (ex.: modo de um modelo que não
+   lê essa configuração). Cor abaixada, não vazio, para não parecer dado
+   faltando. */
+.text-low {
+    color: var(--text-low);
 }
 
 /* ----------------------------------------

@@ -231,6 +231,97 @@
         });
     }
 
+    // ------------------------------------------------------------------
+    // Modo do dispositivo (online / standalone)
+    // ------------------------------------------------------------------
+
+    // Troca o modo de um dispositivo. O select só existe para modelos
+    // Dahua — ver o {{ if eq .model "Dahua" }} em devices.html.
+    function iniciarModo() {
+        var selects = document.querySelectorAll('.device-mode');
+        for (var i = 0; i < selects.length; i++) {
+            // Guarda o valor gravado no banco (o que veio "selected" do
+            // template) para poder desfazer se a troca falhar.
+            selects[i].setAttribute('data-anterior', selects[i].value);
+        }
+
+        document.addEventListener('change', function (evento) {
+            var alvo = evento.target.closest('.device-mode');
+            if (!alvo) { return; }
+
+            var id = alvo.getAttribute('data-device-id');
+            var anterior = alvo.getAttribute('data-anterior') || alvo.value;
+
+            postar('/api/devices/' + id + '/mode', { mode: alvo.value })
+                .then(function () {
+                    alvo.setAttribute('data-anterior', alvo.value);
+                    window.Toast.ok('Dispositivo ' + id + ': modo ' + alvo.value);
+                })
+                .catch(function () {
+                    // Volta o select ao valor anterior: deixar o valor novo
+                    // na tela sem ter gravado faria a tela mentir sobre o
+                    // estado do dispositivo.
+                    alvo.value = anterior;
+                    window.Toast.err('Não foi possível trocar o modo do dispositivo ' + id);
+                });
+        });
+    }
+
+    // ------------------------------------------------------------------
+    // Aviso de alcançabilidade
+    // ------------------------------------------------------------------
+
+    // Preenche o aviso de alcançabilidade. Sem dispositivo problemático o
+    // bloco continua escondido — "inalcancavel" e "desconhecido" são os
+    // únicos vereditos de reachability.Status que pedem atenção;
+    // "nao_iniciado" é o estado normal de um dispositivo parado.
+    function carregarAlcancabilidade() {
+        var linha = document.getElementById('reachability-alert-row');
+        if (!linha) { return; }
+
+        fetch('/api/reachability')
+            .then(function (resposta) {
+                if (!resposta.ok) { throw new Error('HTTP ' + resposta.status); }
+                return resposta.json();
+            })
+            .then(function (relatorio) {
+                var devices = relatorio.devices || [];
+                var problematicos = devices.filter(function (d) {
+                    return d.status === 'inalcancavel' || d.status === 'desconhecido';
+                });
+                if (problematicos.length === 0) { return; }
+
+                document.getElementById('reachability-headline').textContent =
+                    problematicos.length + ' dispositivo(s) não vão ser alcançados pelo Site Controller';
+                document.getElementById('reachability-reason').textContent =
+                    problematicos[0].reason || '';
+                document.getElementById('reachability-help').textContent =
+                    'Veja o capítulo Portas e rede do manual.';
+
+                var lista = document.getElementById('reachability-list');
+                lista.textContent = '';
+                problematicos.forEach(function (d) {
+                    var li = document.createElement('li');
+                    li.textContent = 'Dispositivo ' + d.device_id + ' — porta ' + d.port +
+                        (d.reason ? ': ' + d.reason : '');
+                    lista.appendChild(li);
+                });
+
+                var toggle = document.getElementById('reachability-toggle');
+                if (toggle) {
+                    toggle.addEventListener('click', function () {
+                        lista.hidden = !lista.hidden;
+                    });
+                }
+
+                linha.hidden = false;
+            })
+            .catch(function () {
+                // Sem resposta de /api/reachability não há nada de
+                // confiável a mostrar: o bloco continua escondido.
+            });
+    }
+
     function iniciarStream() {
         window.FleetStream.subscribe('snapshot', function (dados) {
             dados.devices.forEach(function (device) {
@@ -251,5 +342,7 @@
         iniciarAcoes();
         iniciarPaginacao();
         iniciarStream();
+        iniciarModo();
+        carregarAlcancabilidade();
     });
 })();

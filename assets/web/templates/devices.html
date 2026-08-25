@@ -16,6 +16,22 @@
   </div>
 </div>
 
+<!-- A falha mais cara do emulador não emite sinal nenhum: os emuladores
+     sobem, a tela fica toda verde e o W-Access mostra tudo offline. O aviso
+     só existe quando há o que avisar — devices.js o revela. -->
+<div id="reachability-alert-row" hidden>
+  <div class="notice notice--warn" id="reachability-alert" role="alert">
+    <svg class="icon" aria-hidden="true"><use href="/static/icons.svg#alert"></use></svg>
+    <div class="notice__body">
+      <p class="notice__headline" id="reachability-headline"></p>
+      <p class="notice__reason" id="reachability-reason"></p>
+      <p class="notice__help" id="reachability-help"></p>
+      <button type="button" class="btn btn--sm" id="reachability-toggle">ver a lista</button>
+      <ul class="notice__list" id="reachability-list" hidden></ul>
+    </div>
+  </div>
+</div>
+
 <!-- Filtros sempre visíveis. O card colapsável antigo custava dois cliques
      e mais um estado para três campos de texto. -->
 <form class="filters" id="filter-form" method="get" action="/">
@@ -56,6 +72,7 @@
         <th>Nome</th>
         <th>Modelo</th>
         <th class="num">Porta</th>
+        <th>Modo</th>
         <th class="center">Log</th>
         <th class="num">Intervalo</th>
         <th class="num">Usuários</th>
@@ -79,6 +96,20 @@
         <td class="grid__name device-name-cell" title="{{ .name }}">{{ .name }}</td>
         <td>{{ .model }}</td>
         <td class="num">{{ .port }}</td>
+        <td class="center">
+          <!-- LocalAuthentication só é lido pelo emulador Dahua; os demais
+               modelos ignoram a configuração. Um select ali seria um
+               controle que não faz nada. -->
+          {{ if eq .model "Dahua" }}
+          <select class="select device-mode" data-device-id="{{ .lc_id }}"
+                  aria-label="Modo de {{ .name }}">
+            <option value="online" {{ if eq .local_auth "online" }}selected{{ end }}>Online</option>
+            <option value="standalone" {{ if eq .local_auth "standalone" }}selected{{ end }}>Standalone</option>
+          </select>
+          {{ else }}
+          <span class="text-low" title="Este modelo não usa esta configuração">&mdash;</span>
+          {{ end }}
+        </td>
         <td class="center">
           <input type="checkbox" class="check log-check" data-id="{{ .lc_id }}"
                  aria-label="Habilitar log para {{ .name }}"
@@ -119,7 +150,7 @@
       </tr>
       {{ else }}
       <tr>
-        <td colspan="10">
+        <td colspan="11">
           <div class="empty">
             <p class="empty__title">Nenhum dispositivo encontrado</p>
             <p>Ajuste os filtros ou sincronize com o W-Access para trazer os dispositivos.</p>
