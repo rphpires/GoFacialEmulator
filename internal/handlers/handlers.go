@@ -13,6 +13,7 @@ import (
 	"GoFacialEmulator/internal/database"
 	"GoFacialEmulator/internal/emulator"
 	"GoFacialEmulator/internal/monitoring"
+	"GoFacialEmulator/internal/reachability"
 	"GoFacialEmulator/internal/trace"
 
 	"github.com/gin-gonic/gin"
@@ -30,6 +31,7 @@ type Handler struct {
 	healthMonitor *monitoring.HealthMonitor
 	metrics       *monitoring.Metrics
 	templates     map[string]*template.Template
+	env           reachability.Environment
 }
 
 // NewHandler cria uma nova instância de Handler
@@ -94,6 +96,7 @@ func NewHandler(manager *emulator.Manager, serviceDB database.DBInterface, wxsDB
 		healthMonitor: healthMonitor,
 		metrics:       metrics,
 		templates:     buildTemplateCache(),
+		env:           reachability.Detect(),
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool {
 				return true // Permitir todas as origens em desenvolvimento
@@ -228,6 +231,8 @@ func (h *Handler) setupAPIRoutes(router *gin.Engine) {
 			devices.PUT("/:id/settings", h.updateDeviceSettings)
 			devices.GET("/:id/users", h.getDeviceUsers)
 			devices.GET("/:id/settings", h.getDeviceSettings)
+			devices.GET("/:id/mode", h.apiGetDeviceMode)
+			devices.POST("/:id/mode", h.apiSetDeviceMode)
 		}
 
 		// Status do sistema
@@ -235,6 +240,7 @@ func (h *Handler) setupAPIRoutes(router *gin.Engine) {
 		api.GET("/comparison", h.getUserComparisons)
 		api.GET("/pool-stats", h.getPoolStats)
 		api.GET("/refresh-status", h.getRefreshStatus)
+		api.GET("/reachability", h.getReachability)
 
 		// Configurações
 		settings := api.Group("/settings")
@@ -833,6 +839,22 @@ func (h *Handler) getCurrentDevicesWithFilters(filters map[string]string) ([]map
 		return nil, 0, err
 	}
 
+	// Modo de operação de todos os dispositivos numa consulta só. Uma
+	// consulta por dispositivo dentro do laço abaixo giraria centenas de
+	// idas ao banco a cada carregamento de página.
+	ids := make([]int32, 0, len(devices))
+	for _, device := range devices {
+		ids = append(ids, int32(device.ID))
+	}
+	modos, err := h.getDeviceModes(context.Background(), ids)
+	if err != nil {
+		// Falha de leitura não derruba a listagem: a coluna mostra o
+		// padrão e o erro fica no log. Uma tela de dispositivos em
+		// branco seria pior que uma coluna imprecisa.
+		h.tracer.Error("Failed to read device modes: %v", err)
+		modos = map[int]string{}
+	}
+
 	var currentDevices []map[string]interface{}
 	deviceStatusRunning := 0
 
@@ -843,6 +865,13 @@ func (h *Handler) getCurrentDevicesWithFilters(filters map[string]string) ([]map
 			status = "disabled"
 		} else if device.Status == "running" {
 			deviceStatusRunning++
+		}
+
+		// Dispositivo sem linha em emulator.device_settings usa o padrão
+		// standalone — o mesmo recuo de getDeviceMode.
+		modo, ok := modos[device.ID]
+		if !ok {
+			modo = modoStandalone
 		}
 
 		currentDevices = append(currentDevices, map[string]interface{}{
@@ -856,6 +885,7 @@ func (h *Handler) getCurrentDevicesWithFilters(filters map[string]string) ([]map
 			"enabled":     device.Enabled,
 			"interval":    device.EventInterval,
 			"total":       device.TotalUsers,
+			"local_auth":  modo,
 		})
 	}
 

@@ -9,6 +9,14 @@ O QUE FAZER
 
   No Linux, use ./instalar.sh, ./iniciar.sh e ./parar.sh.
 
+PORTAS
+  As portas dos emuladores vem do W-Access, nao do emulador.
+  No Windows este pacote publica a faixa 4000-4499. Controlador com
+  porta fora dessa faixa sobe mas NAO e alcancado pelo Site Controller.
+  Para alargar, edite sistema/docker-compose.yml: a linha ports e a
+  variavel PUBLISHED_PORT_RANGE precisam ter a MESMA faixa.
+  No Linux nao ha limite: o pacote usa a rede do host.
+
 LOGS
   Aplicacao: sistema/logs/trace.log  (e trace.html, colorido)
   Banco:     docker compose -f sistema/docker-compose.yml logs postgres

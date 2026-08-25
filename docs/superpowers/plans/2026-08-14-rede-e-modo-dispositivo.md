@@ -6,7 +6,7 @@
 
 **Architecture:** Um pacote novo `internal/reachability` concentra a decisão em uma função pura `Analyze(ports, env) Report`, alimentada por um `Detect()` que lê o ambiente uma vez na inicialização. O `Manager` passa a guardar o último erro de bind por dispositivo, que é o sinal de alcançabilidade em ambiente nativo. Um endpoint `GET /api/reachability` serve o relatório e a tela de dispositivos exibe um aviso quando há dispositivo inalcançável. Em paralelo, os composes e o `instalar.sh` deixam de produzir ambientes onde a falha é silenciosa.
 
-**Tech Stack:** Go 1.21 (toolchain local 1.25.4), Gin, pgx/v5, `gopkg.in/yaml.v3`, testes com a biblioteca padrão (o repositório não usa testify), Docker Compose v2, batch (`cmd.exe`) e bash.
+**Tech Stack:** Go 1.21 (toolchain local 1.25.4), Gin, pgx/v4, `gopkg.in/yaml.v3`, testes com a biblioteca padrão (o repositório não usa testify), Docker Compose v2, batch (`cmd.exe`) e bash.
 
 **Spec:** `docs/superpowers/specs/2026-08-14-manuais-ilustrados-e-rede-design.md`
 
@@ -1910,8 +1910,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgconn"
 )
 ```
 

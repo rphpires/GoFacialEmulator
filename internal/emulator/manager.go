@@ -42,6 +42,11 @@ type Manager struct {
 
 	// Controle de pausa do watchdog
 	watchdogPaused atomic.Bool
+
+	// Último erro de abertura de porta por dispositivo. É o sinal de
+	// alcançabilidade em ambiente nativo, onde o bind é direto.
+	startErrors     map[int]string
+	startErrorMutex sync.RWMutex
 }
 
 // WatchdogInfo armazena informações de monitoramento
@@ -439,13 +444,16 @@ func (m *Manager) Start(id int) error {
 	// Aguardar inicialização com timeout de 10 segundos
 	select {
 	case err := <-startErrChan:
+		m.recordStartResult(id, err)
 		if err != nil {
 			return fmt.Errorf("failed to start emulator: %w", err)
 		}
 	case <-time.After(10 * time.Second):
 		// Tentar parar o emulador que pode estar travado
 		_ = emulator.Stop()
-		return fmt.Errorf("timeout starting emulator %d after 10 seconds", id)
+		erroTimeout := fmt.Errorf("timeout starting emulator %d after 10 seconds", id)
+		m.recordStartResult(id, erroTimeout)
+		return erroTimeout
 	}
 
 	// Armazenar emulador ANTES de atualizar banco (para garantir consistência)
@@ -985,4 +993,30 @@ func (m *Manager) ListDevicesWithFilters(filters map[string]string) ([]*models.D
 	}
 
 	return devices, nil
+}
+
+// recordStartResult guarda ou limpa o erro do último start do dispositivo.
+// Um start bem-sucedido apaga o erro anterior: o veredito precisa refletir
+// a última tentativa, não a pior.
+func (m *Manager) recordStartResult(deviceID int, err error) {
+	m.startErrorMutex.Lock()
+	defer m.startErrorMutex.Unlock()
+
+	if m.startErrors == nil {
+		m.startErrors = make(map[int]string)
+	}
+
+	if err == nil {
+		delete(m.startErrors, deviceID)
+		return
+	}
+	m.startErrors[deviceID] = err.Error()
+}
+
+// LastStartError devolve o erro do último start do dispositivo, ou string
+// vazia se o último start funcionou ou se nunca houve start.
+func (m *Manager) LastStartError(deviceID int) string {
+	m.startErrorMutex.RLock()
+	defer m.startErrorMutex.RUnlock()
+	return m.startErrors[deviceID]
 }

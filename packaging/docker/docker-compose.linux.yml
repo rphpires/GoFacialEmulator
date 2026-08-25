@@ -1,3 +1,7 @@
+# Compose para Docker em Linux. Usa a rede do host, então qualquer porta
+# que o W-Access pedir funciona, sem faixa publicada e sem limite.
+# No Docker Desktop (Windows/Mac) a rede de host é experimental — lá vale
+# o docker-compose.yml, que publica por faixa.
 services:
   postgres:
     image: postgres:15-alpine
@@ -8,6 +12,11 @@ services:
       POSTGRES_DB: emulator_db
     expose:
       - "5432"
+    ports:
+      # Porta incomum de propósito: evita colidir com um PostgreSQL já
+      # instalado no host — inclusive o que o pacote Linux instala via
+      # apt na 5432, se instalado antes deste pacote Docker.
+      - "127.0.0.1:55432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -20,31 +29,19 @@ services:
   app:
     image: gofacialemulator:1.0
     container_name: facial-emulator-app
+    network_mode: host
     environment:
       SERVER_HOST: "0.0.0.0"
       SERVER_PORT: "7070"
-      DB_HOST: postgres
-      DB_PORT: "5432"
+      DB_HOST: 127.0.0.1
+      DB_PORT: "55432"
       DB_USER: emulator
       DB_PASSWORD: emulator123
       DB_DATABASE: emulator_db
-      # Precisa descrever exatamente o que a lista ports abaixo publica.
-      # A aplicação usa esta variável para avisar quais dispositivos não
-      # vão ser alcançados. Um teste de contrato guarda essa coerência.
-      PUBLISHED_PORT_RANGE: "4000-4499"
-    ports:
-      - "7070:7070"
-      # 500 emuladores. Para mais, troque as DUAS linhas abaixo e a
-      # variável PUBLISHED_PORT_RANGE acima pela mesma faixa.
-      # - "4000-4999:4000-4999"
-      - "4000-4499:4000-4499"
+      HOST_NETWORK: "1"
     depends_on:
       postgres:
         condition: service_healthy
-    networks:
-      default:
-        aliases:
-          - app
     restart: unless-stopped
     volumes:
       - ./logs:/app/logs
