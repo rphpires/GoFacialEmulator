@@ -1,0 +1,17 @@
+{
+  "name": "gofacialemulator-manuais",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "montar": "node ferramentas/montar.mjs",
+    "capturar": "node ferramentas/capturar.mjs",
+    "pdf": "node ferramentas/pdf.mjs",
+    "manuais": "node ferramentas/montar.mjs && node ferramentas/pdf.mjs",
+    "test": "node --test ferramentas/**/*.test.mjs"
+  },
+  "dependencies": {
+    "marked": "^12.0.0",
+    "pagedjs": "^0.4.3",
+    "playwright": "^1.44.0"
+  }
+}

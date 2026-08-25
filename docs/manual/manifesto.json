@@ -1,0 +1,19 @@
+{
+  "alvos": {
+    "docker": {
+      "titulo": "GoFacialEmulator — Manual do pacote Docker",
+      "subtitulo": "Instalacao, configuracao e validacao",
+      "capitulos": []
+    },
+    "windows": {
+      "titulo": "GoFacialEmulator — Manual do pacote Windows",
+      "subtitulo": "Instalacao, configuracao e validacao",
+      "capitulos": []
+    },
+    "linux": {
+      "titulo": "GoFacialEmulator — Manual do pacote Linux e WSL2",
+      "subtitulo": "Instalacao, configuracao e validacao",
+      "capitulos": []
+    }
+  }
+}

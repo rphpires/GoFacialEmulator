@@ -1,0 +1,80 @@
+/* Folha de impressao dos manuais. Pensada para papel A4 e para leitura
+   por tecnico de campo: fonte grande, figura que nao quebra no meio. */
+
+@page {
+  size: A4;
+  margin: 20mm 18mm 22mm 18mm;
+
+  @bottom-center {
+    content: counter(page);
+    font-family: system-ui, sans-serif;
+    font-size: 9pt;
+    color: #666;
+  }
+}
+
+body {
+  font-family: system-ui, "Segoe UI", sans-serif;
+  font-size: 11pt;
+  line-height: 1.55;
+  color: #1a1a1a;
+}
+
+.capa {
+  break-after: page;
+  padding-top: 60mm;
+  text-align: center;
+}
+.capa-titulo { font-size: 26pt; margin: 0 0 8mm; }
+.capa-subtitulo { font-size: 13pt; color: #555; }
+
+#sumario { break-after: page; }
+#sumario ol { list-style: none; padding-left: 0; }
+#sumario li { margin: 2mm 0; font-size: 12pt; }
+#sumario a { text-decoration: none; color: inherit; }
+
+.capitulo { break-before: page; }
+.capitulo h1 { font-size: 19pt; margin: 0 0 6mm; }
+.capitulo h2 { font-size: 14pt; margin: 8mm 0 3mm; break-after: avoid; }
+
+/* Figura nunca quebra entre paginas, e nunca fica separada da legenda. */
+.figura {
+  break-inside: avoid;
+  margin: 6mm 0;
+  text-align: center;
+}
+.figura img {
+  max-width: 100%;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+}
+.figura figcaption {
+  font-size: 9.5pt;
+  color: #555;
+  margin-top: 2mm;
+}
+
+/* Caixa que ocupa o lugar de uma figura ainda nao capturada. Precisa ser
+   visivelmente uma pendencia, nao passar por ilustracao. */
+.caixa-pendente {
+  border: 2px dashed #c00;
+  color: #c00;
+  padding: 18mm 6mm;
+  font-weight: 600;
+}
+
+code, pre {
+  font-family: "Cascadia Mono", Consolas, monospace;
+  font-size: 9.5pt;
+}
+pre {
+  background: #f6f6f6;
+  border-left: 3px solid #999;
+  padding: 3mm 4mm;
+  break-inside: avoid;
+  white-space: pre-wrap;
+}
+
+table { border-collapse: collapse; width: 100%; break-inside: avoid; }
+th, td { border: 1px solid #ccc; padding: 2mm 3mm; text-align: left; font-size: 10pt; }
+th { background: #f0f0f0; }

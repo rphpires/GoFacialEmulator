@@ -60,3 +60,8 @@ DisableTraceIntegraEnable.txt
 *.test
 *.out
 coverage.*
+
+# Manuais: dependências, saída de montagem e credenciais de captura
+docs/manual/node_modules/
+docs/manual/.out/
+docs/manual/.captura.env
