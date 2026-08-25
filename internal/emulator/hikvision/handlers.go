@@ -875,6 +875,10 @@ func (e *Emulator) handlePostFaceDataRecord(c *gin.Context) {
 	// Extrair os dados do formulário
 	faceDataRecord := c.PostForm("FaceDataRecord")
 	if faceDataRecord == "" {
+		// Sem log, uma face recusada aqui some sem rastro e o usuario aparece
+		// na tela como se nao tivesse face.
+		e.tracer.Error("[FACE] %s %s: FaceDataRecord ausente (CT=%q)",
+			c.Request.Method, c.Request.URL.Path, c.Request.Header.Get("Content-Type"))
 		c.JSON(http.StatusBadRequest, gin.H{"error": "No FaceDataRecord provided"})
 		return
 	}
@@ -891,6 +895,8 @@ func (e *Emulator) handlePostFaceDataRecord(c *gin.Context) {
 	// Obter o arquivo de imagem
 	fileHeader, err := c.FormFile("FaceImage")
 	if err != nil {
+		e.tracer.Error("[FACE] %s %s: FaceImage ausente para FPID=%s: %v",
+			c.Request.Method, c.Request.URL.Path, faceData.FPID, err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -936,6 +942,10 @@ func (e *Emulator) handlePutFaceSetup(c *gin.Context) {
 	// Extrair os dados do formulário
 	faceDataRecord := c.PostForm("FaceDataRecord")
 	if faceDataRecord == "" {
+		// Sem log, uma face recusada aqui some sem rastro e o usuario aparece
+		// na tela como se nao tivesse face.
+		e.tracer.Error("[FACE] %s %s: FaceDataRecord ausente (CT=%q)",
+			c.Request.Method, c.Request.URL.Path, c.Request.Header.Get("Content-Type"))
 		c.JSON(http.StatusBadRequest, gin.H{"error": "No FaceDataRecord provided"})
 		return
 	}
@@ -952,6 +962,8 @@ func (e *Emulator) handlePutFaceSetup(c *gin.Context) {
 	// Obter o arquivo de imagem
 	fileHeader, err := c.FormFile("FaceImage")
 	if err != nil {
+		e.tracer.Error("[FACE] %s %s: FaceImage ausente para FPID=%s: %v",
+			c.Request.Method, c.Request.URL.Path, faceData.FPID, err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}

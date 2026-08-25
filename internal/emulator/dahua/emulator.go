@@ -103,6 +103,27 @@ func (e *Emulator) Start() error {
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
 	router.Use(gin.Recovery())
+
+	// Middleware de diagnostico: loga toda requisicao que entra neste emulador
+	// (mesmo par [REQ]/[RES] do Hikvision).
+	router.Use(func(c *gin.Context) {
+		e.tracer.Info("[REQ] %s %s?%s from %s (CL=%d CT=%q)",
+			c.Request.Method, c.Request.URL.Path, c.Request.URL.RawQuery,
+			c.Request.RemoteAddr, c.Request.ContentLength,
+			c.Request.Header.Get("Content-Type"))
+		c.Next()
+		e.tracer.Info("[RES] %s %s -> %d (%d bytes)",
+			c.Request.Method, c.Request.URL.Path, c.Writer.Status(), c.Writer.Size())
+	})
+
+	// NoRoute: sem isto, um endpoint que o gerenciador chama e o emulador nao
+	// implementa vira 404 silencioso.
+	router.NoRoute(func(c *gin.Context) {
+		e.tracer.Error("[NOROUTE] %s %s?%s not matched",
+			c.Request.Method, c.Request.URL.Path, c.Request.URL.RawQuery)
+		c.String(http.StatusNotFound, "not found: %s %s", c.Request.Method, c.Request.URL.Path)
+	})
+
 	e.SetupRoutes(router)
 
 	// Inicia o servidor HTTP
