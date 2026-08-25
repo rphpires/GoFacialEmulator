@@ -256,18 +256,22 @@ func (e *Emulator) handleFaceInfoManagerPost(c *gin.Context) {
 	action := c.Query("action")
 
 	var requestData struct {
-		UserID int `json:"UserID"`
+		UserID flexInt `json:"UserID"`
 		Info   struct {
-			PhotoData []string `json:"PhotoData"`
+			PhotoData flexStrings `json:"PhotoData"`
 		} `json:"Info"`
 	}
 
 	if err := c.ShouldBindJSON(&requestData); err != nil {
+		// Sem este log, uma face recusada por formato de payload some sem
+		// deixar rastro e a tela mostra o usuario como se nao tivesse face.
+		e.tracer.Error("[FACE] bind failed: action=%s CT=%q err=%v",
+			action, c.Request.Header.Get("Content-Type"), err)
 		e.handleResponse(c, "Invalid JSON", http.StatusBadRequest, 50)
 		return
 	}
 
-	userID := requestData.UserID
+	userID := int(requestData.UserID)
 	var photoData string
 	if len(requestData.Info.PhotoData) > 0 {
 		photoData = requestData.Info.PhotoData[0]
@@ -288,6 +292,7 @@ func (e *Emulator) handleFaceInfoManagerPost(c *gin.Context) {
 		e.tracer.Info("Add Face: UserID=%d, md5=%s", userID, md5Hash)
 		err := e.repo.AddFace(userID, md5Hash)
 		if err != nil {
+			e.tracer.Error("[FACE] AddFace failed: UserID=%d err=%v", userID, err)
 			e.handleResponse(c, "Error", http.StatusInternalServerError, 550)
 			return
 		}
@@ -310,12 +315,15 @@ func (e *Emulator) handleFaceInfoManagerPost(c *gin.Context) {
 		e.repo.RemoveFace(userID)
 		err := e.repo.AddFace(userID, md5Hash)
 		if err != nil {
+			e.tracer.Error("[FACE] UpdateFace failed: UserID=%d err=%v", userID, err)
 			e.handleResponse(c, "Error", http.StatusInternalServerError, 600)
 			return
 		}
 		e.handleResponse(c, "OK", http.StatusOK, 600)
 
 	default:
+		e.tracer.Error("[FACE] unknown action=%q (UserID=%d, photo=%d bytes)",
+			action, userID, len(photoData))
 		e.handleResponse(c, "Invalid action", http.StatusBadRequest, 50)
 	}
 }

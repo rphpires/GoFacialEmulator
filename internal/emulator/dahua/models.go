@@ -1,6 +1,73 @@
 package dahua
 
-import "time"
+import (
+	"encoding/json"
+	"fmt"
+	"strconv"
+	"time"
+)
+
+// flexInt aceita o inteiro tanto como numero quanto como string JSON. O
+// W-Access manda "UserID": "1" no FaceInfoManager e um int puro rejeitaria
+// o payload inteiro, descartando a face.
+type flexInt int
+
+func (f *flexInt) UnmarshalJSON(data []byte) error {
+	texto := string(data)
+	if texto == "null" {
+		return nil
+	}
+
+	if len(texto) > 1 && texto[0] == '"' {
+		var s string
+		if err := json.Unmarshal(data, &s); err != nil {
+			return err
+		}
+		if s == "" {
+			return nil
+		}
+		n, err := strconv.Atoi(s)
+		if err != nil {
+			return fmt.Errorf("UserID %q nao e inteiro: %w", s, err)
+		}
+		*f = flexInt(n)
+		return nil
+	}
+
+	var n int
+	if err := json.Unmarshal(data, &n); err != nil {
+		return err
+	}
+	*f = flexInt(n)
+	return nil
+}
+
+// flexStrings aceita uma lista de strings ou uma string solta. Dahua real
+// documenta PhotoData como lista, mas gerenciadores mandam as duas formas.
+type flexStrings []string
+
+func (f *flexStrings) UnmarshalJSON(data []byte) error {
+	texto := string(data)
+	if texto == "null" {
+		return nil
+	}
+
+	if len(texto) > 1 && texto[0] == '"' {
+		var s string
+		if err := json.Unmarshal(data, &s); err != nil {
+			return err
+		}
+		*f = flexStrings{s}
+		return nil
+	}
+
+	var lista []string
+	if err := json.Unmarshal(data, &lista); err != nil {
+		return err
+	}
+	*f = flexStrings(lista)
+	return nil
+}
 
 // Card representa um cartão no sistema Dahua
 type Card struct {
