@@ -7,6 +7,7 @@
 //     pendencias. Se falhasse, o primeiro PDF nunca seria gerado, porque
 //     algumas telas so um humano consegue tirar.
 import { readFile, writeFile, mkdir, access } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
@@ -32,6 +33,15 @@ function escaparHtml(s) {
     .replace(/"/g, '&quot;')
 }
 
+// caminhoDaFigura resolve o href JA PARSEADO pelo marked (sem o titulo entre
+// aspas, que o proprio marked separa) para o caminho absoluto do arquivo em
+// ativos/. Ponto unico de conversao href -> caminho: nao duplicar esta conta
+// em outro lugar, ou os dois lados podem voltar a discordar sobre o que
+// existe no disco.
+function caminhoDaFigura(raiz, href) {
+  return join(raiz, 'ativos', href.replace(/^ativos\//, ''))
+}
+
 // renderizarCapitulo converte um capitulo em HTML e resolve as figuras.
 // Devolve tambem as pendencias encontradas, para o checklist.
 async function renderizarCapitulo(raiz, caminhoRelativo, numeroCapitulo) {
@@ -45,15 +55,7 @@ async function renderizarCapitulo(raiz, caminhoRelativo, numeroCapitulo) {
   const markdown = await readFile(caminhoAbsoluto, 'utf8')
   const pendencias = []
   let numeroFigura = 0
-  let titulo = caminhoRelativo
-
-  // marked chama renderer.image de forma sincrona, entao a existencia de
-  // cada figura precisa ser resolvida ANTES de montar o renderer.
-  const figurasExistentes = new Set()
-  for (const href of [...markdown.matchAll(/!\[[^\]]*\]\(([^)]+)\)/g)].map((m) => m[1])) {
-    const caminhoImagem = join(raiz, 'ativos', href.replace(/^ativos\//, ''))
-    if (await existe(caminhoImagem)) figurasExistentes.add(caminhoImagem)
-  }
+  let titulo = null
 
   const renderer = new marked.Renderer()
 
@@ -65,12 +67,16 @@ async function renderizarCapitulo(raiz, caminhoRelativo, numeroCapitulo) {
     return `<h${nivel}>${texto}</h${nivel}>\n`
   }
 
+  // renderer.image e chamado pelo marked de forma sincrona, com o href JA
+  // separado do titulo entre aspas (`![alt](caminho "titulo")`) — por isso
+  // a checagem de existencia acontece aqui, com a mesma string que o marked
+  // usa, em vez de reanalisar o markdown cru com uma regex propria.
   renderer.image = (href, _tituloImg, alt) => {
     numeroFigura += 1
     const rotulo = `Figura ${numeroCapitulo}.${numeroFigura}`
-    const caminhoImagem = join(raiz, 'ativos', href.replace(/^ativos\//, ''))
+    const caminhoImagem = caminhoDaFigura(raiz, href)
 
-    if (!figurasExistentes.has(caminhoImagem)) {
+    if (!existsSync(caminhoImagem)) {
       pendencias.push({ capitulo: caminhoRelativo, alt, caminho: caminhoImagem })
       return (
         `<figure class="figura figura-pendente">` +
@@ -87,6 +93,18 @@ async function renderizarCapitulo(raiz, caminhoRelativo, numeroCapitulo) {
   }
 
   const html = marked.parse(markdown, { renderer })
+
+  // Sem um cabecalho de nivel 1, nao ha titulo legivel para o sumario nem
+  // para a aba do navegador — e todo texto visivel ao usuario final precisa
+  // ser portugues sem jargao, nunca um caminho de arquivo cru. Um capitulo
+  // sem "# Titulo" e um defeito de autoria, do mesmo tipo que um capitulo
+  // ausente do disco: falha o build em vez de vazar o caminho.
+  if (titulo === null) {
+    throw new Error(
+      `capitulo sem cabecalho de titulo ("# ..."): ${caminhoRelativo}`
+    )
+  }
+
   return { html, titulo, pendencias }
 }
 

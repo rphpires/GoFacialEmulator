@@ -120,3 +120,35 @@ test('alvo inexistente falha com mensagem clara', async () => {
   const raiz = await cenario([], {})
   await assert.rejects(() => montar('nao-existe', { raiz }), /nao-existe/)
 })
+
+test('figura com titulo entre aspas e reconhecida mesmo existindo no disco', async () => {
+  const raiz = await cenario(
+    ['comum/a.md'],
+    {
+      'comum/a.md':
+        '# Instalar\n\n' +
+        '![Tela do instalador](img/manual/existe.png "Tela do instalador do Docker Desktop")\n'
+    },
+    ['existe.png']
+  )
+
+  const { html, pendencias } = await montar('teste', { raiz })
+
+  assert.match(html, /<img[^>]+existe\.png/)
+  assert.doesNotMatch(html, /figura-pendente/)
+  assert.equal(pendencias.length, 0,
+    'o titulo entre aspas nao pode ser confundido com parte do caminho do arquivo')
+})
+
+test('capitulo sem cabecalho de titulo falha o build', async () => {
+  const raiz = await cenario(
+    ['comum/a.md'],
+    { 'comum/a.md': 'texto solto, sem "# Titulo" nenhum\n' }
+  )
+
+  await assert.rejects(
+    () => montar('teste', { raiz }),
+    /comum\/a\.md/,
+    'a mensagem precisa dizer qual capitulo ficou sem titulo'
+  )
+})
