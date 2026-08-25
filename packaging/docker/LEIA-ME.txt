@@ -21,4 +21,4 @@ LOGS
   Aplicacao: sistema/logs/trace.log  (e trace.html, colorido)
   Banco:     docker compose -f sistema/docker-compose.yml logs postgres
 
-O manual completo esta no arquivo MANUAL.md do projeto.
+O manual completo, com imagens, esta no MANUAL.pdf ao lado deste arquivo.

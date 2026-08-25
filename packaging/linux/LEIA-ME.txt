@@ -23,4 +23,4 @@ LOGS
   Saida bruta: sistema/logs/app.out
   Banco:     /var/log/postgresql/
 
-O manual completo esta no arquivo MANUAL.md do projeto.
+O manual completo, com imagens, esta no MANUAL.pdf ao lado deste arquivo.

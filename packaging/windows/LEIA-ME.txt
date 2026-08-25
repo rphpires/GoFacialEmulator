@@ -21,4 +21,4 @@ LOGS
   Banco:     sistema\logs\postgres.log
   Instalacao: sistema\logs\instalacao.log
 
-O manual completo esta no arquivo MANUAL.md do projeto.
+O manual completo, com imagens, esta no MANUAL.pdf ao lado deste arquivo.

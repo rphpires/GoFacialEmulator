@@ -18,10 +18,37 @@ if errorlevel 1 (
 if /i "%ALVO%"=="docker"  goto build_docker
 if /i "%ALVO%"=="windows" goto build_windows
 if /i "%ALVO%"=="linux"   goto build_linux
-if /i "%ALVO%"=="todos"   goto build_docker
+if /i "%ALVO%"=="manuais" goto build_manuais
+if /i "%ALVO%"=="todos"   goto build_manuais
 echo [ERRO] Alvo invalido: %ALVO%
-echo Uso: build-pacotes.bat [docker^|windows^|linux^|todos]
+echo Uso: build-pacotes.bat [docker^|windows^|linux^|manuais^|todos]
 exit /b 1
+
+REM ==================== MANUAIS ====================
+:build_manuais
+echo.
+echo [manuais] Montando e imprimindo os tres PDFs ...
+where npm >nul 2>&1
+if errorlevel 1 (
+    echo [ERRO] npm nao encontrado. Instale o Node.js em https://nodejs.org/
+    exit /b 1
+)
+if not exist docs\manual\node_modules (
+    echo [manuais] Instalando dependencias ^(uma vez^) ...
+    pushd docs\manual
+    call npm install --ignore-scripts
+    popd
+)
+pushd docs\manual
+call npm run manuais
+set RC=%ERRORLEVEL%
+popd
+if not "%RC%"=="0" (
+    echo [ERRO] Falha ao gerar os manuais.
+    exit /b 1
+)
+echo [manuais] OK: docs\manual\.out\MANUAL-*.pdf
+if /i not "%ALVO%"=="todos" goto fim
 
 REM ==================== DOCKER ====================
 :build_docker
@@ -53,6 +80,7 @@ copy /Y packaging\docker\instalar.sh   "%STAGE%\" >nul
 copy /Y packaging\docker\iniciar.sh    "%STAGE%\" >nul
 copy /Y packaging\docker\parar.sh      "%STAGE%\" >nul
 copy /Y packaging\docker\LEIA-ME.txt   "%STAGE%\" >nul
+if exist docs\manual\.out\MANUAL-docker.pdf copy /Y docs\manual\.out\MANUAL-docker.pdf "%STAGE%\MANUAL.pdf" >nul
 
 if exist "%OUT%\GoFacialEmulator-docker.zip" del "%OUT%\GoFacialEmulator-docker.zip"
 powershell -NoProfile -Command "Compress-Archive -Path '%STAGE%\*' -DestinationPath '%OUT%\GoFacialEmulator-docker.zip' -Force"
@@ -102,6 +130,7 @@ copy /Y packaging\windows\INSTALAR.bat  "%STAGE%\" >nul
 copy /Y packaging\windows\INICIAR.bat   "%STAGE%\" >nul
 copy /Y packaging\windows\PARAR.bat     "%STAGE%\" >nul
 copy /Y packaging\windows\LEIA-ME.txt   "%STAGE%\" >nul
+if exist docs\manual\.out\MANUAL-windows.pdf copy /Y docs\manual\.out\MANUAL-windows.pdf "%STAGE%\MANUAL.pdf" >nul
 
 if exist "%OUT%\GoFacialEmulator-windows.zip" del "%OUT%\GoFacialEmulator-windows.zip"
 powershell -NoProfile -Command "Compress-Archive -Path '%STAGE%\*' -DestinationPath '%OUT%\GoFacialEmulator-windows.zip' -Force"
@@ -134,6 +163,7 @@ copy /Y packaging\linux\instalar.sh  "%STAGE%\" >nul
 copy /Y packaging\linux\iniciar.sh   "%STAGE%\" >nul
 copy /Y packaging\linux\parar.sh     "%STAGE%\" >nul
 copy /Y packaging\linux\LEIA-ME.txt  "%STAGE%\" >nul
+if exist docs\manual\.out\MANUAL-linux.pdf copy /Y docs\manual\.out\MANUAL-linux.pdf "%STAGE%\MANUAL.pdf" >nul
 
 if exist "%OUT%\GoFacialEmulator-linux.zip" del "%OUT%\GoFacialEmulator-linux.zip"
 powershell -NoProfile -Command "Compress-Archive -Path '%STAGE%\*' -DestinationPath '%OUT%\GoFacialEmulator-linux.zip' -Force"
