@@ -3,6 +3,7 @@
 **Data:** 2026-08-14
 **Substitui:** Task 8 de `docs/superpowers/plans/2026-08-13-instalacao-simplificada.md`
 **Depende de:** Tasks 1 a 5 do mesmo plano (já commitadas)
+**Revisado:** 2026-08-25 — a Fase D passa a rodar sobre a interface redesenhada. Ver seção 11; onde a seção 11 divergir das seções 8.1, 8.4 e 8.5, ela prevalece.
 
 ## 1. Problema
 
@@ -146,7 +147,7 @@ Regras por ambiente:
 ### 6.4 Exposição
 
 - `GET /api/reachability` devolve o `Report` em JSON
-- `assets/web/templates/devices.html` ganha um bloco acima da tabela `#device-table`, exibido apenas quando `Unreachable > 0` ou `Unknown > 0`:
+- `assets/web/templates/devices.html` ganha um bloco acima da tabela `#device-table`, exibido apenas quando `Unreachable > 0` ou `Unknown > 0` (o marcador `#device-table` é o da interface anterior; ao trazer este bloco para o console redesenhado, ver a etapa 3 da seção 11.2):
 
 ```
 ⚠  201 dispositivos não vão ser alcançados pelo Site Controller.
@@ -194,6 +195,7 @@ docs/manual/
   manifesto.yaml            # ordem dos capítulos por alvo
   conteudo/
     comum/                  # entra nos três PDFs
+      conhecer-o-console.md
       configurar-wxs.md
       validacao.md
       logs.md
@@ -250,7 +252,7 @@ Responsabilidades adicionais:
 
 Duas suítes independentes:
 
-- **Emulador** — `http://localhost:7070`. Telas: lista de dispositivos (`#device-table`), filtros (`#filter-form`), configurações (`#wxsSettingsForm`), comparação, métricas, e o aviso de alcançabilidade da seção 6.4.
+- **Emulador** — `http://localhost:7070`. Telas e seletores na seção 11.3, que substitui a lista original desta seção: a interface foi redesenhada depois que esta spec foi escrita e os identificadores mudaram.
 - **W-Access** — `https://localhost/W-Access` com `ignoreHTTPSErrors`, certificado self-signed. Telas do cadastro de controlador: onde vai a descrição `emulator_NN`, o endereço e o `BaseCommPort`.
 
 Parâmetros fixos: viewport 1440×900, `deviceScaleFactor: 2`. Abaixo disso a figura sai borrada no papel.
@@ -265,10 +267,11 @@ Parâmetros fixos: viewport 1440×900, `deviceScaleFactor: 2`. Abaixo disso a fi
 
 ### 8.5 Conteúdo dos três PDFs
 
-Capítulos comuns aos três, na mesma ordem final:
+Capítulos comuns aos três, na mesma ordem final. A ordem por PDF é `antes-de-comecar` → `instalar-*` → `portas-e-rede` → `conhecer-o-console` → `configurar-wxs` → `validacao` → `logs` → `problemas`: o técnico instala, abre, entende o que está vendo, e só então configura.
 
 | Capítulo | Conteúdo |
 |---|---|
+| Conhecer o console | Tour da interface: rail e navegação, sinal de conexão do W-Access, medidor de frota, grade de dispositivos com a coluna Modo, filtros e paginação, gaveta de detalhes, atualização ao vivo, página de comparação. Detalhado na seção 11.4 |
 | Configurar o W-Access | Cadastro do controlador, descrição `emulator_NN`, endereço, `BaseCommPort`; tela `/settings` do emulador; teste de conexão |
 | Roteiro de validação | Passo a passo com resultado esperado por etapa: subir um emulador, vê-lo online no W-Access, simular uma leitura, conferir o evento chegando, conferir a linha no log. Cada etapa que falhar aponta para a seção correspondente de problemas |
 | Onde estão os logs | Caminho por pacote, o que cada arquivo contém, como ler o `trace.html` |
@@ -325,3 +328,86 @@ Os três `LEIA-ME.txt` passam a apontar para o PDF ao lado, encerrando a referê
 | `network_mode: host` muda o comportamento do compose Linux | Fica restrito ao compose Linux; o pacote Windows continua publicando por faixa. Coberto pelo roteiro de validação |
 | PNGs incham o repositório | Poucos megabytes, contra um build que exigiria ambiente completo vivo. Aceito conscientemente |
 | Manual descreve comportamento que muda depois | Origem da ordem A→B→C→D: os manuais são escritos por último, sobre interface estável |
+
+---
+
+## 11. Revisão de 2026-08-25 — Fase D sobre a interface redesenhada
+
+### 11.1 Por que a revisão
+
+A seção 4 fixou a ordem A→B→C→D com uma justificativa explícita: os manuais são escritos por último, sobre interface estável. A premissa caiu. Depois que esta spec foi escrita, a branch `feat/console-ui-redesign` reescreveu a interface inteira — sistema de design próprio, console escuro, atualização por SSE, gaveta de detalhes de dispositivo, sinal de conexão do W-Access no rail. Toda figura que a Fase D produziria pela lista original sairia de uma tela que não existe mais.
+
+Esta seção reabre a Fase D sobre a interface nova. O pipeline das seções 8.2, 8.3, 8.6 e 8.7 não muda. Mudam a base de execução, a lista de telas e seletores, e o conteúdo: entra um capítulo de tour da interface.
+
+### 11.2 Base de execução
+
+Nenhuma branch contém, ao mesmo tempo, a interface nova e o trabalho das fases B e C. `feat/rede-e-modo-dispositivo` não está mesclada em `main` nem é ancestral de `feat/console-ui-redesign`. Capturar de qualquer uma das duas isoladamente produz um manual que descreve um produto que ninguém tem.
+
+Ordem obrigatória, antes de qualquer captura:
+
+1. Worktree nova a partir de `feat/console-ui-redesign`.
+2. Merge de `feat/rede-e-modo-dispositivo` dentro dela.
+3. Re-implementar, no design novo, os dois pontos de interface que o merge não resolve sozinho: a **coluna Modo** (`feat(web): add the online/standalone mode column`) e o **banner de alcançabilidade** (`feat(web): warn about devices the Site Controller cannot reach`). O backend — `internal/reachability/`, `internal/handlers/device_mode.go`, `internal/handlers/reachability.go` — entra sem conflito; o conflito é de apresentação, e a resolução é reescrever com os tokens e componentes do console, não colar o HTML antigo.
+4. Suíte de testes verde nos dois lados: os testes de `internal/reachability` e `device_mode_test.go` da branch de rede, e `render_test.go` e `stream_test.go` da branch da interface.
+
+Só depois disso as tarefas de captura da Fase D podem rodar.
+
+### 11.3 Telas e seletores — substitui a lista da seção 8.4
+
+Os identificadores que a seção 8.4 listava não existem mais. Os atuais, lidos de `assets/web/templates/`:
+
+| Seção 8.4 dizia | Identificador atual |
+|---|---|
+| `#device-table` | `#device-grid` |
+| `#wxsSettingsForm` | `#settings-body`, com o botão `#test-connection` |
+| tela de métricas | não existe rota de página; sai da lista |
+
+Rotas de página capturáveis, e apenas estas três: `/` (dispositivos), `/settings`, `/comparison`.
+
+Alvos de callout na suíte do emulador: `#rail` e `#rail-toggle` (navegação), `#fleet-meter` com `#meter-bar`, `#meter-health` e `#meter-reading` (medidor de frota), `#device-grid` e `#select-all` (grade e seleção), `#filter-form` com `#filter-id`, `#filter-name`, `#filter-port` e `#per-page` (filtros e paginação), `#device-drawer` com `#drawer-title`, `#drawer-led`, `#tab-users`, `#tab-settings` e `#drawer-log` (gaveta de detalhes), `#settings-body`, `#toggle-password` e `#test-connection` (configurações), `#comparison-grid` e `#refresh-comparison` (comparação), mais a coluna Modo e o banner de alcançabilidade nos identificadores que a etapa 3 da seção 11.2 lhes der.
+
+A regra da seção 8.4 continua valendo e é o que protege esta lista de envelhecer de novo: **seletor que não casa derruba a captura em vez de produzir a figura.** Se a interface mudar outra vez, o build acusa.
+
+A suíte do W-Access não muda: as telas de cadastro de controlador — descrição `emulator_NN`, endereço e `BaseCommPort` — são do W-Access, não do emulador.
+
+### 11.4 Capítulo `conhecer-o-console.md`
+
+Comum aos três PDFs, escrito uma vez. Cobre, nesta ordem:
+
+1. **O rail e a navegação** — as páginas disponíveis, como recolher o rail, e o **sinal de conexão do W-Access**: onde fica, o que cada estado significa, e o que fazer quando indica desconectado.
+2. **O medidor de frota** — os três estados de contagem e como ler a barra.
+3. **A grade de dispositivos** — as colunas, incluindo a **coluna Modo** (online × standalone) e o que cada valor implica para o comportamento do device; seleção múltipla e as ações de iniciar e parar em lote.
+4. **Filtros e paginação** — filtrar por identificador, nome e porta; itens por página.
+5. **A gaveta de detalhes** — como abrir, o LED de estado, a aba de usuários com busca e paginação, a aba de configurações, e o log do dispositivo com a opção de salvar.
+6. **Atualização ao vivo** — a tela muda sozinha porque recebe eventos do servidor; o que isso significa na prática e por que não existe botão de atualizar na maior parte das telas.
+7. **A página de comparação** — para que serve e como interpretar o resultado.
+
+O texto explica o que o técnico vê, não como foi implementado. `SSE`, `template` e `handler` não aparecem no texto do usuário final.
+
+Posição no PDF: depois de `portas-e-rede`, antes de `configurar-wxs`.
+
+### 11.5 Ambiente de captura
+
+A seção 8.4 previa capturar de ambiente vivo, e é isso que será feito: o ambiente sobe antes da tarefa de captura, e as figuras do emulador saem reais na primeira entrega, não como placeholder.
+
+Pré-condições da tarefa de captura: Docker Desktop em execução, PostgreSQL de pé, aplicação respondendo em `http://localhost:7070`, e frota com dispositivos suficientes para a grade, os filtros e a paginação renderizarem com conteúdo representativo — grade vazia não ilustra nada.
+
+O W-Access é tratado como opcional e independente, exatamente como a seção 8.4 já definia: sem `docs/manual/.captura.env` ou sem servidor alcançável, a suíte dele é pulada com aviso, as figuras correspondentes viram pendência registrada, e a suíte do emulador roda até o fim. O mascaramento da tela `/settings` continua obrigatório.
+
+As capturas humanas da seção 9 — wizard do instalador do Docker Desktop, diálogo de reinício do WSL2 — continuam fora do alcance de qualquer script e permanecem em `CAPTURAS-PENDENTES.md`.
+
+### 11.6 Fora de escopo, deliberadamente
+
+Levantados e recusados nesta revisão, para que não voltem como dúvida durante a execução:
+
+- **Capítulo dedicado a testar online × standalone.** O modo aparece na coluna Modo, descrita no tour, e no roteiro de validação. Não ganha capítulo próprio.
+- **Compatibilidade com o Gerenciador GO.** Fora do manual. Exigiria verificar antes o estado real dessa compatibilidade, o que é trabalho de engenharia, não de documentação.
+- **Desinstalar, atualizar e migrar dados.** Fora desta entrega.
+
+### 11.7 Riscos que esta revisão acrescenta
+
+| Risco | Tratamento |
+|---|---|
+| O merge da branch de rede na branch da interface degrada a coluna Modo ou o banner ao reescrevê-los no design novo | Os testes de `device_mode_test.go` e `reachability_http_test.go` cobrem o contrato de API; o de `render_test.go`, a renderização. Verdes nos dois lados antes de capturar, conforme a etapa 4 da seção 11.2 |
+| A interface muda de novo depois das capturas | Seletor quebrado derruba o build; recapturar é um comando. É a mesma mitigação da seção 10, e ela acabou de provar seu valor |
+| A frota de captura sai pequena demais e a figura não ilustra o caso real | Pré-condição explícita na seção 11.5: conteúdo representativo em grade, filtros e paginação |
