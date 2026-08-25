@@ -1,35 +1,380 @@
-# Manuais Ilustrados em PDF — Implementation Plan
+# Manuais Ilustrados sobre o Console Redesenhado — Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Entregar três manuais em PDF — um por pacote de instalação — ilustrados, escritos para técnico de campo, cobrindo desde o download do Docker Desktop e a instalação do WSL2 até o roteiro de validação com o W-Access, e gerados por um pipeline que qualquer estação consegue rodar.
+**Goal:** Entregar três manuais em PDF — um por pacote de instalação — ilustrados com a interface redesenhada do console, escritos para técnico de campo, cobrindo desde o download do Docker Desktop e a instalação do WSL2 até o roteiro de validação com o W-Access, e gerados por um pipeline que qualquer estação consegue rodar.
 
-**Architecture:** Capítulos em Markdown em `docs/manual/conteudo/`, com os comuns escritos uma vez e referenciados pelos três alvos através de `manifesto.json`. Um script Node monta o HTML de cada alvo com capa, sumário e CSS de impressão; outro captura as telas do emulador e do W-Access com Playwright dirigindo o Chrome já instalado; um terceiro imprime o PDF pelo mesmo Playwright, com paged.js paginando dentro da página. Figuras que só um humano pode tirar viram caixa tracejada no PDF e linha em `CAPTURAS-PENDENTES.md`, sem quebrar o build.
+**Architecture:** Antes de qualquer captura, uma tarefa de base reúne numa única branch a interface nova e o trabalho de alcançabilidade de rede e modo de dispositivo, reescrevendo a coluna Modo e o aviso de alcançabilidade no sistema de design do console. Depois disso: capítulos em Markdown em `docs/manual/conteudo/`, com os comuns escritos uma vez e referenciados pelos três alvos através de `manifesto.json`. Um script Node monta o HTML de cada alvo com capa, sumário e CSS de impressão; outro captura as telas do emulador e do W-Access com Playwright dirigindo o Chrome já instalado; um terceiro imprime o PDF pelo mesmo Playwright, com paged.js paginando dentro da página. Figuras que só um humano pode tirar viram caixa tracejada no PDF e linha em `CAPTURAS-PENDENTES.md`, sem quebrar o build.
 
-**Tech Stack:** Node 24 / npm 11, Playwright com `channel: 'chrome'` (usa o Chrome instalado, sem baixar browsers), paged.js, marked. Go 1.21 e batch (`cmd.exe`) na integração com `packaging/build-pacotes.bat`.
+**Tech Stack:** Go 1.21 (toolchain local 1.25.4), Gin, pgx/v4, `html/template` com cache no startup, Node 24 / npm 11, Playwright com `channel: 'chrome'` (usa o Chrome instalado, sem baixar browsers), paged.js, marked. Batch (`cmd.exe`) na integração com `packaging/build-pacotes.bat`.
 
-**Spec:** `docs/superpowers/specs/2026-08-14-manuais-ilustrados-e-rede-design.md`, seção 8.
+**Spec:** `docs/superpowers/specs/2026-08-14-manuais-ilustrados-e-rede-design.md`, seções 8 e 11. **Onde a seção 11 divergir das seções 8.1, 8.4 e 8.5, ela prevalece** — ela existe justamente porque a interface mudou depois que a spec foi escrita.
 
-**Base de execução:** este plano **deve** ser executado sobre a branch `feat/rede-e-modo-dispositivo`, não sobre `main`. Os manuais fotografam o aviso de alcançabilidade e a coluna Modo, que existem apenas naquela branch. Criar a worktree a partir dela.
+**Substitui:** `docs/superpowers/plans/2026-08-14-manuais-ilustrados.md`, cuja base de execução (`feat/rede-e-modo-dispositivo`) ficou errada e cuja lista de seletores aponta para uma interface que não existe mais. Aquele plano nunca teve nenhuma tarefa executada; nada se perde ao substituí-lo.
 
 ## Global Constraints
 
-- Três dependências npm, todas em `docs/manual/package.json`, nenhuma no repositório Go: `playwright`, `pagedjs`, `marked`. A spec previa duas; `marked` entra porque converter Markdown à mão seria pior. Nenhuma outra é permitida.
+- **Base de execução:** este plano roda sobre `feat/console-ui-redesign` **com** `feat/rede-e-modo-dispositivo` mesclada dentro dela, o que a Task 0 faz. Não executar a Task 0 invalida todas as capturas.
+- Três dependências npm, todas em `docs/manual/package.json`, nenhuma no repositório Go: `playwright`, `pagedjs`, `marked`. Nenhuma outra é permitida.
 - Playwright sempre com `channel: 'chrome'`. Nunca rodar `playwright install` — o Chrome da máquina é o browser.
-- Todo texto que o usuário final lê é em português, sem jargão. O público é técnico de campo, não desenvolvedor.
+- Todo texto que o usuário final lê é em português, sem jargão. O público é técnico de campo, não desenvolvedor. `SSE`, `template`, `handler` e `endpoint` não aparecem no texto do manual.
 - Nenhuma credencial em arquivo versionado. O login do W-Access vem de `docs/manual/.captura.env`, que entra no `.gitignore`, com `.captura.env.exemplo` versionado ao lado.
 - Capítulo declarado no manifesto e ausente do disco **falha** o build. Figura ausente **não** falha: vira placeholder e entra no checklist.
 - Nenhum número de capítulo, seção ou figura é escrito à mão no Markdown. A numeração é gerada.
 - Screenshots capturados vão versionados para `docs/manual/ativos/img/gerado/`. O build gera os PDFs a partir do que está versionado, sem exigir ambiente vivo.
 - Captura é passo manual e deliberado (`npm run capturar`). O alvo `manuais` do build **não** captura.
 - Comentários de código em português. Commits com título em inglês no formato Conventional Commits e corpo em português.
-- Páginas do emulador que existem e podem ser fotografadas: `/` (dispositivos), `/settings` e `/comparison`. Não existe rota de página para `metrics.html` — não tentar capturá-la.
+- **Rotas de página que existem e podem ser fotografadas: apenas `/` (dispositivos), `/settings` e `/comparison`.** Não existe rota de página para métricas — não tentar capturá-la.
+- Nenhum seletor de callout é inventado: todos os usados neste plano foram lidos de `assets/web/templates/`. Seletor que não casa **derruba** a captura, por desenho.
+- O console não usa CDN nem framework de CSS de terceiros. Todo estilo novo sai dos tokens em `assets/web/static/css/tokens.css` e dos componentes em `components.css`. Classes Bootstrap (`alert`, `btn-link`, `text-muted`, `bi bi-*`) **não existem** nesta interface e não podem ser reintroduzidas.
 
-## Ambiente necessário, e o que fazer sem ele
+## Ambiente necessário
 
-As Tasks 3 e 4 capturam telas e precisam de: PostgreSQL para o emulador, o emulador rodando em `localhost:7070`, e o W-Access em `https://localhost/W-Access`. No momento em que este plano foi escrito a máquina não tinha PostgreSQL em 5432 e o Docker Desktop estava parado.
+As Tasks 3 e 4 capturam telas de ambiente vivo. Diferente do plano anterior, aqui **o ambiente sobe antes**, e as figuras do emulador saem reais na primeira entrega. Pré-condições, verificadas no Step 1 da Task 3:
 
-Se o ambiente não estiver disponível quando essas tarefas forem executadas: escrever os scripts, validar com `node --check`, rodar os testes das funções puras, e registrar no relatório que a captura ficou pendente. As demais tarefas não dependem de ambiente. Os PDFs saem com placeholder no lugar de toda figura ainda não capturada, que é exatamente o comportamento projetado.
+- Docker Desktop em execução, PostgreSQL de pé, aplicação respondendo em `http://localhost:7070`.
+- Frota com dispositivos suficientes para a grade, os filtros e a paginação renderizarem com conteúdo representativo. Grade vazia não ilustra nada.
+- **Pelo menos um dispositivo de modelo Dahua na frota.** A coluna Modo só exibe o seletor para dispositivos Dahua; para os demais mostra um traço. Sem um Dahua, a figura da coluna Modo vira uma coluna de traços e não ilustra o que o capítulo descreve.
+
+O W-Access é opcional e independente: sem `docs/manual/.captura.env` ou sem servidor alcançável, a suíte dele é pulada com aviso, as figuras correspondentes viram pendência registrada, e a suíte do emulador roda até o fim.
+
+---
+
+### Task 0: Base de execução — coluna Modo e aviso de alcançabilidade no console novo
+
+Nenhuma branch contém, ao mesmo tempo, a interface redesenhada e o trabalho das fases B e C. Capturar de qualquer uma das duas isoladamente produz um manual que descreve um produto que ninguém tem. Esta tarefa reúne as duas.
+
+O backend da branch de rede entra sem conflito — `internal/reachability/`, `internal/handlers/device_mode.go`, `internal/handlers/reachability.go` são arquivos novos. O conflito é de apresentação: a coluna Modo e o aviso de alcançabilidade foram escritos em Bootstrap sobre `assets/web/static/js/main.js`, um arquivo que a interface nova apagou. **Reescrever nos componentes do console, não colar o HTML antigo.**
+
+**Files:**
+- Modify: `assets/web/templates/devices.html`
+- Modify: `assets/web/static/js/devices.js`
+- Modify: `assets/web/static/css/components.css`
+- Test: `internal/handlers/render_test.go`
+
+**Interfaces:**
+- Consumes: `GET /api/reachability` (de `internal/handlers/reachability.go`, responde `reachability.Report`), o campo `local_auth` de cada dispositivo na listagem, e `POST /api/devices/:id/mode` — todos vindos de `feat/rede-e-modo-dispositivo`.
+- Produces: a coluna Modo com `select.device-mode[data-device-id]` dentro de `#device-grid`, e o bloco de aviso `#reachability-alert` dentro de `#reachability-alert-row`, ambos no design do console. As Tasks 3 e 5 fotografam e descrevem exatamente esses identificadores.
+
+- [ ] **Step 1: Criar a worktree a partir da branch da interface**
+
+O trabalho não acontece na cópia de trabalho principal. Use a skill `superpowers:using-git-worktrees` se estiver disponível; o equivalente manual:
+
+```bash
+git worktree add ../GoFacialEmulator-manuais feat/console-ui-redesign
+cd ../GoFacialEmulator-manuais
+git switch -c feat/manuais-console
+```
+
+Todo o restante deste plano roda dentro dessa worktree.
+
+- [ ] **Step 2: Mesclar a branch de rede e modo**
+
+```bash
+git merge feat/rede-e-modo-dispositivo
+```
+
+Espere conflito em `assets/web/templates/devices.html` e a ressurreição de `assets/web/static/js/main.js` (a interface nova o dividiu em `app.js`, `devices.js`, `device-drawer.js`, `realtime.js`, `settings.js`, `comparison.js`, `toast.js`).
+
+Resolução, por arquivo:
+
+- `assets/web/templates/devices.html` — **fique com a versão da interface nova**: `git checkout --ours -- assets/web/templates/devices.html`. O conteúdo da outra ponta é reescrito nos Steps 6 a 8, não mesclado.
+- `assets/web/static/js/main.js` — **não recrie o arquivo**. Se o merge o trouxer de volta, apague: `git rm -f assets/web/static/js/main.js`. O comportamento dele vai para `devices.js` no Step 8.
+- Qualquer arquivo `.go`, `packaging/*` ou `docs/*` — aceite a mescla normal. São arquivos novos ou sem sobreposição.
+
+```bash
+git add -A
+git commit --no-edit
+```
+
+- [ ] **Step 3: Confirmar que o backend das duas pontas está vivo**
+
+Run: `go build ./... && go test ./internal/reachability/... ./internal/handlers/... -v`
+Expected: PASS. Em particular `TestRenderPage_Erro`, `TestBuildTemplateCache_CobreTodasAsPáginas` e `TestRenderPage_EscapaHTML` da interface nova, e os testes de `device_mode_test.go` e `reachability_http_test.go` da branch de rede.
+
+Se algum teste de `handlers` falhar por template ausente, o Step 2 resolveu o conflito errado — refaça ficando com o `devices.html` da interface nova.
+
+- [ ] **Step 4: Escrever os testes que falham**
+
+Acrescentar ao fim de `internal/handlers/render_test.go`. Os dois testes renderizam a página de dispositivos com contexto representativo e cobram a marcação de que as Tasks 3 e 5 dependem:
+
+```go
+// TestRenderDevices_ColunaModo trava a coluna Modo na interface
+// redesenhada. Ela nasceu em feat/rede-e-modo-dispositivo escrita em
+// Bootstrap sobre um main.js que não existe mais; o merge não a traz de
+// volta sozinha, e sem ela o capítulo do manual descreve uma coluna
+// invisível.
+func TestRenderDevices_ColunaModo(t *testing.T) {
+	h := &Handler{
+		templates:  buildTemplateCache(),
+		appVersion: "teste",
+	}
+
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodGet, "/", nil)
+
+	h.renderPage(c, "devices.html", http.StatusOK, gin.H{
+		"devices": []gin.H{
+			{"lc_id": 1, "name": "Portaria", "model": "Dahua", "port": 4001,
+				"status": "running", "log_enabled": 0, "interval": 30,
+				"total": 12, "local_auth": "standalone"},
+			{"lc_id": 2, "name": "Garagem", "model": "Hikvision", "port": 4002,
+				"status": "stopped", "log_enabled": 0, "interval": 30,
+				"total": 8, "local_auth": "online"},
+		},
+		"filters":       gin.H{"id": "", "name": "", "port": ""},
+		"per_page":      50,
+		"counter_cards": gin.H{"total": 2, "running": 1, "stopped": 1, "disabled": 0},
+	})
+
+	corpo := rec.Body.String()
+
+	if !strings.Contains(corpo, "<th>Modo</th>") {
+		t.Errorf("a grade não tem cabeçalho da coluna Modo:\n%s", corpo)
+	}
+	// Dahua ganha o seletor; os demais modelos ignoram LocalAuthentication e
+	// mostram um traço, então um select ali seria um controle que não faz nada.
+	if !strings.Contains(corpo, `class="select device-mode" data-device-id="1"`) {
+		t.Errorf("o dispositivo Dahua deveria ter o seletor de modo:\n%s", corpo)
+	}
+	if strings.Contains(corpo, `device-mode" data-device-id="2"`) {
+		t.Errorf("o dispositivo Hikvision não deveria ter seletor de modo:\n%s", corpo)
+	}
+	// O valor gravado tem de vir selecionado, senão a tela mente sobre o
+	// estado do dispositivo.
+	if !strings.Contains(corpo, `value="standalone" selected`) {
+		t.Errorf("o modo gravado não veio selecionado:\n%s", corpo)
+	}
+}
+
+// TestRenderDevices_BlocoDeAlcancabilidade garante que o contêiner do aviso
+// existe e nasce escondido. O aviso só tem conteúdo quando /api/reachability
+// responde que há dispositivo inalcançável — um bloco visível e vazio seria
+// pior que nenhum.
+func TestRenderDevices_BlocoDeAlcancabilidade(t *testing.T) {
+	h := &Handler{
+		templates:  buildTemplateCache(),
+		appVersion: "teste",
+	}
+
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodGet, "/", nil)
+
+	h.renderPage(c, "devices.html", http.StatusOK, gin.H{
+		"devices":       []gin.H{},
+		"filters":       gin.H{"id": "", "name": "", "port": ""},
+		"per_page":      50,
+		"counter_cards": gin.H{"total": 0, "running": 0, "stopped": 0, "disabled": 0},
+	})
+
+	corpo := rec.Body.String()
+
+	for _, id := range []string{
+		`id="reachability-alert-row"`,
+		`id="reachability-alert"`,
+		`id="reachability-headline"`,
+		`id="reachability-reason"`,
+		`id="reachability-list"`,
+		`id="reachability-toggle"`,
+	} {
+		if !strings.Contains(corpo, id) {
+			t.Errorf("marcador ausente na página de dispositivos: %s\n%s", id, corpo)
+		}
+	}
+	if !strings.Contains(corpo, `id="reachability-alert-row" hidden`) {
+		t.Errorf("o bloco de aviso deveria nascer escondido:\n%s", corpo)
+	}
+	// A interface nova não tem Bootstrap. Classe de framework aqui significa
+	// que o HTML antigo foi colado em vez de reescrito.
+	for _, proibida := range []string{"alert-warning", "btn-link", "text-muted", "bi bi-"} {
+		if strings.Contains(corpo, proibida) {
+			t.Errorf("classe de Bootstrap reintroduzida (%q) — reescreva nos componentes do console:\n%s", proibida, corpo)
+		}
+	}
+}
+```
+
+- [ ] **Step 5: Rodar os testes e confirmar que falham**
+
+Run: `go test ./internal/handlers/ -run 'TestRenderDevices' -v`
+Expected: FAIL nos dois, com `a grade não tem cabeçalho da coluna Modo` e `marcador ausente na página de dispositivos: id="reachability-alert-row"`.
+
+- [ ] **Step 6: Escrever a coluna Modo no template**
+
+Em `assets/web/templates/devices.html`, acrescentar o cabeçalho `<th>Modo</th>` logo depois de `<th class="num">Porta</th>`, e a célula correspondente logo depois da célula `<td class="num">{{ .port }}</td>`:
+
+```html
+        <td class="center">
+          <!-- LocalAuthentication só é lido pelo emulador Dahua; os demais
+               modelos ignoram a configuração. Um select ali seria um
+               controle que não faz nada. -->
+          {{ if eq .model "Dahua" }}
+          <select class="select device-mode" data-device-id="{{ .lc_id }}"
+                  aria-label="Modo de {{ .name }}">
+            <option value="online" {{ if eq .local_auth "online" }}selected{{ end }}>Online</option>
+            <option value="standalone" {{ if eq .local_auth "standalone" }}selected{{ end }}>Standalone</option>
+          </select>
+          {{ else }}
+          <span class="muted" title="Este modelo não usa esta configuração">&mdash;</span>
+          {{ end }}
+        </td>
+```
+
+- [ ] **Step 7: Escrever o bloco de aviso e estilizá-lo com os tokens do console**
+
+Ainda em `devices.html`, logo acima de `<form class="filters" id="filter-form" ...>`:
+
+```html
+<!-- A falha mais cara do emulador não emite sinal nenhum: os emuladores
+     sobem, a tela fica toda verde e o W-Access mostra tudo offline. O aviso
+     só existe quando há o que avisar — devices.js o revela. -->
+<div id="reachability-alert-row" hidden>
+  <div class="notice notice--warn" id="reachability-alert" role="alert">
+    <svg class="icon" aria-hidden="true"><use href="/static/icons.svg#alert"></use></svg>
+    <div class="notice__body">
+      <p class="notice__headline" id="reachability-headline"></p>
+      <p class="notice__reason" id="reachability-reason"></p>
+      <p class="notice__help" id="reachability-help"></p>
+      <button type="button" class="btn btn--sm" id="reachability-toggle">ver a lista</button>
+      <ul class="notice__list" id="reachability-list" hidden></ul>
+    </div>
+  </div>
+</div>
+```
+
+Se `icons.svg` não tiver um símbolo `alert`, acrescente um com o mesmo estilo dos existentes. Confira antes: `grep -o 'id="[a-z-]*"' assets/web/static/icons.svg`.
+
+Em `assets/web/static/css/components.css`, o componente `notice`, usando apenas variáveis já definidas em `tokens.css`. Confira os nomes disponíveis antes de escrever: `grep -o '\-\-[a-z0-9-]*' assets/web/static/css/tokens.css | sort -u`.
+
+```css
+/* Aviso de alcançabilidade. Um bloco só, sem variantes especulativas:
+   hoje existe um único aviso na aplicação. */
+.notice {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-4);
+  border: 1px solid var(--warn-border);
+  border-radius: var(--radius-md);
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+}
+
+.notice__headline { font-weight: 600; }
+.notice__reason,
+.notice__help { color: var(--text-dim); font-size: var(--fs-sm); }
+.notice__list { margin-top: var(--space-2); font-size: var(--fs-sm); }
+```
+
+Se algum token acima não existir com esse nome em `tokens.css`, use o equivalente que existe — **não** invente um token novo nem escreva a cor literal.
+
+- [ ] **Step 8: Ligar o comportamento em `devices.js`**
+
+Duas responsabilidades, ambas em `assets/web/static/js/devices.js`, escritas no estilo do arquivo (delegação de evento a partir do documento, `fetch` com erro reportado por toast):
+
+```js
+// Troca o modo de um dispositivo. O select só existe para modelos Dahua.
+document.addEventListener('change', async (e) => {
+  const alvo = e.target.closest('.device-mode')
+  if (!alvo) return
+
+  const id = alvo.dataset.deviceId
+  const anterior = alvo.dataset.anterior ?? alvo.value
+
+  try {
+    const r = await fetch(`/api/devices/${id}/mode`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: alvo.value })
+    })
+    if (!r.ok) throw new Error(await r.text())
+    alvo.dataset.anterior = alvo.value
+    toast(`Dispositivo ${id}: modo ${alvo.value}`)
+  } catch {
+    // Volta o select ao valor anterior: deixar o valor novo na tela sem ter
+    // gravado faria a tela mentir sobre o estado do dispositivo.
+    alvo.value = anterior
+    toast(`Não foi possível trocar o modo do dispositivo ${id}`, 'erro')
+  }
+})
+
+// Preenche o aviso de alcançabilidade. Sem dispositivo problemático o bloco
+// continua escondido.
+async function carregarAlcancabilidade() {
+  const linha = document.getElementById('reachability-alert-row')
+  if (!linha) return
+
+  let r
+  try {
+    r = await fetch('/api/reachability')
+    if (!r.ok) return
+  } catch {
+    return
+  }
+
+  const rel = await r.json()
+  const problematicos = (rel.devices ?? []).filter((d) => d.status !== 'reachable')
+  if (problematicos.length === 0) return
+
+  document.getElementById('reachability-headline').textContent =
+    `${problematicos.length} dispositivo(s) não vão ser alcançados pelo Site Controller`
+  document.getElementById('reachability-reason').textContent = rel.reason ?? ''
+  document.getElementById('reachability-help').textContent =
+    'Veja o capítulo Portas e rede do manual.'
+
+  const lista = document.getElementById('reachability-list')
+  lista.replaceChildren(
+    ...problematicos.map((d) => {
+      const li = document.createElement('li')
+      li.textContent = `Dispositivo ${d.device_id} — porta ${d.port}`
+      return li
+    })
+  )
+
+  document.getElementById('reachability-toggle').addEventListener('click', () => {
+    lista.hidden = !lista.hidden
+  })
+
+  linha.hidden = false
+}
+
+carregarAlcancabilidade()
+```
+
+Confira a forma real da resposta antes de escrever o filtro: `git show feat/rede-e-modo-dispositivo:internal/reachability/reachability.go`. Os nomes de campo do JSON (`devices`, `status`, `reason`, `device_id`, `port`) e o nome do estado saudável (`reachable`) têm de bater com as tags do struct `Report`; ajuste o código acima se divergirem. O mesmo vale para a rota de troca de modo — confirme o caminho real em `internal/handlers/handlers.go` da branch de rede.
+
+- [ ] **Step 9: Rodar os testes e confirmar que passam**
+
+Run: `go test ./internal/handlers/ -run 'TestRender' -v`
+Expected: PASS nos cinco.
+
+Run: `go build ./... && go test ./...`
+Expected: PASS.
+
+- [ ] **Step 10: Conferir na tela**
+
+Suba a aplicação e abra `http://localhost:7070`. A coluna Modo aparece entre Porta e Log, com seletor nos dispositivos Dahua e traço nos demais. O aviso de alcançabilidade aparece **apenas** se houver dispositivo inalcançável — se o ambiente estiver saudável, não aparece, e isso está certo.
+
+- [ ] **Step 11: Commit**
+
+```bash
+git add assets/web/templates/devices.html assets/web/static/js/devices.js assets/web/static/css/components.css internal/handlers/render_test.go
+git commit -m "$(cat <<'EOF'
+feat(ui): mode column and reachability notice on the new console
+
+As duas peças nasceram em feat/rede-e-modo-dispositivo escritas em
+Bootstrap sobre um main.js que o redesenho apagou. Reescritas nos
+componentes do console e nos tokens do tema, não coladas.
+
+Os testes de render cobram a marcação que os manuais fotografam, e
+reprovam classe de Bootstrap reintroduzida.
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+EOF
+)"
+```
 
 ---
 
@@ -743,8 +1088,18 @@ EOF
 - Test: `docs/manual/ferramentas/callout.test.mjs`
 
 **Interfaces:**
-- Consumes: nada das tarefas anteriores.
-- Produces: `docs/manual/ativos/img/gerado/emulador-*.png`; `cssDeCallout(marcadores) -> string` exportado por `callout.mjs`.
+- Consumes: nada das tarefas anteriores. Depende da marcação produzida pela Task 0 (`select.device-mode`, `#reachability-alert`).
+- Produces: `cssDeCallout(marcadores) -> string` exportado por `callout.mjs`, e doze PNGs em `docs/manual/ativos/img/gerado/`: `emulador-console.png`, `emulador-rail.png`, `emulador-medidor.png`, `emulador-filtros.png`, `emulador-dispositivos.png`, `emulador-coluna-modo.png`, `emulador-gaveta-usuarios.png`, `emulador-gaveta-config.png`, `emulador-gaveta-log.png`, `emulador-aviso-portas.png` (condicional), `emulador-configuracoes.png` e `emulador-comparacao.png`. As Tasks 5 a 8 referenciam esses nomes.
+
+**Pré-condições de ambiente.** Esta tarefa exige ambiente vivo. Antes do Step 1, confirme:
+
+Run: `curl -s -o /dev/null -w "%{http_code}" http://localhost:7070/`
+Expected: `200`.
+
+Run: `curl -s http://localhost:7070/api/devices | head -c 400`
+Expected: uma lista com vários dispositivos, incluindo **pelo menos um de modelo Dahua**. Sem nenhum Dahua, a captura `emulador-coluna-modo.png` falha no seletor `.device-mode` — corretamente, porque a figura não teria o que ilustrar. Se a rota de listagem tiver outro caminho, confirme em `internal/handlers/handlers.go`.
+
+Se a aplicação não estiver de pé, suba-a antes: `docker compose up -d` na raiz do repositório, e aguarde o health check.
 
 - [ ] **Step 1: Escrever o teste da função pura de callout**
 
@@ -758,11 +1113,11 @@ import { cssDeCallout, validarMarcadores } from './callout.mjs'
 
 test('gera um circulo numerado por marcador, na ordem dada', () => {
   const css = cssDeCallout([
-    { seletor: '#device-table', numero: 1 },
+    { seletor: '#device-grid', numero: 1 },
     { seletor: '#filter-form', numero: 2 }
   ])
 
-  assert.match(css, /#device-table/)
+  assert.match(css, /#device-grid/)
   assert.match(css, /#filter-form/)
   assert.match(css, /content:\s*['"]1['"]/)
   assert.match(css, /content:\s*['"]2['"]/)
@@ -852,6 +1207,8 @@ Expected: PASS.
 
 - [ ] **Step 5: Escrever o `capturar.mjs` com a suíte do emulador**
 
+Todos os seletores abaixo foram lidos de `assets/web/templates/` na interface redesenhada. Não substitua nenhum por palpite: seletor que não casa derruba a captura, e é assim que este arquivo avisa que a tela mudou.
+
 ```js
 // Captura as telas do emulador e do W-Access para os manuais.
 //
@@ -881,16 +1238,16 @@ const ESCALA = 2
 // Seletor que nao casa LANCA em vez de fotografar: uma seta apontando para
 // o lugar errado e pior que figura nenhuma, e o erro precisa aparecer aqui
 // e nao na ligacao do cliente.
-async function disparar(page, { url, arquivo, marcadores = [], antes }) {
-  await page.goto(url, { waitUntil: 'networkidle' })
+async function disparar(page, { url, arquivo, marcadores = [], antes, alvo, pagina = true }) {
+  if (url) await page.goto(url, { waitUntil: 'networkidle' })
 
   if (antes) await antes(page)
 
   for (const m of marcadores) {
-    const alvo = await page.$(m.seletor)
-    if (!alvo) {
+    const encontrado = await page.$(m.seletor)
+    if (!encontrado) {
       throw new Error(
-        `seletor nao encontrado em ${url}: ${m.seletor} — a tela mudou, ` +
+        `seletor nao encontrado em ${page.url()}: ${m.seletor} — a tela mudou, ` +
         `atualize o marcador antes de gerar o manual`
       )
     }
@@ -901,7 +1258,15 @@ async function disparar(page, { url, arquivo, marcadores = [], antes }) {
   }
 
   const caminho = join(DESTINO, arquivo)
-  await page.screenshot({ path: caminho, fullPage: true })
+  if (alvo) {
+    // Recorte de um componente so. Uma pagina inteira de 1440x900 reduzida
+    // para caber na coluna do PDF deixa o rail ilegivel.
+    const elemento = await page.$(alvo)
+    if (!elemento) throw new Error(`alvo de recorte nao encontrado: ${alvo}`)
+    await elemento.screenshot({ path: caminho })
+  } else {
+    await page.screenshot({ path: caminho, fullPage: pagina })
+  }
   console.log(`[captura] ${arquivo}`)
 }
 
@@ -912,31 +1277,135 @@ async function suiteEmulador(browser) {
   })
   const page = await context.newPage()
 
+  // 1. A tela inteira, com os tres pontos de referencia do capitulo de tour.
   await disparar(page, {
     url: `${EMULADOR}/`,
-    arquivo: 'emulador-dispositivos.png',
+    arquivo: 'emulador-console.png',
     marcadores: [
-      { seletor: '#device-table', numero: 1 },
-      { seletor: '#filter-form', numero: 2 }
+      { seletor: '#rail', numero: 1 },
+      { seletor: '#fleet-meter', numero: 2 },
+      { seletor: '#device-grid', numero: 3 }
     ]
   })
 
+  // 2. O rail recortado, com o sinal de conexao do W-Access.
+  await disparar(page, {
+    url: `${EMULADOR}/`,
+    arquivo: 'emulador-rail.png',
+    alvo: '#rail',
+    marcadores: [
+      { seletor: '[data-nav="/"]', numero: 1 },
+      { seletor: '[data-nav="/comparison"]', numero: 2 },
+      { seletor: '[data-nav="/settings"]', numero: 3 },
+      { seletor: '#start-all', numero: 4 },
+      { seletor: '#sync-db', numero: 5 }
+    ]
+  })
+
+  // 3. O medidor de frota recortado.
+  await disparar(page, {
+    url: `${EMULADOR}/`,
+    arquivo: 'emulador-medidor.png',
+    alvo: '#fleet-meter',
+    marcadores: [
+      { seletor: '#meter-bar', numero: 1 },
+      { seletor: '#meter-reading', numero: 2 },
+      { seletor: '#meter-health', numero: 3 }
+    ]
+  })
+
+  // 4. Os filtros e a paginacao.
+  await disparar(page, {
+    url: `${EMULADOR}/`,
+    arquivo: 'emulador-filtros.png',
+    alvo: '#filter-form',
+    marcadores: [
+      { seletor: '#filter-id', numero: 1 },
+      { seletor: '#filter-name', numero: 2 },
+      { seletor: '#filter-port', numero: 3 }
+    ]
+  })
+
+  // 5. A grade, com a selecao em lote e a coluna Modo.
+  await disparar(page, {
+    url: `${EMULADOR}/`,
+    arquivo: 'emulador-dispositivos.png',
+    alvo: '#device-grid',
+    marcadores: [
+      { seletor: '#select-all', numero: 1 },
+      { seletor: '.device-mode', numero: 2 },
+      { seletor: '.row-actions', numero: 3 }
+    ]
+  })
+
+  // 6. A coluna Modo em detalhe. O seletor so existe para dispositivos
+  // Dahua; sem nenhum Dahua na frota, .device-mode nao casa e a captura
+  // falha aqui — o que e o aviso correto, nao um bug.
   await disparar(page, {
     url: `${EMULADOR}/`,
     arquivo: 'emulador-coluna-modo.png',
+    alvo: '#device-grid',
     marcadores: [{ seletor: '.device-mode', numero: 1 }]
   })
 
-  // O aviso de alcancabilidade so aparece quando ha o que avisar. Se o
+  // 7. A gaveta de detalhes, aba de usuarios. Abre pelo botao de detalhes
+  // da primeira linha.
+  await disparar(page, {
+    url: `${EMULADOR}/`,
+    arquivo: 'emulador-gaveta-usuarios.png',
+    antes: async (p) => {
+      await p.click('.device-details-btn')
+      await p.waitForSelector('#device-drawer:not([hidden])')
+    },
+    marcadores: [
+      { seletor: '#drawer-title', numero: 1 },
+      { seletor: '#drawer-led', numero: 2 },
+      { seletor: '#tab-users', numero: 3 },
+      { seletor: '#users-search', numero: 4 }
+    ]
+  })
+
+  // 8. A mesma gaveta, aba de configuracoes.
+  await disparar(page, {
+    url: null,
+    arquivo: 'emulador-gaveta-config.png',
+    antes: async (p) => {
+      await p.click('#tab-settings')
+      await p.waitForSelector('#panel-settings:not([hidden])')
+    },
+    marcadores: [{ seletor: '#panel-settings', numero: 1 }]
+  })
+
+  // 9. O log do dispositivo, com o botao de salvar.
+  await disparar(page, {
+    url: null,
+    arquivo: 'emulador-gaveta-log.png',
+    marcadores: [
+      { seletor: '#drawer-log', numero: 1 },
+      { seletor: '#drawer-save-log', numero: 2 }
+    ],
+    antes: async (p) => {
+      await p.waitForSelector('#drawer-log')
+    }
+  })
+
+  // Fecha a gaveta antes de sair da pagina.
+  await page.click('#drawer-close')
+
+  // 10. O aviso de alcancabilidade so aparece quando ha o que avisar. Se o
   // ambiente estiver saudavel, ele fica escondido — nesse caso a figura
   // continua pendente em vez de sair uma foto de tela vazia.
   await page.goto(`${EMULADOR}/`, { waitUntil: 'networkidle' })
-  const avisoVisivel = await page.isVisible('#reachability-alert-row')
+  const avisoVisivel = await page.isVisible('#reachability-alert')
   if (avisoVisivel) {
     await disparar(page, {
-      url: `${EMULADOR}/`,
+      url: null,
       arquivo: 'emulador-aviso-portas.png',
-      marcadores: [{ seletor: '#reachability-alert', numero: 1 }]
+      alvo: '#reachability-alert',
+      marcadores: [
+        { seletor: '#reachability-headline', numero: 1 },
+        { seletor: '#reachability-toggle', numero: 2 }
+      ]
     })
   } else {
     console.log(
@@ -945,24 +1414,34 @@ async function suiteEmulador(browser) {
     )
   }
 
+  // 11. A tela de configuracoes do W-Access.
   await disparar(page, {
     url: `${EMULADOR}/settings`,
     arquivo: 'emulador-configuracoes.png',
-    marcadores: [{ seletor: '#wxsSettingsForm', numero: 1 }],
+    marcadores: [
+      { seletor: '#wxs-host', numero: 1 },
+      { seletor: '#wxs-database', numero: 2 },
+      { seletor: '#test-connection', numero: 3 }
+    ],
     // Nenhuma figura carrega o que esta na maquina de quem gerou: os campos
     // sao preenchidos com valores de exemplo e a senha fica mascarada.
     antes: async (p) => {
-      await p.fill('#wxsHost', 'servidor-wxs')
-      await p.fill('#wxsPort', '1433')
-      await p.fill('#wxsDatabase', 'W_Access')
-      await p.fill('#wxsUsername', 'usuario')
-      await p.fill('#wxsPassword', '••••••••')
+      await p.fill('#wxs-host', 'servidor-wxs')
+      await p.fill('#wxs-port', '1433')
+      await p.fill('#wxs-database', 'W_Access')
+      await p.fill('#wxs-username', 'usuario')
+      await p.fill('#wxs-password', '••••••••')
     }
   })
 
+  // 12. A pagina de comparacao.
   await disparar(page, {
     url: `${EMULADOR}/comparison`,
-    arquivo: 'emulador-comparacao.png'
+    arquivo: 'emulador-comparacao.png',
+    marcadores: [
+      { seletor: '#comparison-grid', numero: 1 },
+      { seletor: '#refresh-comparison', numero: 2 }
+    ]
   })
 
   await context.close()
@@ -978,6 +1457,11 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   }
 }
 ```
+
+Dois pontos que costumam morder na primeira execução:
+
+- `#device-drawer:not([hidden])` assume que a gaveta usa o atributo `hidden` para esconder. Confirme em `assets/web/static/js/device-drawer.js` antes de rodar; se ela usar classe, troque o seletor de espera pela classe real.
+- As capturas 8 e 9 dependem do estado deixado pela 7 (gaveta aberta) e por isso passam `url: null`. Não reordene.
 
 - [ ] **Step 6: Escrever o arquivo de exemplo de credenciais**
 
@@ -1028,7 +1512,7 @@ EOF
 
 **Interfaces:**
 - Consumes: `disparar` e `cssDeCallout` da Task 3.
-- Produces: `docs/manual/ativos/img/gerado/wxs-*.png`.
+- Produces: `docs/manual/ativos/img/gerado/wxs-login.png`, `wxs-pos-login.png`, `wxs-controladores.png` e `wxs-inicial.png` — este último é o cadastro do controlador, referenciado pelo capítulo `configurar-wxs.md` da Task 5.
 
 - [ ] **Step 1: Acrescentar a leitura do arquivo de credenciais**
 
@@ -1090,16 +1574,36 @@ async function suiteWxs(browser, env) {
   await page.keyboard.press('Enter')
   await page.waitForLoadState('networkidle')
 
+  // A tela inicial depois do login, so para o manual mostrar que o acesso
+  // deu certo antes de mandar navegar.
   await disparar(page, {
     url: page.url(),
-    arquivo: 'wxs-inicial.png'
+    arquivo: 'wxs-pos-login.png'
   })
 
-  console.log(
-    '[captura] telas de cadastro de controlador: navegue ate a tela de ' +
-    'controladores e acrescente os disparos aqui, com os seletores reais ' +
-    'confirmados nesta primeira execucao'
-  )
+  // Tela de controladores. A navegacao e por texto de link porque os ids
+  // gerados pelo WebForms nao sao estaveis entre versoes do W-Access.
+  // Se o texto do menu for outro nesta instalacao, ajuste as duas strings
+  // abaixo — e so isso que muda.
+  await page.getByRole('link', { name: /dispositivos|devices/i }).first().click()
+  await page.getByRole('link', { name: /controladores|controllers/i }).first().click()
+  await page.waitForLoadState('networkidle')
+
+  await disparar(page, {
+    url: null,
+    arquivo: 'wxs-controladores.png'
+  })
+
+  // Cadastro de um controlador: e aqui que a descricao emulator_NN, o
+  // endereco e o BaseCommPort sao preenchidos. Abre o primeiro da lista.
+  // Este e o wxs-inicial.png que o capitulo de configuracao referencia.
+  await page.locator('table a').first().click()
+  await page.waitForLoadState('networkidle')
+
+  await disparar(page, {
+    url: null,
+    arquivo: 'wxs-inicial.png'
+  })
 
   await context.close()
 }
@@ -1124,9 +1628,14 @@ E no bloco de execução por linha de comando, depois de `await suiteEmulador(br
 Run: `cd docs/manual && node --check ferramentas/capturar.mjs && npm test`
 Expected: sem saída, PASS.
 
-Com o W-Access acessível e o `.captura.env` preenchido, rodar `npm run capturar` e confirmar que `wxs-login.png` e `wxs-inicial.png` aparecem. Os seletores de login (`input[type="text"]`, `input[type="password"]`) são um chute razoável para WebForms e **precisam ser confirmados na primeira execução real** — se não casarem, ajustar com os ids verdadeiros da página e registrar no relatório.
+Com o W-Access acessível e o `.captura.env` preenchido:
 
-Sem ambiente, registrar como pendente e seguir.
+Run: `cd docs/manual && npm run capturar`
+Expected: `wxs-login.png`, `wxs-pos-login.png`, `wxs-controladores.png` e `wxs-inicial.png` em `ativos/img/gerado/`.
+
+Três pontos deste script são chute informado sobre um ASP.NET WebForms que ainda não foi aberto, e **têm de ser confirmados nesta primeira execução real**: os seletores de login (`input[type="text"]`, `input[type="password"]`), os textos dos links de menu (`dispositivos`/`controladores`), e o `table a` que abre o primeiro controlador. Quando algum não casar, o Playwright falha apontando qual — ajuste com o valor verdadeiro lido da página e rode de novo. Não troque a falha por um `try/catch`: seletor errado tem de derrubar a captura.
+
+Se o W-Access não estiver alcançável, as três figuras ficam pendentes, a suíte do emulador roda até o fim, e o PDF sai com caixa tracejada no lugar delas. Registrar no relatório e seguir.
 
 - [ ] **Step 4: Commit**
 
@@ -1151,43 +1660,62 @@ EOF
 
 ### Task 5: Capítulos comuns aos três manuais
 
-Quatro capítulos escritos uma vez, referenciados pelos três alvos.
+Cinco capítulos escritos uma vez, referenciados pelos três alvos.
 
 **Files:**
+- Create: `docs/manual/conteudo/comum/conhecer-o-console.md`
 - Create: `docs/manual/conteudo/comum/configurar-wxs.md`
 - Create: `docs/manual/conteudo/comum/validacao.md`
 - Create: `docs/manual/conteudo/comum/logs.md`
 - Create: `docs/manual/conteudo/comum/problemas.md`
 
 **Interfaces:**
-- Consumes: o formato de capítulo da Task 1 (um `#` de título por arquivo, figuras por `![alt](img/...)`).
-- Produces: quatro capítulos referenciáveis pelo manifesto nas Tasks 6, 7 e 8.
+- Consumes: o formato de capítulo da Task 1 (um `#` de título por arquivo, figuras por `![alt](img/...)`) e os PNGs produzidos pelas Tasks 3 e 4.
+- Produces: cinco capítulos referenciáveis pelo manifesto nas Tasks 6, 7 e 8.
 
-- [ ] **Step 1: Escrever `configurar-wxs.md`**
+- [ ] **Step 1: Escrever `conhecer-o-console.md`**
+
+Título `# Conhecer o console`. É o capítulo que o plano anterior não tinha: a interface foi redesenhada inteira, e sem este capítulo o técnico instala e fica olhando para uma tela que ninguém explicou. Cobrir, nesta ordem, os sete blocos da seção 11.4 da spec:
+
+1. **A barra lateral e a navegação.** As três páginas — Dispositivos, Comparação e Conexão W-Access — e o botão que expande a barra para mostrar os nomes. Depois, as três ações de frota: iniciar todos, parar todos, sincronizar com o W-Access. Figura `![A barra lateral](img/gerado/emulador-rail.png)`.
+2. **O sinal de conexão do W-Access.** Um ponto vermelho aparece ao lado de "Conexão W-Access" quando as credenciais gravadas não conectam. Diga o que fazer quando ele acende: abrir a página de conexão, conferir servidor, banco, usuário e senha, e testar. Sem o ponto, a conexão está boa.
+3. **O medidor de frota.** A barra no topo, um segmento por emulador, com a leitura ao lado. Explique os três estados — ativo, parado, desabilitado — e que a barra se atualiza sozinha. Figura `![O medidor de frota](img/gerado/emulador-medidor.png)`.
+4. **A lista de dispositivos.** As colunas, uma frase por coluna. Na coluna **Modo**, explique os dois valores em uma frase cada — online, o Site Controller valida o acesso e responde; standalone, o dispositivo valida sozinho e gera o evento — e que a troca vale na hora. Diga também por que algumas linhas mostram um traço em vez do seletor: só os dispositivos Dahua usam essa configuração. Depois, a caixa de seleção do cabeçalho e os botões de iniciar e parar os selecionados. Figuras `![A lista de dispositivos](img/gerado/emulador-dispositivos.png)` e `![A coluna Modo](img/gerado/emulador-coluna-modo.png)`.
+5. **Filtrar e paginar.** Os três campos — identificador, nome e porta — o botão de limpar, e a escolha de quantos itens por página. Figura `![Os filtros](img/gerado/emulador-filtros.png)`.
+6. **A gaveta de detalhes.** Como abrir pelo botão da linha; o nome e a luz de estado no topo; a aba de usuários com busca e paginação; a aba de configurações; e o log do dispositivo, com o botão que salva o log em arquivo. Figuras `![A gaveta, aba de usuarios](img/gerado/emulador-gaveta-usuarios.png)`, `![A gaveta, aba de configuracoes](img/gerado/emulador-gaveta-config.png)` e `![O log do dispositivo](img/gerado/emulador-gaveta-log.png)`.
+7. **A tela se atualiza sozinha.** Uma seção curta: o estado dos dispositivos e o medidor mudam sem precisar recarregar, e é por isso que quase nenhuma tela tem botão de atualizar. Se a tela parar de mudar, recarregue a página — a conexão se refaz sozinha.
+8. **A página de comparação.** Para que serve e como ler o resultado. Figura `![A pagina de comparacao](img/gerado/emulador-comparacao.png)`.
+
+Abrir o capítulo com a figura da tela inteira: `![O console do emulador](img/gerado/emulador-console.png)`.
+
+Restrição que vale especialmente aqui: nada de `SSE`, `template`, `endpoint` ou `handler` no texto. O técnico precisa saber o que vê e o que fazer, não como foi construído.
+
+- [ ] **Step 2: Escrever `configurar-wxs.md`**
 
 Título `# Configurar o W-Access`. Cobrir, nesta ordem, em português para técnico de campo:
 
 1. O que precisa existir no W-Access para o emulador enxergar um controlador: a descrição do controlador tem de **começar com `emulator`** — é assim que o emulador filtra (`LocalControllerDescription LIKE 'emulator%'`). Endereço e `BaseCommPort` são o IP e a porta que o emulador vai abrir.
 2. Figura `![Cadastro do controlador no W-Access](img/gerado/wxs-inicial.png)`.
-3. A tela `/settings` do emulador: servidor, porta 1433, banco `W_Access`, usuário e senha. Figura `![Tela de configuracoes do emulador](img/gerado/emulador-configuracoes.png)`.
-4. Testar a conexão e salvar; voltar à tela inicial e atualizar dispositivos. Figura `![Lista de dispositivos](img/gerado/emulador-dispositivos.png)`.
-5. Uma seção **Modo online e standalone** explicando os dois modos em uma frase cada — online, o Site Controller valida o acesso e responde; standalone, o dispositivo valida sozinho e gera o evento — e que a troca no seletor vale na hora. Figura `![Coluna Modo](img/gerado/emulador-coluna-modo.png)`.
+3. A tela de conexão do emulador: servidor, porta 1433, banco `W_Access`, usuário e senha; o botão que mostra a senha digitada; o botão que testa a conexão. Figura `![Tela de conexao com o W-Access](img/gerado/emulador-configuracoes.png)`.
+4. Testar a conexão e salvar; voltar à lista de dispositivos e sincronizar. Aponte para o capítulo Conhecer o console para o significado do ponto vermelho no menu.
 
-- [ ] **Step 2: Escrever `validacao.md`**
+O modo online e standalone **não** é explicado aqui — está no capítulo Conhecer o console, item 4. Referencie-o em vez de repetir.
+
+- [ ] **Step 3: Escrever `validacao.md`**
 
 Título `# Roteiro de validacao`. Passo a passo numerado, cada passo com **o que fazer** e **o que precisa acontecer**, e para onde ir quando não acontecer. Mínimo:
 
 1. Abrir `http://localhost:7070` — a lista de dispositivos carrega e mostra os controladores marcados `emulator` no W-Access. Se vier vazia: capítulo Problemas, "a lista de dispositivos está vazia".
-2. Clicar em iniciar — o status dos dispositivos vira `running`. Se algum não subir: capítulo Problemas, "um dispositivo não inicia".
+2. Clicar em iniciar — o estado dos dispositivos vira `ativo` e o medidor de frota acompanha. Se algum não subir: capítulo Problemas, "um dispositivo não inicia".
 3. Conferir no W-Access que os controladores aparecem online. Se aparecerem offline com a tela do emulador toda verde: capítulo Portas e rede — é o caso mais comum e o mais confuso.
 4. Simular uma leitura facial pelo emulador e conferir o evento chegando no W-Access.
-5. Conferir a linha correspondente no log da aplicação, com o caminho apontando para o capítulo Logs.
+5. Conferir a linha correspondente no log do dispositivo, pela gaveta de detalhes, e no log da aplicação, com o caminho apontando para o capítulo Logs.
 
 Cada passo carrega uma figura da tela correspondente quando ela existir; onde ainda não houver captura, referenciar o nome do arquivo esperado em `img/gerado/` para que o placeholder registre a pendência.
 
-- [ ] **Step 3: Escrever `logs.md`**
+- [ ] **Step 4: Escrever `logs.md`**
 
-Título `# Onde estao os logs`. Uma tabela com uma linha por pacote apontando o caminho, mais a explicação de que `trace.html` é a versão colorida do `trace.log` e abre no navegador. Os caminhos por pacote:
+Título `# Onde estao os logs`. Uma tabela com uma linha por pacote apontando o caminho, mais a explicação de que `trace.html` é a versão colorida do `trace.log` e abre no navegador, e de que o log de um dispositivo específico sai pela gaveta de detalhes, no botão que salva o log em arquivo. Os caminhos por pacote:
 
 | Pacote | Aplicação | Banco | Instalação |
 |---|---|---|---|
@@ -1195,32 +1723,38 @@ Título `# Onde estao os logs`. Uma tabela com uma linha por pacote apontando o 
 | Windows | `sistema\logs\trace.log` | `sistema\logs\postgres.log` | `sistema\logs\instalacao.log` |
 | Linux/WSL | `sistema/logs/trace.log` e `sistema/logs/app.out` | `/var/log/postgresql/` | `sistema/logs/instalacao.log` |
 
-- [ ] **Step 4: Escrever `problemas.md`**
+- [ ] **Step 5: Escrever `problemas.md`**
 
 Título `# Problemas comuns`. Tabela sintoma → causa → o que fazer, cobrindo no mínimo:
 
 - A lista de dispositivos está vazia → a conexão com o W-Access falhou, ou nenhum controlador tem descrição começando com `emulator`.
-- Tudo verde na tela e tudo offline no W-Access → a porta do controlador não é alcançável neste ambiente; ler o aviso no topo da tela e o capítulo Portas e rede.
+- Ponto vermelho ao lado de "Conexão W-Access" no menu → as credenciais gravadas não conectam; abrir a página de conexão e testar.
+- Tudo verde na tela e tudo offline no W-Access → a porta do controlador não é alcançável neste ambiente; ler o aviso no topo da lista e o capítulo Portas e rede.
 - Um dispositivo não inicia → a porta já está em uso por outro processo; o log da aplicação traz o erro do sistema operacional.
+- A coluna Modo mostra um traço → o dispositivo não é Dahua; só esse modelo usa a configuração.
+- A tela parou de se atualizar sozinha → recarregar a página.
 - `INICIAR` diz que a aplicação não respondeu em 60 segundos → ver `trace.log`; no Docker, `docker compose logs app`.
 - A página abre sem formatação → não deve acontecer; se acontecer, o pacote está incompleto, baixar de novo.
 
-- [ ] **Step 5: Verificar que os capítulos são montáveis**
+- [ ] **Step 6: Verificar que os capítulos são montáveis**
 
 Ainda não estão no manifesto, então crie um alvo temporário para testar, ou confirme na Task 6 quando o primeiro alvo real for montado. O que precisa valer agora: cada arquivo tem exatamente um `#` de título na primeira linha, e nenhum número de capítulo escrito à mão.
 
 Run: `cd docs/manual && grep -c "^# " conteudo/comum/*.md`
-Expected: `1` para cada arquivo.
+Expected: `1` para cada um dos cinco arquivos.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
 git add docs/manual/conteudo/comum/
 git commit -m "$(cat <<'EOF'
-docs(manual): write the four shared chapters
+docs(manual): write the five shared chapters
 
-Configuração do W-Access, roteiro de validação, logs e problemas comuns —
-escritos uma vez, referenciados pelos três manuais.
+Tour do console, configuração do W-Access, roteiro de validação, logs e
+problemas comuns — escritos uma vez, referenciados pelos três manuais.
+
+O tour é capítulo novo: a interface foi redesenhada inteira, e sem ele o
+técnico instala e fica olhando para uma tela que ninguém explicou.
 
 O roteiro de validação é o capítulo que responde "funcionou?": cada passo
 traz o que fazer, o que precisa acontecer, e para onde ir quando não
@@ -1285,6 +1819,7 @@ Em `docs/manual/manifesto.json`, a lista `capitulos` do alvo `docker`:
         "docker/antes-de-comecar.md",
         "docker/instalar-docker-desktop.md",
         "docker/instalar-emulador.md",
+        "comum/conhecer-o-console.md",
         "comum/configurar-wxs.md",
         "comum/validacao.md",
         "docker/portas-e-rede.md",
@@ -1361,6 +1896,7 @@ Título `# Portas e rede`. Específico do pacote Windows:
       "capitulos": [
         "windows/antes-de-comecar.md",
         "windows/instalar-emulador.md",
+        "comum/conhecer-o-console.md",
         "comum/configurar-wxs.md",
         "comum/validacao.md",
         "windows/portas-e-rede.md",
@@ -1453,6 +1989,7 @@ Título `# Portas e rede`. Específico deste pacote:
         "linux/antes-de-comecar.md",
         "linux/instalar-wsl.md",
         "linux/instalar-emulador.md",
+        "comum/conhecer-o-console.md",
         "comum/configurar-wxs.md",
         "comum/validacao.md",
         "linux/portas-e-rede.md",
