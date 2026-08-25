@@ -359,12 +359,12 @@ Os identificadores que a seção 8.4 listava não existem mais. Os atuais, lidos
 | Seção 8.4 dizia | Identificador atual |
 |---|---|
 | `#device-table` | `#device-grid` |
-| `#wxsSettingsForm` | `#settings-body`, com o botão `#test-connection` |
+| `#wxsSettingsForm` | `#wxs-form`, com os campos `#wxs-host`, `#wxs-port`, `#wxs-database`, `#wxs-username`, `#wxs-password` e os botões `#toggle-password` e `#test-connection` |
 | tela de métricas | não existe rota de página; sai da lista |
 
 Rotas de página capturáveis, e apenas estas três: `/` (dispositivos), `/settings`, `/comparison`.
 
-Alvos de callout na suíte do emulador: `#rail` e `#rail-toggle` (navegação), `#fleet-meter` com `#meter-bar`, `#meter-health` e `#meter-reading` (medidor de frota), `#device-grid` e `#select-all` (grade e seleção), `#filter-form` com `#filter-id`, `#filter-name`, `#filter-port` e `#per-page` (filtros e paginação), `#device-drawer` com `#drawer-title`, `#drawer-led`, `#tab-users`, `#tab-settings` e `#drawer-log` (gaveta de detalhes), `#settings-body`, `#toggle-password` e `#test-connection` (configurações), `#comparison-grid` e `#refresh-comparison` (comparação), mais a coluna Modo e o banner de alcançabilidade nos identificadores que a etapa 3 da seção 11.2 lhes der.
+Alvos de callout na suíte do emulador: `#rail` e `#rail-toggle` (navegação), `#fleet-meter` com `#meter-bar`, `#meter-health` e `#meter-reading` (medidor de frota), `#device-grid` e `#select-all` (grade e seleção), `#filter-form` com `#filter-id`, `#filter-name`, `#filter-port` e `#per-page` (filtros e paginação), `#device-drawer` com `#drawer-title`, `#drawer-led`, `#tab-users`, `#tab-settings` e `#drawer-log` (gaveta de detalhes), `#wxs-form`, `#toggle-password` e `#test-connection` (configurações), `#wxs-dot` no rail (sinal de conexão do W-Access), `#comparison-grid` e `#refresh-comparison` (comparação), mais a coluna Modo e o banner de alcançabilidade nos identificadores que a etapa 3 da seção 11.2 lhes der.
 
 A regra da seção 8.4 continua valendo e é o que protege esta lista de envelhecer de novo: **seletor que não casa derruba a captura em vez de produzir a figura.** Se a interface mudar outra vez, o build acusa.
 
