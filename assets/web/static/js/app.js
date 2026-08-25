@@ -47,6 +47,47 @@
     }
 
     // ------------------------------------------------------------------
+    // Sinal da conexão com o W-Access
+    // ------------------------------------------------------------------
+
+    // O ponto vermelho no item "Conexão W-Access" acende quando as
+    // credenciais gravadas não conectam. A verificação é assíncrona e nunca
+    // bloqueia a página: falha de rede aqui apaga o ponto em vez de mentir.
+    var WxsSignal = (function () {
+        var INTERVALO = 60000;
+
+        function pintar(ok, mensagem) {
+            var ponto = document.getElementById('wxs-dot');
+            if (!ponto) { return; }
+
+            ponto.hidden = ok;
+            if (!ok) {
+                var texto = 'Conexão com o W-Access indisponível' +
+                    (mensagem ? ': ' + mensagem : '.');
+                ponto.setAttribute('aria-label', texto);
+                ponto.setAttribute('title', texto);
+            }
+        }
+
+        function verificar(forcar) {
+            var url = '/api/settings/wxs-status' + (forcar ? '?force=1' : '');
+
+            return fetch(url)
+                .then(function (r) { return r.json(); })
+                .then(function (dados) { pintar(!!dados.ok, dados.error); })
+                .catch(function () { pintar(true, ''); });
+        }
+
+        function start() {
+            if (!document.getElementById('wxs-dot')) { return; }
+            verificar(false);
+            window.setInterval(function () { verificar(false); }, INTERVALO);
+        }
+
+        return { start: start, verificar: verificar };
+    })();
+
+    // ------------------------------------------------------------------
     // Fleet meter
     // ------------------------------------------------------------------
 
@@ -250,8 +291,10 @@
         marcarNavAtiva();
         iniciarMeter();
         iniciarAcoesGlobais();
+        WxsSignal.start();
         window.FleetStream.start();
     });
 
     window.FleetMeter = FleetMeter;
+    window.WxsSignal = WxsSignal;
 })();

@@ -17,9 +17,12 @@
     <span class="rail__label">Comparação</span>
   </a>
 
+  <!-- O ponto vermelho acende quando as credenciais gravadas do W-Access
+       não conectam. app.js consulta /api/settings/wxs-status. -->
   <a href="/settings" class="rail__item" data-nav="/settings">
     <svg class="icon" aria-hidden="true"><use href="/static/icons.svg#database"></use></svg>
     <span class="rail__label">Conexão W-Access</span>
+    <span class="rail__dot" id="wxs-dot" role="img" hidden></span>
   </a>
 
   <div class="rail__divider"></div>

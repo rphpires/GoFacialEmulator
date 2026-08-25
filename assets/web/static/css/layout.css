@@ -89,6 +89,7 @@
 }
 
 .rail__item {
+    position: relative;
     display: flex;
     align-items: center;
     gap: var(--gap-3);
@@ -145,6 +146,35 @@
 .shell:not([data-rail='expanded']) .rail__label {
     opacity: 0;
     pointer-events: none;
+}
+
+/* Ponto de alerta: fica ancorado ao canto do ícone, não depois do rótulo,
+   porque com o rail recolhido o rótulo some e o ponto sumiria junto. */
+.rail__dot {
+    position: absolute;
+    top: 7px;
+    left: 26px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--halt);
+    box-shadow: 0 0 0 2px var(--ink-800);
+    animation: rail-dot-pulse 2s var(--ease) infinite;
+}
+
+.rail__item:hover .rail__dot {
+    box-shadow: 0 0 0 2px var(--ink-700);
+}
+
+@keyframes rail-dot-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.45; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .rail__dot {
+        animation: none;
+    }
 }
 
 .rail__divider {

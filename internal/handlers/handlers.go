@@ -239,6 +239,7 @@ func (h *Handler) setupAPIRoutes(router *gin.Engine) {
 		// Configurações
 		settings := api.Group("/settings")
 		{
+			settings.GET("/wxs-status", h.getWxsStatus)
 			settings.POST("/test-wxs-connection", h.testWxsConnection)
 			settings.POST("/wxs", h.saveWxsSettings)
 		}
@@ -970,6 +971,9 @@ func (h *Handler) saveWxsSettings(c *gin.Context) {
 		})
 		return
 	}
+
+	// As credenciais mudaram: o sinal do rail precisa ser aferido de novo.
+	invalidarWxsStatus()
 
 	// Reconectar com as novas configurações
 	h.tracer.Info("Reconnecting to WXS with new settings...")

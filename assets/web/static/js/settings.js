@@ -53,6 +53,12 @@
             });
     }
 
+    // Salvar ou testar muda o veredito: refaz a aferição ignorando o cache
+    // do servidor para o ponto do rail não ficar desatualizado.
+    function reavaliarSinal() {
+        if (window.WxsSignal) { window.WxsSignal.verificar(true); }
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
         var alternar = document.getElementById('toggle-password');
         var senha = document.getElementById('wxs-password');
@@ -69,7 +75,7 @@
             enviar('/api/settings/test-wxs-connection', this, 'Testando…', function () {
                 mostrarResultado(true, 'Conexão bem-sucedida.');
                 window.Toast.ok('Conexão bem-sucedida');
-            });
+            }).then(reavaliarSinal);
         });
 
         document.getElementById('wxs-form').addEventListener('submit', function (evento) {
@@ -79,7 +85,7 @@
             enviar('/api/settings/wxs', botao, 'Salvando…', function () {
                 mostrarResultado(true, 'Configurações salvas e conexão reiniciada.');
                 window.Toast.ok('Configurações salvas');
-            });
+            }).then(reavaliarSinal);
         });
     });
 })();
