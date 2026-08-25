@@ -22,6 +22,18 @@ const EMULADOR = process.env.EMULADOR_URL ?? 'http://localhost:7070'
 const VIEWPORT = { width: 1440, height: 900 }
 const ESCALA = 2
 
+// Tempo maximo de espera pelo goto() inicial e pelo POST de login do
+// W-Access antes de desistir e avisar, em vez de travar a captura inteira.
+// Generoso, mas finito: um round-trip saudavel de WebForms na mesma rede
+// (IIS local, sem internet no meio) fica na casa de 1-3s, entao 20s ja da
+// folga larga pra variacao de carga. Finito porque a investigacao registrada
+// em task-4-report.md confirmou que, com o servico de backend fora do ar, o
+// POST de login nao recebe resposta alguma — nem sucesso, nem erro — mesmo
+// esperando 100s; nenhum prazo "resolve" esse caso, entao o valor so precisa
+// separar "lento mas vivo" de "definitivamente parado" sem prender a suite
+// do emulador (12 figuras ja publicadas) atras de uma instalacao fora do ar.
+const LOGIN_TIMEOUT_MS = 20_000
+
 // desenharNumeros desenha o numero de cada marcador como <div> real no
 // documento, por cima de tudo.
 //
@@ -368,11 +380,175 @@ async function suiteEmulador(browser) {
   await context.close()
 }
 
+// lerCredenciais le .captura.env. Formato: uma linha CHAVE=valor por vez.
+// Ausente ou incompleto, a suite do W-Access e pulada com aviso — nunca
+// falha, porque a suite do emulador continua util sozinha.
+async function lerCredenciais() {
+  const caminho = join(RAIZ, '.captura.env')
+  try {
+    await access(caminho)
+  } catch {
+    return null
+  }
+
+  const env = {}
+  for (const linha of (await readFile(caminho, 'utf8')).split(/\r?\n/)) {
+    const limpa = linha.trim()
+    if (!limpa || limpa.startsWith('#')) continue
+    const i = limpa.indexOf('=')
+    if (i < 0) continue
+    env[limpa.slice(0, i).trim()] = limpa.slice(i + 1).trim()
+  }
+
+  if (!env.WXS_URL || !env.WXS_USUARIO || !env.WXS_SENHA) return null
+  return env
+}
+
+// O W-Access roda em HTTPS com certificado self-signed, dai o
+// ignoreHTTPSErrors. E um ASP.NET WebForms — versao 4.210.8 confirmada, tela
+// de login em Login.aspx.
+//
+// Duas coisas se comportam DIFERENTE aqui de proposito, e nao por descuido:
+//   - um seletor que nao casa continua LANCANDO (mesma regra de disparar).
+//     Seletor errado e bug de manual desatualizado, tem que derrubar a
+//     captura pra alguem corrigir — nao pode virar um aviso silencioso, ou
+//     uma seta do PDF acaba apontando pro lugar errado sem ninguem notar.
+//   - servidor inalcancavel, ou login que nao completa dentro do prazo, NAO
+//     lanca. Vira aviso e a suite do W-Access inteira e pulada dali, porque
+//     a suite do emulador (12 figuras ja publicadas, funcionando) nao pode
+//     ficar refem de uma instalacao do W-Access fora do ar — ver §8.4 do
+//     spec e task-4-report.md, onde o servico de backend ficou fora do ar
+//     durante todo o desenvolvimento desta suite (a propria tela de login
+//     exibe "INVENZI W-ACCESS SERVICE NOT RUNNING") e o POST de login nunca
+//     recebeu resposta, nem depois de 100s de espera.
+async function suiteWxs(browser, env) {
+  const context = await browser.newContext({
+    viewport: VIEWPORT,
+    deviceScaleFactor: ESCALA,
+    ignoreHTTPSErrors: true
+  })
+  const page = await context.newPage()
+
+  // waitUntil: 'load', nao 'networkidle' — confirmado que a Login.aspx
+  // mantem trafego de fundo (o aviso "SERVICE NOT RUNNING" no rodape parece
+  // sondar o backend periodicamente), entao 'networkidle' nunca assenta
+  // mesmo quando a pagina em si carregou por completo. 'load' e o que o
+  // relato de exploracao (task-4-report.md) confirmou que completa
+  // normalmente mesmo com o servico de backend fora do ar.
+  try {
+    await page.goto(env.WXS_URL, { waitUntil: 'load', timeout: LOGIN_TIMEOUT_MS })
+  } catch (erro) {
+    console.warn(
+      `[captura] W-Access inalcancavel em ${env.WXS_URL} (${erro.message}) — ` +
+      'suite pulada, as capturas do emulador seguem normalmente.'
+    )
+    await context.close()
+    return
+  }
+
+  // A tela de login e fotografada ANTES de preencher, para o manual mostrar
+  // o campo vazio e nao a credencial de quem gerou.
+  //
+  // Os tres seletores abaixo sao CONFIRMADOS (ver task-4-report.md, obtidos
+  // com page.$$eval sobre todos os <input> da Login.aspx real): a pagina e
+  // WebForms e tem VARIOS input[type="text"] visiveis ao mesmo tempo (campos
+  // ocultos de telemetria do cliente), entao um seletor generico por type
+  // bateria em mais de um elemento e falharia por ambiguidade no modo
+  // estrito do Playwright.
+  await disparar(page, {
+    url: null,
+    arquivo: 'wxs-login.png'
+  })
+
+  await page.fill('#txt_Operator', env.WXS_USUARIO)
+  await page.fill('#txt_Password', env.WXS_SENHA)
+  await page.click('#btnBD_Login')
+
+  // E aqui que o backend do W-Access pode travar: o handler de login faz
+  // (aparentemente) uma chamada sincrona pro servico Windows que fala com o
+  // banco/hardware, e se esse servico estiver fora do ar o POST nunca
+  // recebe resposta — nem sucesso, nem erro, nenhum evento de rede novo.
+  // Prazo limitado de proposito, ver LOGIN_TIMEOUT_MS.
+  //
+  // 'load', nao 'networkidle': confirmado nesta mesma execucao que a
+  // Login.aspx nunca assenta em rede ociosa (ver comentario no goto()
+  // acima) — um sucesso de login provavelmente troca de pagina (redirect
+  // pos-autenticacao), o que dispara um novo evento 'load' de verdade; um
+  // travamento nao dispara evento nenhum de qualquer forma, entao 'load'
+  // deteta os dois casos sem correr o risco de nunca assentar numa pagina
+  // pos-login que tambem tenha trafego de fundo.
+  try {
+    await page.waitForLoadState('load', { timeout: LOGIN_TIMEOUT_MS })
+  } catch {
+    console.warn(
+      `[captura] login do W-Access nao completou em ${LOGIN_TIMEOUT_MS / 1000}s — ` +
+      'servico de backend provavelmente fora do ar (ver task-4-report.md). ' +
+      'wxs-pos-login.png, wxs-controladores.png e wxs-inicial.png ficam pendentes.'
+    )
+    await context.close()
+    return
+  }
+
+  // A tela inicial depois do login, so para o manual mostrar que o acesso
+  // deu certo antes de mandar navegar.
+  await disparar(page, {
+    url: null,
+    arquivo: 'wxs-pos-login.png'
+  })
+
+  // NAO CONFIRMADO — o login nunca completou durante o desenvolvimento desta
+  // suite (ver task-4-report.md), entao esta tela nunca foi vista de
+  // verdade. Textos de menu chutados cobrindo ingles (idioma confirmado
+  // desta instalacao, "OPERATOR:"/"PASSWORD:"/"LOGIN" na tela de login) e
+  // portugues, caso outra instalacao esteja localizada. Na primeira execucao
+  // real: se a regex nao casar, o Playwright lanca apontando qual — leia o
+  // texto verdadeiro do link na tela e troque so a regex correspondente
+  // abaixo, nao adicione mais alternativas "por garantia".
+  // 'load' pelo mesmo motivo do wait pos-login: 'networkidle' nao assenta
+  // nesta instalacao.
+  await page.getByRole('link', { name: /devices|dispositivos/i }).first().click()
+  await page.getByRole('link', { name: /controllers|controladores/i }).first().click()
+  await page.waitForLoadState('load')
+
+  await disparar(page, {
+    url: null,
+    arquivo: 'wxs-controladores.png'
+  })
+
+  // NAO CONFIRMADO, mesmo motivo acima. Abre o primeiro controlador da lista
+  // pra chegar na tela de cadastro (wxs-inicial.png), onde a descricao
+  // emulator_NN, o endereco e o BaseCommPort sao preenchidos pelo tecnico.
+  // `table a` e um chute generico (a tabela de controladores provavelmente
+  // usa <a> dentro de <table> pra abrir o registro, como e comum em grids do
+  // WebForms) — na primeira execucao real, confirme isso olhando o DOM da
+  // tela de controladores; se for outro elemento (linha clicavel, botao de
+  // icone), troque so este seletor.
+  await page.locator('table a').first().click()
+  await page.waitForLoadState('load')
+
+  await disparar(page, {
+    url: null,
+    arquivo: 'wxs-inicial.png'
+  })
+
+  await context.close()
+}
+
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   await mkdir(DESTINO, { recursive: true })
   const browser = await chromium.launch({ channel: 'chrome' })
   try {
     await suiteEmulador(browser)
+
+    const env = await lerCredenciais()
+    if (env) {
+      await suiteWxs(browser, env)
+    } else {
+      console.log(
+        '[captura] .captura.env ausente ou incompleto — suite do W-Access ' +
+        'pulada. Copie .captura.env.exemplo e preencha.'
+      )
+    }
   } finally {
     await browser.close()
   }
