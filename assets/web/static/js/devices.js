@@ -116,8 +116,10 @@
         var vazio = marcados.length === 0;
         var iniciar = document.getElementById('start-selected');
         var parar = document.getElementById('stop-selected');
+        var excluir = document.getElementById('delete-selected');
         if (iniciar) { iniciar.disabled = vazio; }
         if (parar) { parar.disabled = vazio; }
+        if (excluir) { excluir.disabled = vazio; }
     }
 
     // ------------------------------------------------------------------
@@ -146,6 +148,106 @@
             });
         // O estado final chega pelo SSE, que é quem sabe o resultado de
         // verdade; pintarLinha() limpa o data-pending.
+    }
+
+    // Remove um emulador e tira a linha da tela. Nunca rejeita: quem chama
+    // em lote precisa do resultado de cada um para montar o resumo, e uma
+    // promise rejeitada no meio abortaria as restantes.
+    function removerEmulador(id) {
+        return fetch('/api/emulators/' + id, { method: 'DELETE' })
+            .then(function (resp) {
+                return resp.json().then(function (corpo) {
+                    if (!resp.ok) {
+                        return { ok: false, erro: corpo.error || 'Falha ao remover o emulador' };
+                    }
+                    var linha = document.getElementById('device-' + id);
+                    if (linha) { linha.remove(); }
+                    return { ok: true, erro: '' };
+                });
+            })
+            .catch(function (err) {
+                return { ok: false, erro: 'Falha ao remover: ' + err.message };
+            });
+    }
+
+    // Dispositivo vindo do W-Access não pode ser removido — a verdade dele
+    // mora lá e o próximo sync o traria de volta. O servidor recusa com 409,
+    // mas descobrir isso só depois de disparar N requisições daria uma
+    // enxurrada de erros para algo que a própria tela já sabe: o template só
+    // desenha o botão .device-remove nas linhas de origem manual.
+    function particionarSelecao() {
+        var removiveis = [];
+        var gerenciados = [];
+        selecionados().forEach(function (id) {
+            var linha = document.getElementById('device-' + id);
+            if (linha && linha.querySelector('.device-remove')) {
+                removiveis.push(id);
+            } else {
+                gerenciados.push(id);
+            }
+        });
+        return { removiveis: removiveis, gerenciados: gerenciados };
+    }
+
+    // Sequencial em LIMITE frentes. Um Promise.all sobre a seleção inteira
+    // abriria centenas de conexões de uma vez — a criação em lote permite
+    // 1000 emuladores, e o navegador enfileiraria tudo de qualquer jeito,
+    // só que sem controle nenhum sobre a ordem dos erros.
+    function emLotes(ids, tarefa) {
+        var LIMITE = 6;
+        var resultados = [];
+        var proximo = 0;
+
+        function frente() {
+            if (proximo >= ids.length) { return Promise.resolve(); }
+            var indice = proximo++;
+            return tarefa(ids[indice]).then(function (r) {
+                resultados[indice] = r;
+                return frente();
+            });
+        }
+
+        var frentes = [];
+        for (var i = 0; i < Math.min(LIMITE, ids.length); i++) {
+            frentes.push(frente());
+        }
+        return Promise.all(frentes).then(function () { return resultados; });
+    }
+
+    function excluirSelecionados(botao) {
+        var particao = particionarSelecao();
+        var ids = particao.removiveis;
+        var gerenciados = particao.gerenciados;
+
+        if (ids.length === 0) {
+            window.Toast.err(gerenciados.length > 0
+                ? 'Nenhum dos selecionados pode ser removido: todos vieram do W-Access'
+                : 'Nenhum emulador selecionado');
+            return;
+        }
+
+        var aviso = 'Excluir ' + ids.length + ' emulador(es)?\n\n' +
+            'Os cartões, faces e usuários cadastrados neles também serão apagados. ' +
+            'Não há como desfazer.';
+        if (gerenciados.length > 0) {
+            aviso += '\n\n' + gerenciados.length + ' dispositivo(s) da seleção vieram do ' +
+                'W-Access e não serão tocados.';
+        }
+        if (!window.confirm(aviso)) { return; }
+
+        botao.disabled = true;
+        emLotes(ids, removerEmulador).then(function (resultados) {
+            var falhas = resultados.filter(function (r) { return !r.ok; });
+            var removidos = resultados.length - falhas.length;
+
+            if (removidos > 0) { window.Toast.ok(removidos + ' emulador(es) removido(s)'); }
+            // A primeira falha basta na tela; o resto sai no log do serviço.
+            // Um toast por erro empilharia centenas deles numa seleção grande.
+            if (falhas.length > 0) {
+                window.Toast.err(falhas.length + ' não removido(s). ' + falhas[0].erro);
+            }
+            sincronizarSelecao();
+        });
     }
 
     function iniciarAcoes() {
@@ -218,25 +320,23 @@
                 if (!ok) { return; }
 
                 btn.disabled = true;
-                fetch('/api/emulators/' + id, { method: 'DELETE' })
-                    .then(function (resp) {
-                        return resp.json().then(function (corpo) {
-                            if (!resp.ok) {
-                                window.Toast.err(corpo.error || 'Falha ao remover o emulador');
-                                btn.disabled = false;
-                                return;
-                            }
-                            window.Toast.ok('Emulador ' + nome + ' removido');
-                            var linha = document.getElementById('device-' + id);
-                            if (linha) { linha.remove(); }
-                        });
-                    })
-                    .catch(function (err) {
-                        window.Toast.err('Falha ao remover: ' + err.message);
-                        btn.disabled = false;
-                    });
+                removerEmulador(id).then(function (resultado) {
+                    if (resultado.ok) {
+                        window.Toast.ok('Emulador ' + nome + ' removido');
+                        return;
+                    }
+                    window.Toast.err(resultado.erro);
+                    btn.disabled = false;
+                });
             });
         });
+
+        var excluirLote = document.getElementById('delete-selected');
+        if (excluirLote) {
+            excluirLote.addEventListener('click', function () {
+                excluirSelecionados(excluirLote);
+            });
+        }
 
         document.querySelectorAll('.device-edit').forEach(function (btn) {
             btn.addEventListener('click', function () {

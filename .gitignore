@@ -65,3 +65,5 @@ coverage.*
 docs/manual/node_modules/
 docs/manual/.out/
 docs/manual/.captura.env
+# Dumps do banco (contem credenciais do W-Access).
+backups/

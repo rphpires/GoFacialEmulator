@@ -184,3 +184,37 @@ func TestRenderDevices_BlocoDeAlcancabilidade(t *testing.T) {
 		}
 	}
 }
+
+// TestRenderDevices_BotoesEmLote garante que o botão de exclusão em lote
+// nasce desabilitado, como os outros dois. Habilitado sem seleção ele
+// dispararia o confirm de uma operação irreversível sobre nada — e o
+// devices.js só reabilita quando há linha marcada.
+func TestRenderDevices_BotoesEmLote(t *testing.T) {
+	h := &Handler{
+		templates:  buildTemplateCache(),
+		appVersion: "teste",
+	}
+
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodGet, "/", nil)
+
+	h.renderPage(c, "devices.html", http.StatusOK, gin.H{
+		"devices":       []gin.H{},
+		"filters":       gin.H{"id": "", "name": "", "port": ""},
+		"page":          1,
+		"total_pages":   1,
+		"per_page":      50,
+		"page_range":    []int{1},
+		"counter_cards": FleetCounts{Total: 0, Running: 0, Stopped: 0, Disabled: 0}.toMap(),
+	})
+
+	corpo := rec.Body.String()
+
+	for _, id := range []string{"start-selected", "stop-selected", "delete-selected"} {
+		marcador := `id="` + id + `" disabled`
+		if !strings.Contains(corpo, marcador) {
+			t.Errorf("botão em lote %q ausente ou já habilitado:\n%s", id, corpo)
+		}
+	}
+}
