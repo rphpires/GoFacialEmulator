@@ -84,7 +84,7 @@ A maneira mais rápida e simples de executar o projeto:
 docker compose up -d
 
 # Acessar
-http://localhost:8080
+http://localhost:7070
 ```
 
 #### Documentação Docker Disponível:
@@ -188,7 +188,7 @@ autenticação — é ferramenta de laboratório, pensada para rede local.
 ### Criar um
 
 ```bash
-curl -X POST localhost:8080/api/emulators \
+curl -X POST localhost:7070/api/emulators \
   -H 'Content-Type: application/json' \
   -d '{
         "name": "lab-01",
@@ -208,7 +208,7 @@ vira `127.0.0.1`, `event_interval` vira `10`, `enabled` vira `true` e
 ### Criar em lote
 
 ```bash
-curl -X POST localhost:8080/api/emulators/range \
+curl -X POST localhost:7070/api/emulators/range \
   -H 'Content-Type: application/json' \
   -d '{
         "name_prefix": "lab",
@@ -233,13 +233,13 @@ estiver cadastrada, a requisição falha com `400` listando os conflitos e
 ### Listar, editar e remover
 
 ```bash
-curl localhost:8080/api/emulators
+curl localhost:7070/api/emulators
 
-curl -X PUT localhost:8080/api/emulators/900000 \
+curl -X PUT localhost:7070/api/emulators/900000 \
   -H 'Content-Type: application/json' \
   -d '{"name":"lab-01","model":"Dahua","port":4001}'
 
-curl -X DELETE localhost:8080/api/emulators/900000
+curl -X DELETE localhost:7070/api/emulators/900000
 ```
 
 IDs manuais saem de `service.manual_device_id_seq`, que começa em

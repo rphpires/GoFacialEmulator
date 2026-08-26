@@ -10,7 +10,7 @@ O `docker-compose.yml` está configurado para expor as portas:
 
 ```yaml
 ports:
-  - "8080:8080"              # API principal
+  - "7070:7070"              # API principal
   - "4000-4999:4000-4999"    # Emuladores (1000 possíveis)
 ```
 
@@ -92,12 +92,14 @@ WHERE Port NOT BETWEEN 4000 AND 4999;
 
 2. **Atualize os dispositivos no GoFacialEmulator:**
    - Via interface web: Acesse `/devices` e clique em "Atualizar Dispositivos"
-   - Via API: `POST http://localhost:8080/api/devices/refresh`
+   - Via API: `GET http://localhost:7070/api/emulators/refresh` — devolve `409`
+     se a sincronização com o W-Access estiver desligada em
+     **Configurações → Sincronizar dispositivos com o W-Access**
 
 3. **Verifique os emuladores:**
    ```bash
    # Listar dispositivos
-   curl http://localhost:8080/api/devices
+   curl http://localhost:7070/api/devices
 
    # Testar emulador específico
    curl http://localhost:4001/ISAPI/System/deviceInfo
@@ -115,14 +117,14 @@ Você deve ver:
 ```
 PORTS
 0.0.0.0:4000-4999->4000-4999/tcp
-0.0.0.0:8080->8080/tcp
+0.0.0.0:7070->7070/tcp
 ```
 
 ### **2. Verificar emuladores ativos:**
 
 ```bash
 # Via API
-curl http://localhost:8080/api/devices
+curl http://localhost:7070/api/devices
 
 # Resposta exemplo:
 # {
@@ -151,7 +153,7 @@ curl -N http://localhost:4001/ISAPI/Event/notification/alertStream
 
 **Solução:**
 1. Verificar se a porta está no range 4000-4999
-2. Verificar se o emulador está rodando: `curl http://localhost:8080/api/devices`
+2. Verificar se o emulador está rodando: `curl http://localhost:7070/api/devices`
 3. Reiniciar o Docker: `docker-compose restart`
 
 ### **Erro: "Address already in use"**
@@ -208,7 +210,7 @@ docker exec facial-emulator-app netstat -tuln | grep LISTEN
 - ✅ Portas cadastradas manualmente (UI/API) ou sincronizadas do **WXS** — os dois convivem
 - ✅ Ao usar o WXS, configurar as portas lá **ANTES** de sincronizar
 - ✅ Acessar via: `http://localhost:<porta>`
-- ✅ API principal: `http://localhost:8080`
+- ✅ API principal: `http://localhost:7070`
 
 ## 🔗 Links Úteis
 
