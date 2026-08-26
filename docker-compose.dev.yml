@@ -33,11 +33,17 @@ services:
       DB_USER: emulator
       DB_PASSWORD: emulator123
       DB_DATABASE: emulator_db
+      # Precisa descrever exatamente o que a lista ports abaixo publica.
+      # A aplicação usa esta variável para avisar quais dispositivos não
+      # vão ser alcançados.
+      PUBLISHED_PORT_RANGE: "4000-4999"
     ports:
       - "7070:7070"
-      # 100 emuladores. Para mais, troque pela linha abaixo:
-      # - "4000-4999:4000-4999"
-      - "4000-4099:4000-4099"
+      # 1000 emuladores. Para menos (startup mais rápido no Docker
+      # Desktop), troque a linha abaixo e a variável
+      # PUBLISHED_PORT_RANGE acima pela mesma faixa.
+      # - "4000-4099:4000-4099"
+      - "4000-4999:4000-4999"
     depends_on:
       postgres:
         condition: service_healthy
