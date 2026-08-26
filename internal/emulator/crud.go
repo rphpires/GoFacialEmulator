@@ -173,12 +173,19 @@ func (m *Manager) UpdateDevice(ctx context.Context, id int, spec DeviceSpec) (mo
 		return models.Device{}, err
 	}
 	// A porta atual do próprio dispositivo não conta como conflito: manter
-	// a porta é o caso mais comum de edição.
-	atual, err := m.GetDevice(id)
+	// a porta é o caso mais comum de edição. A leitura vai pela própria
+	// transação — buscar uma segunda conexão do pool enquanto se segura o
+	// advisory lock é contenção sem motivo, e o valor lido tem que ser do
+	// mesmo snapshot que portasOcupadas.
+	var portaAtual, totalUsuariosAtual, logAtual int
+	err = tx.QueryRow(ctx, `
+		SELECT port, total_users, log_enabled
+		  FROM service.devices
+		 WHERE local_controller_id = $1`, id).Scan(&portaAtual, &totalUsuariosAtual, &logAtual)
 	if err != nil {
-		return models.Device{}, err
+		return models.Device{}, fmt.Errorf("erro ao ler dispositivo %d: %w", id, err)
 	}
-	delete(ocupadas, atual.Port)
+	delete(ocupadas, portaAtual)
 
 	conflito := &ConflictError{Ports: Conflicts([]int{spec.Port}, ocupadas)}
 	if m.ServicePort > 0 {
@@ -208,6 +215,8 @@ func (m *Manager) UpdateDevice(ctx context.Context, id int, spec DeviceSpec) (mo
 		Model: spec.Model, Enabled: boolParaInt(*spec.Enabled),
 		Type: m.getDeviceType(spec.Model), Status: "stopped",
 		EventInterval: spec.EventInterval, Source: SourceManual,
+		TotalUsers:    totalUsuariosAtual,
+		LogEnabled:    logAtual,
 	}, nil
 }
 

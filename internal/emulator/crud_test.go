@@ -282,3 +282,72 @@ func TestUpdateDeviceRecusaEmuladorRodando(t *testing.T) {
 		t.Errorf("quero ErrDeviceRunning, tenho %v", err)
 	}
 }
+
+// leituraDoDispositivo simula, dentro da transação, a query que lê port,
+// total_users e log_enabled do próprio dispositivo — separada de
+// deviceSource (que roda fora da transação, em dbFalso.linha) e de
+// idSequencial (nextval, usada só na criação).
+func leituraDoDispositivo(porta, totalUsuarios, logEnabled int) func(sql string) pgx.Row {
+	return func(sql string) pgx.Row {
+		if strings.Contains(sql, "SELECT port") {
+			return linhaFalsa{valores: []interface{}{porta, totalUsuarios, logEnabled}}
+		}
+		return linhaFalsa{}
+	}
+}
+
+// Regressão: a porta atual do dispositivo tem que ser excluída do conjunto
+// de portas ocupadas antes de checar conflito, senão toda edição que não
+// muda a porta esbarra na própria porta.
+func TestUpdateDeviceMantemAPortaAtual(t *testing.T) {
+	tx := &txFalsa{
+		queryRowFn: leituraDoDispositivo(4000, 0, 0),
+		queryRows:  &rowsFalsas{linhas: [][]interface{}{{4000}, {7070}}},
+	}
+	m, db := managerDeTeste(tx)
+	db.linha = linhaFalsa{valores: []interface{}{SourceManual}}
+
+	dev, err := m.UpdateDevice(context.Background(), 900001, DeviceSpec{
+		Name: "lab-01", Model: ModelDahua, Port: 4000,
+	})
+	if err != nil {
+		t.Fatalf("não podia haver conflito ao manter a própria porta: %v", err)
+	}
+	if dev.Port != 4000 {
+		t.Errorf("porta %d, quero 4000", dev.Port)
+	}
+
+	juntos := strings.Join(tx.execs, "\n")
+	if !strings.Contains(juntos, "UPDATE service.devices") {
+		t.Error("quero o UPDATE do dispositivo")
+	}
+	if !tx.comitou {
+		t.Error("quero commit")
+	}
+}
+
+// Task 6 renderiza a resposta HTTP direto do models.Device devolvido por
+// UpdateDevice: total_users e log_enabled não podem zerar numa edição, já
+// que o UPDATE deliberadamente não toca essas duas colunas.
+func TestUpdateDevicePreservaTotalUsersELogEnabled(t *testing.T) {
+	tx := &txFalsa{
+		queryRowFn: leituraDoDispositivo(4000, 300, 1),
+		queryRows:  &rowsFalsas{linhas: [][]interface{}{{4000}, {7070}}},
+	}
+	m, db := managerDeTeste(tx)
+	db.linha = linhaFalsa{valores: []interface{}{SourceManual}}
+
+	dev, err := m.UpdateDevice(context.Background(), 900001, DeviceSpec{
+		Name: "lab-01", Model: ModelDahua, Port: 4000,
+	})
+	if err != nil {
+		t.Fatalf("erro inesperado: %v", err)
+	}
+
+	if dev.TotalUsers != 300 {
+		t.Errorf("total_users %d, quero 300", dev.TotalUsers)
+	}
+	if dev.LogEnabled != 1 {
+		t.Errorf("log_enabled %d, quero 1", dev.LogEnabled)
+	}
+}
