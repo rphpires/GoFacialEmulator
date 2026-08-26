@@ -13,6 +13,9 @@ type Device struct {
 	EventInterval int    `json:"event_interval"`
 	TotalUsers    int    `json:"total_users"`
 	LogEnabled    int    `json:"log_enabled"`
+	// Source separa o que veio do W-Access ("wxs") do que foi cadastrado
+	// pela API ou pela tela ("manual"). O sync só apaga o primeiro.
+	Source string `json:"source"`
 }
 
 // UserComparison representa uma comparação de usuários entre WXS, site controller e emulador

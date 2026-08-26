@@ -15,6 +15,12 @@ import (
 	"GoFacialEmulator/internal/trace"
 )
 
+// Origem de um dispositivo em service.devices.
+const (
+	SourceWXS    = "wxs"
+	SourceManual = "manual"
+)
+
 // Manager gerencia todos os emuladores - baseado no EmulatorService.py
 type Manager struct {
 	ServiceDB  database.DBInterface // Pode ser AdaptivePool ou DualPoolManager
@@ -214,8 +220,8 @@ func (m *Manager) upsertDevice(ctx context.Context, device models.Device) error 
 	query := `
 		INSERT INTO service.devices (
 			local_controller_id, name, ip_address, port, model, enabled, type,
-			status, event_interval, total_users, log_enabled
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+			status, event_interval, total_users, log_enabled, source
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'wxs')
 		ON CONFLICT (local_controller_id) DO UPDATE SET
 			name = EXCLUDED.name,
 			ip_address = EXCLUDED.ip_address,
@@ -279,7 +285,7 @@ func (m *Manager) ListDevices() ([]models.Device, error) {
 
 	query := `
 		SELECT local_controller_id, name, ip_address, port, model, enabled, type,
-		       status, event_interval, total_users, log_enabled
+		       status, event_interval, total_users, log_enabled, source
 		FROM service.devices
 		ORDER BY local_controller_id
 	`
@@ -304,7 +310,7 @@ func (m *Manager) ListDevices() ([]models.Device, error) {
 		var device models.Device
 		err := rows.Scan(&device.ID, &device.Name, &device.IPAddress, &device.Port,
 			&device.Model, &device.Enabled, &device.Type, &device.Status,
-			&device.EventInterval, &device.TotalUsers, &device.LogEnabled)
+			&device.EventInterval, &device.TotalUsers, &device.LogEnabled, &device.Source)
 		if err != nil {
 			m.Tracer.Error("Failed to scan device: %v", err)
 			continue
@@ -330,7 +336,7 @@ func (m *Manager) GetDevice(id int) (models.Device, error) {
 
 	query := `
 		SELECT local_controller_id, name, ip_address, port, model, enabled, type,
-		       status, event_interval, total_users, log_enabled
+		       status, event_interval, total_users, log_enabled, source
 		FROM service.devices
 		WHERE local_controller_id = $1
 	`
@@ -340,7 +346,7 @@ func (m *Manager) GetDevice(id int) (models.Device, error) {
 	err := m.ServiceDB.QueryRow(ctx, query, id).Scan(
 		&device.ID, &device.Name, &device.IPAddress, &device.Port,
 		&device.Model, &device.Enabled, &device.Type, &device.Status,
-		&device.EventInterval, &device.TotalUsers, &device.LogEnabled)
+		&device.EventInterval, &device.TotalUsers, &device.LogEnabled, &device.Source)
 
 	if err != nil {
 		return device, fmt.Errorf("device not found: %w", err)
@@ -384,7 +390,7 @@ func (m *Manager) getDeviceUnsafe(id int) (models.Device, error) {
 
 	query := `
         SELECT local_controller_id, name, ip_address, port, model, enabled, type,
-               status, event_interval, total_users, log_enabled
+               status, event_interval, total_users, log_enabled, source
         FROM service.devices
         WHERE local_controller_id = $1
     `
@@ -393,7 +399,7 @@ func (m *Manager) getDeviceUnsafe(id int) (models.Device, error) {
 	err := m.ServiceDB.QueryRow(ctx, query, id).Scan(
 		&device.ID, &device.Name, &device.IPAddress, &device.Port,
 		&device.Model, &device.Enabled, &device.Type, &device.Status,
-		&device.EventInterval, &device.TotalUsers, &device.LogEnabled)
+		&device.EventInterval, &device.TotalUsers, &device.LogEnabled, &device.Source)
 
 	if err != nil {
 		return device, fmt.Errorf("device not found: %w", err)
@@ -926,8 +932,8 @@ func (m *Manager) ListDevicesWithFilters(filters map[string]string) ([]*models.D
 
 	// Construir query com filtros
 	query := `
-		SELECT local_controller_id, name, ip_address, port, model, status, enabled, 
-		       event_interval, total_users, log_enabled, type
+		SELECT local_controller_id, name, ip_address, port, model, status, enabled,
+		       event_interval, total_users, log_enabled, type, source
 		FROM service.devices
 		WHERE 1=1
 	`
@@ -973,7 +979,7 @@ func (m *Manager) ListDevicesWithFilters(filters map[string]string) ([]*models.D
 		err := rows.Scan(
 			&device.ID, &device.Name, &device.IPAddress, &device.Port,
 			&device.Model, &device.Status, &enabled, &device.EventInterval,
-			&device.TotalUsers, &logEnabled, &device.Type,
+			&device.TotalUsers, &logEnabled, &device.Type, &device.Source,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan device: %w", err)

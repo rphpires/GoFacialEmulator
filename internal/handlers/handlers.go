@@ -886,6 +886,7 @@ func (h *Handler) getCurrentDevicesWithFilters(filters map[string]string) ([]map
 			"interval":    device.EventInterval,
 			"total":       device.TotalUsers,
 			"local_auth":  modo,
+			"source":      device.Source,
 		})
 	}
 
