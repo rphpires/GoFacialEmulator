@@ -24,3 +24,10 @@ func StaticFS() fs.FS {
 func MigrationSQL() ([]byte, error) {
 	return root.ReadFile("migrations/V001_create_emulator_schema.sql")
 }
+
+// MigrationFiles devolve o subsistema "migrations" para o runner de
+// migração (internal/database/migrate.go). MigrationSQL continua servindo
+// o validator, que só conhece o baseline.
+func MigrationFiles() (fs.FS, error) {
+	return fs.Sub(root, "migrations")
+}

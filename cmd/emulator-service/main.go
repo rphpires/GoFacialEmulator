@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"GoFacialEmulator/assets"
 	"GoFacialEmulator/internal/config"
 	"GoFacialEmulator/internal/database"
 	"GoFacialEmulator/internal/emulator"
@@ -43,6 +44,20 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to get ServiceDB: %v", err)
 	}
+
+	tracer.Info("Applying schema migrations...")
+	migFS, err := assets.MigrationFiles()
+	if err != nil {
+		log.Fatalf("Failed to open embedded migrations: %v", err)
+	}
+	migCtx, migCancel := context.WithTimeout(context.Background(), 60*time.Second)
+	err = database.ApplyMigrations(migCtx, serviceDB, migFS)
+	migCancel()
+	if err != nil {
+		// Banco meio migrado é pior que serviço que não sobe.
+		log.Fatalf("Failed to apply migrations: %v", err)
+	}
+	tracer.Info("Schema migrations up to date")
 
 	emulatorDB, err := database.GetEmulatorDB(cfg.EmulatorDB)
 	if err != nil {
