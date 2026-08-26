@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -156,7 +157,15 @@ func main() {
 	// subida do HTTP server caso o WXS esteja inacessível.
 	go func() {
 		if err := manager.RefreshDevices(); err != nil {
-			tracer.Error("Failed to refresh devices: %v", err)
+			if errors.Is(err, emulator.ErrSyncDisabled) {
+				// Sync desligado é o estado normal de uma instalação
+				// manual-only: dispara em todo boot que não sincroniza, e
+				// não é falha nenhuma — logar como Error faria o operador
+				// caçar um problema que não existe.
+				tracer.Info("Sincronização com o W-Access desligada — nenhum dispositivo será importado")
+			} else {
+				tracer.Error("Failed to refresh devices: %v", err)
+			}
 		}
 	}()
 
@@ -165,10 +174,18 @@ func main() {
 
 	// Configurar servidor HTTP
 	server := &http.Server{
-		Addr:         fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port),
-		Handler:      handler.Router(),
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 30 * time.Second,
+		Addr:        fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port),
+		Handler:     handler.Router(),
+		ReadTimeout: 30 * time.Second,
+		// 5 minutos, não 30 segundos: precisa acomodar o orçamento de
+		// contexto do handler mais lento do serviço,
+		// apiCreateEmulatorRange (internal/handlers/emulators.go), que abre
+		// um context.WithTimeout de 5 minutos para um lote grande com
+		// auto_start — centenas de emuladores, cada Start com até 10s
+		// serializado. Os dois valores se movem juntos: mudar um sem o
+		// outro corta a conexão antes do handler terminar, ou deixa o
+		// handler abortar antes do servidor.
+		WriteTimeout: 5 * time.Minute,
 		IdleTimeout:  60 * time.Second,
 	}
 
