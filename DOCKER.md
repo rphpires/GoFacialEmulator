@@ -45,9 +45,9 @@ docker-compose logs -f postgres
 
 ## Acessar a Aplicação
 
-- **Interface Web**: http://localhost:8080
-- **API REST**: http://localhost:8080/api
-- **Página de Comparação**: http://localhost:8080/comparison
+- **Interface Web**: http://localhost:7070
+- **API REST**: http://localhost:7070/api
+- **Página de Comparação**: http://localhost:7070/comparison
 
 ## Gerenciar o Sistema
 
@@ -93,7 +93,7 @@ As configurações podem ser alteradas no [docker-compose.yml](docker-compose.ym
 environment:
   # Servidor HTTP
   SERVER_HOST: "0.0.0.0"
-  SERVER_PORT: "8080"
+  SERVER_PORT: "7070"
 
   # PostgreSQL
   PG_HOST: postgres
@@ -105,7 +105,7 @@ environment:
 
 ### Portas Expostas
 
-- **8080**: Interface web e API
+- **7070**: Interface web e API
 - **4000-4999**: Range de portas para emuladores de dispositivos (1000 emuladores possíveis)
 - **5432**: PostgreSQL (opcional, para acesso externo)
 

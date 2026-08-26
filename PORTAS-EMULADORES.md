@@ -91,7 +91,8 @@ WHERE Port NOT BETWEEN 4000 AND 4999;
 1. **Reinicie o WXS** (se necessário)
 
 2. **Atualize os dispositivos no GoFacialEmulator:**
-   - Via interface web: Acesse `/devices` e clique em "Atualizar Dispositivos"
+   - Via interface web: acesse a tela de Dispositivos (`/`) e clique em
+     **Sincronizar W-Access**, na barra lateral
    - Via API: `GET http://localhost:7070/api/emulators/refresh` — devolve `409`
      se a sincronização com o W-Access estiver desligada em
      **Configurações → Sincronizar dispositivos com o W-Access**
