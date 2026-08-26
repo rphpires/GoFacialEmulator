@@ -135,7 +135,7 @@ func (m *Manager) RefreshDevices() error {
 	}
 
 	gateCtx, gateCancel := context.WithTimeout(context.Background(), 5*time.Second)
-	ligado, err := database.GetSyncEnabled(gateCtx, m.ServiceDB)
+	ligado, err := database.GetSyncEnabled(gateCtx, m.ServiceDB, m.WxsDB != nil)
 	gateCancel()
 	if err != nil {
 		return fmt.Errorf("failed to read sync setting: %w", err)

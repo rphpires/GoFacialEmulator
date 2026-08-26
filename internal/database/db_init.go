@@ -175,10 +175,15 @@ func SaveWxsSettingsFromDB(ctx context.Context, db DBInterface, settings *WxsSet
 		`
 		_, err = db.Exec(ctx, query, settings.Host, settings.Port, settings.Database, settings.Username, settings.Password)
 	} else {
-		// Inserir novo registro
+		// Inserir novo registro. sync_enabled vai explícito como TRUE: gravar
+		// uma conexão de W-Access pela primeira vez é, em si, a intenção de
+		// sincronizar — sem isso a coluna cairia no DEFAULT TRUE da V002 por
+		// acidente, mas a tela de configurações mostraria o toggle
+		// desmarcado (settingsPage lê GetSyncEnabled, não a coluna direto),
+		// uma divergência entre o banco e o que o operador vê na tela.
 		query := `
-			INSERT INTO service.wxs_settings (host, port, database, username, password)
-			VALUES ($1, $2, $3, $4, $5)
+			INSERT INTO service.wxs_settings (host, port, database, username, password, sync_enabled)
+			VALUES ($1, $2, $3, $4, $5, TRUE)
 		`
 		_, err = db.Exec(ctx, query, settings.Host, settings.Port, settings.Database, settings.Username, settings.Password)
 	}

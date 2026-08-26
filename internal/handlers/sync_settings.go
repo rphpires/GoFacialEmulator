@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"time"
 
@@ -26,13 +25,10 @@ func (h *Handler) apiSetSyncEnabled(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
+	// Sem linha gravada, SetSyncEnabled cria uma (host vazio) só para
+	// guardar o toggle — o operador pode ligar/desligar mesmo antes de
+	// configurar a conexão com o W-Access.
 	if err := database.SetSyncEnabled(ctx, h.serviceDB, corpo.Enabled); err != nil {
-		if errors.Is(err, database.ErrNoWxsSettings) {
-			c.JSON(http.StatusConflict, gin.H{
-				"error": "Configure a conexão com o W-Access antes de ligar a sincronização",
-			})
-			return
-		}
 		h.tracer.Error("Failed to set sync_enabled: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao gravar configuração"})
 		return

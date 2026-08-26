@@ -421,7 +421,7 @@ func (h *Handler) refreshDevices(c *gin.Context) {
 	// estado que o operador precisa ver como recusa, não como um refresh
 	// que "iniciou" e morreu calado numa goroutine.
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
-	ligado, err := database.GetSyncEnabled(ctx, h.serviceDB)
+	ligado, err := database.GetSyncEnabled(ctx, h.serviceDB, h.manager.WxsDB != nil)
 	cancel()
 	if err != nil {
 		h.tracer.Error("Failed to read sync setting: %v", err)
@@ -948,7 +948,7 @@ func (h *Handler) settingsPage(c *gin.Context) {
 		wxsSettings = &database.WxsSettings{}
 	}
 
-	syncLigado, err := database.GetSyncEnabled(ctx, h.serviceDB)
+	syncLigado, err := database.GetSyncEnabled(ctx, h.serviceDB, h.manager.WxsDB != nil)
 	if err != nil {
 		h.tracer.Error("Failed to read sync setting: %v", err)
 		syncLigado = false
