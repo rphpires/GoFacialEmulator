@@ -15,12 +15,6 @@ import (
 	"GoFacialEmulator/internal/trace"
 )
 
-// Origem de um dispositivo em service.devices.
-const (
-	SourceWXS    = "wxs"
-	SourceManual = "manual"
-)
-
 // Manager gerencia todos os emuladores - baseado no EmulatorService.py
 type Manager struct {
 	ServiceDB  database.DBInterface // Pode ser AdaptivePool ou DualPoolManager
