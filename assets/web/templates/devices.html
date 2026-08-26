@@ -5,6 +5,14 @@
 <div class="page-head">
   <h1>Dispositivos</h1>
   <div class="page-head__actions">
+    <button type="button" class="btn btn--action" id="new-emulator">
+      <svg class="icon" aria-hidden="true"><use href="/static/icons.svg#plus"></use></svg>
+      Novo emulador
+    </button>
+    <button type="button" class="btn" id="new-emulator-range">
+      <svg class="icon" aria-hidden="true"><use href="/static/icons.svg#devices"></use></svg>
+      Criar em lote
+    </button>
     <button type="button" class="btn btn--go" id="start-selected" disabled>
       <svg class="icon" aria-hidden="true"><use href="/static/icons.svg#play"></use></svg>
       Iniciar selecionados
@@ -71,6 +79,7 @@
         <th>ID</th>
         <th>Nome</th>
         <th>Modelo</th>
+        <th>Origem</th>
         <th class="num">Porta</th>
         <th>Modo</th>
         <th class="center">Log</th>
@@ -95,6 +104,16 @@
         </td>
         <td class="grid__name device-name-cell" title="{{ .name }}">{{ .name }}</td>
         <td>{{ .model }}</td>
+        <td>
+          <!-- Origem manda em quais ações a linha oferece: o que veio do
+               W-Access é sobrescrito pelo próximo sync, então editar ali
+               seria uma promessa que o serviço não cumpre. -->
+          {{ if eq .source "manual" }}
+          <span class="badge badge--manual">Manual</span>
+          {{ else }}
+          <span class="badge badge--wxs">W-Access</span>
+          {{ end }}
+        </td>
         <td class="num">{{ .port }}</td>
         <td class="center">
           <!-- LocalAuthentication só é lido pelo emulador Dahua; os demais
@@ -145,12 +164,35 @@
               <svg class="icon" aria-hidden="true"><use href="/static/icons.svg#users"></use></svg>
               <span class="visually-hidden">Detalhes de {{ .name }}</span>
             </button>
+            {{ if eq .source "manual" }}
+            <!-- data-ip/data-interval/data-enabled alimentam o formulário de
+                 edição direto do que o servidor já colocou nesta linha —
+                 sem eles, corpoComum() em emulator-form.js leria os campos
+                 do modal ainda com o valor padrão do template (IP
+                 127.0.0.1, intervalo 10, habilitado marcado) e o PUT, que é
+                 substituição total, reescreveria esses três campos do
+                 dispositivo com o valor errado. -->
+            <button type="button" class="btn btn--sm device-edit"
+                    data-id="{{ .lc_id }}" title="Editar"
+                    data-ip="{{ .ip_address }}"
+                    data-interval="{{ .interval }}"
+                    data-enabled="{{ .enabled }}"
+                    {{ if eq .status "running" }}disabled{{ end }}>
+              <svg class="icon" aria-hidden="true"><use href="/static/icons.svg#gear"></use></svg>
+              <span class="visually-hidden">Editar {{ .name }}</span>
+            </button>
+            <button type="button" class="btn btn--sm btn--halt device-remove"
+                    data-id="{{ .lc_id }}" data-name="{{ .name }}" title="Remover">
+              <svg class="icon" aria-hidden="true"><use href="/static/icons.svg#close"></use></svg>
+              <span class="visually-hidden">Remover {{ .name }}</span>
+            </button>
+            {{ end }}
           </div>
         </td>
       </tr>
       {{ else }}
       <tr>
-        <td colspan="11">
+        <td colspan="12">
           <div class="empty">
             <p class="empty__title">Nenhum dispositivo encontrado</p>
             <p>Ajuste os filtros ou sincronize com o W-Access para trazer os dispositivos.</p>
@@ -269,9 +311,89 @@
   </div>
 </aside>
 
+<!-- Um modal só, dois modos. O lote troca "Porta" por "Porta inicial /
+     final" e "Nome" por "Prefixo": o resto dos campos é idêntico, e dois
+     formulários separados seriam a mesma coisa duplicada. -->
+<dialog class="modal" id="emulator-form-modal">
+  <form method="dialog" class="panel" id="emulator-form">
+    <div class="panel__head" id="emulator-form-title">Novo emulador</div>
+
+    <div class="panel__body">
+      <div class="field" id="field-name">
+        <label class="field__label" for="emulator-name">Nome</label>
+        <input class="input" type="text" id="emulator-name" required>
+      </div>
+
+      <div class="field" id="field-prefix" hidden>
+        <label class="field__label" for="emulator-prefix">Prefixo do nome</label>
+        <input class="input" type="text" id="emulator-prefix"
+               placeholder="lab">
+        <p class="field__help">Cada emulador recebe o nome
+          <code>prefixo-porta</code>, por exemplo <code>lab-4000</code>.</p>
+      </div>
+
+      <div class="field">
+        <label class="field__label" for="emulator-model">Modelo</label>
+        <select class="select" id="emulator-model">
+          <option value="Hikvision">Hikvision</option>
+          <option value="Dahua">Dahua</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label class="field__label" for="emulator-ip">Endereço IP</label>
+        <input class="input input--mono" type="text" id="emulator-ip"
+               value="127.0.0.1">
+        <p class="field__help">Só aparece nas respostas que o emulador
+          devolve. O servidor escuta em todas as interfaces.</p>
+      </div>
+
+      <div class="field" id="field-port">
+        <label class="field__label" for="emulator-port">Porta</label>
+        <input class="input input--mono" type="number" id="emulator-port"
+               min="1" max="65535" value="4000">
+      </div>
+
+      <div class="field" id="field-port-range" hidden>
+        <label class="field__label" for="emulator-port-start">Porta inicial</label>
+        <input class="input input--mono" type="number" id="emulator-port-start"
+               min="1" max="65535" value="4000">
+        <label class="field__label" for="emulator-port-end">Porta final</label>
+        <input class="input input--mono" type="number" id="emulator-port-end"
+               min="1" max="65535" value="4009">
+        <p class="field__help">Máximo de 1000 portas por lote.</p>
+      </div>
+
+      <div class="field">
+        <label class="field__label" for="emulator-interval">Intervalo de eventos (s)</label>
+        <input class="input input--mono" type="number" id="emulator-interval"
+               min="0" value="10">
+      </div>
+
+      <div class="field field--inline">
+        <input class="check" type="checkbox" id="emulator-enabled" checked>
+        <label class="field__label" for="emulator-enabled">Habilitado</label>
+      </div>
+
+      <div class="field field--inline" id="field-autostart">
+        <input class="check" type="checkbox" id="emulator-autostart">
+        <label class="field__label" for="emulator-autostart">Iniciar após criar</label>
+      </div>
+
+      <p class="panel__note panel__note--erro" id="emulator-form-error" hidden></p>
+
+      <div class="filters__actions">
+        <button type="button" class="btn btn--action" id="emulator-form-save">Salvar</button>
+        <button type="button" class="btn" id="emulator-form-cancel">Cancelar</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+
 {{ end }}
 
 {{ define "additional_js" }}
 <script src="/static/js/device-drawer.js"></script>
+<script src="/static/js/emulator-form.js"></script>
 <script src="/static/js/devices.js"></script>
 {{ end }}

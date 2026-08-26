@@ -22,6 +22,11 @@ type Manager struct {
 	WxsDB      *database.WxsDB
 	Tracer     *trace.Tracer
 
+	// ServicePort é a porta HTTP do próprio serviço. Cadastrar um emulador
+	// nela produziria um dispositivo que nunca consegue subir, e o erro
+	// apareceria só no start, longe da causa.
+	ServicePort int
+
 	// Mapa de emuladores ativos (equivalente ao devices_watchdog do Python)
 	emulators     map[int]Emulator
 	emulatorMutex sync.RWMutex // Mutex dedicado para emulators
@@ -122,9 +127,21 @@ func (m *Manager) RefreshDevices() error {
 	}
 	defer m.refreshInProgress.Store(false)
 
-	// Verificar se WxsDB está disponível
+	// O vínculo com o Invenzi é opcional. Erro tipado, e não fmt.Errorf,
+	// porque o handler precisa distinguir "sync desligado" (estado
+	// esperado, 409) de "W-Access fora do ar" (falha, 502).
 	if m.WxsDB == nil {
-		return fmt.Errorf("WxsDB não está disponível - não é possível atualizar dispositivos")
+		return fmt.Errorf("%w: W-Access não configurado", ErrSyncDisabled)
+	}
+
+	gateCtx, gateCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ligado, err := database.GetSyncEnabled(gateCtx, m.ServiceDB, m.WxsDB != nil)
+	gateCancel()
+	if err != nil {
+		return fmt.Errorf("failed to read sync setting: %w", err)
+	}
+	if !ligado {
+		return fmt.Errorf("%w: desligada nas configurações", ErrSyncDisabled)
 	}
 
 	m.Tracer.Info("Refreshing device list from WXS database")
@@ -211,11 +228,20 @@ func (m *Manager) getDeviceType(model string) int {
 
 // upsertDevice insere ou atualiza um dispositivo
 func (m *Manager) upsertDevice(ctx context.Context, device models.Device) error {
+	// O WHERE no DO UPDATE é obrigatório, não decorativo: um LocalControllerID
+	// do W-Access que colida com a faixa manual (>= 900000 — ver
+	// service.manual_device_id_seq) não pode silenciosamente tomar conta de
+	// um dispositivo cadastrado à mão. Sem o filtro, a linha continuaria com
+	// source='manual', mas nome, IP, porta, modelo, habilitado e intervalo
+	// teriam sido sobrescritos pelo controlador do W-Access — a linha
+	// sobrevive, o conteúdo manual não. A qualificação pela tabela
+	// (service.devices.source, não só "source") é exigida pelo Postgres em
+	// WHERE de ON CONFLICT DO UPDATE.
 	query := `
 		INSERT INTO service.devices (
 			local_controller_id, name, ip_address, port, model, enabled, type,
-			status, event_interval, total_users, log_enabled
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+			status, event_interval, total_users, log_enabled, source
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'wxs')
 		ON CONFLICT (local_controller_id) DO UPDATE SET
 			name = EXCLUDED.name,
 			ip_address = EXCLUDED.ip_address,
@@ -225,6 +251,7 @@ func (m *Manager) upsertDevice(ctx context.Context, device models.Device) error 
 			type = EXCLUDED.type,
 			event_interval = EXCLUDED.event_interval,
 			updated_at = NOW()
+		WHERE service.devices.source = 'wxs'
 	`
 
 	_, err := m.ServiceDB.Exec(ctx, query,
@@ -235,38 +262,52 @@ func (m *Manager) upsertDevice(ctx context.Context, device models.Device) error 
 	return err
 }
 
-// cleanupOrphanedDevices remove dispositivos órfãos
+// orphanIDs devolve os dispositivos que o sync deve apagar: os de origem
+// W-Access que não vieram na última resposta. Emulador manual nunca é
+// órfão — ninguém além do próprio operador manda nele.
+func orphanIDs(devices []models.Device, validos map[int]bool) []int {
+	var orfaos []int
+	for _, d := range devices {
+		if d.Source == SourceManual {
+			continue
+		}
+		if !validos[d.ID] {
+			orfaos = append(orfaos, d.ID)
+		}
+	}
+	return orfaos
+}
+
+// cleanupOrphanedDevices remove dispositivos que sumiram do W-Access.
 func (m *Manager) cleanupOrphanedDevices(ctx context.Context, controllers []map[string]interface{}) error {
-	// Criar mapa de IDs válidos
 	validIDs := make(map[int]bool)
 	for _, controller := range controllers {
 		id := controller["LocalControllerID"].(int)
 		validIDs[id] = true
 	}
 
-	// Obter todos os dispositivos locais
 	devices, err := m.ListDevices()
 	if err != nil {
 		return err
 	}
 
-	// Remover dispositivos órfãos
-	for _, device := range devices {
-		if !validIDs[device.ID] {
-			// Parar emulador se estiver rodando
-			if emulator, exists := m.emulators[device.ID]; exists && emulator.IsRunning() {
-				m.Stop(device.ID)
-			}
-
-			// Remover do banco
-			_, err := m.ServiceDB.Exec(ctx, "DELETE FROM service.devices WHERE local_controller_id = $1", device.ID)
-			if err != nil {
-				m.Tracer.Error("Failed to delete orphaned device %d: %v", device.ID, err)
-			}
-
-			// Remover do watchdog
-			delete(m.watchdog, device.ID)
+	for _, id := range orphanIDs(devices, validIDs) {
+		if emulator, exists := m.emulators[id]; exists && emulator.IsRunning() {
+			m.Stop(id)
 		}
+
+		// O AND source garante que uma corrida entre o refresh e um
+		// cadastro manual não apague o cadastro: se a linha virou manual
+		// entre o SELECT e o DELETE, o DELETE não pega nada.
+		_, err := m.ServiceDB.Exec(ctx,
+			"DELETE FROM service.devices WHERE local_controller_id = $1 AND source = 'wxs'", id)
+		if err != nil {
+			m.Tracer.Error("Failed to delete orphaned device %d: %v", id, err)
+		}
+
+		m.watchdogMutex.Lock()
+		delete(m.watchdog, id)
+		m.watchdogMutex.Unlock()
 	}
 
 	return nil
@@ -279,7 +320,7 @@ func (m *Manager) ListDevices() ([]models.Device, error) {
 
 	query := `
 		SELECT local_controller_id, name, ip_address, port, model, enabled, type,
-		       status, event_interval, total_users, log_enabled
+		       status, event_interval, total_users, log_enabled, source
 		FROM service.devices
 		ORDER BY local_controller_id
 	`
@@ -304,7 +345,7 @@ func (m *Manager) ListDevices() ([]models.Device, error) {
 		var device models.Device
 		err := rows.Scan(&device.ID, &device.Name, &device.IPAddress, &device.Port,
 			&device.Model, &device.Enabled, &device.Type, &device.Status,
-			&device.EventInterval, &device.TotalUsers, &device.LogEnabled)
+			&device.EventInterval, &device.TotalUsers, &device.LogEnabled, &device.Source)
 		if err != nil {
 			m.Tracer.Error("Failed to scan device: %v", err)
 			continue
@@ -330,7 +371,7 @@ func (m *Manager) GetDevice(id int) (models.Device, error) {
 
 	query := `
 		SELECT local_controller_id, name, ip_address, port, model, enabled, type,
-		       status, event_interval, total_users, log_enabled
+		       status, event_interval, total_users, log_enabled, source
 		FROM service.devices
 		WHERE local_controller_id = $1
 	`
@@ -340,7 +381,7 @@ func (m *Manager) GetDevice(id int) (models.Device, error) {
 	err := m.ServiceDB.QueryRow(ctx, query, id).Scan(
 		&device.ID, &device.Name, &device.IPAddress, &device.Port,
 		&device.Model, &device.Enabled, &device.Type, &device.Status,
-		&device.EventInterval, &device.TotalUsers, &device.LogEnabled)
+		&device.EventInterval, &device.TotalUsers, &device.LogEnabled, &device.Source)
 
 	if err != nil {
 		return device, fmt.Errorf("device not found: %w", err)
@@ -384,7 +425,7 @@ func (m *Manager) getDeviceUnsafe(id int) (models.Device, error) {
 
 	query := `
         SELECT local_controller_id, name, ip_address, port, model, enabled, type,
-               status, event_interval, total_users, log_enabled
+               status, event_interval, total_users, log_enabled, source
         FROM service.devices
         WHERE local_controller_id = $1
     `
@@ -393,7 +434,7 @@ func (m *Manager) getDeviceUnsafe(id int) (models.Device, error) {
 	err := m.ServiceDB.QueryRow(ctx, query, id).Scan(
 		&device.ID, &device.Name, &device.IPAddress, &device.Port,
 		&device.Model, &device.Enabled, &device.Type, &device.Status,
-		&device.EventInterval, &device.TotalUsers, &device.LogEnabled)
+		&device.EventInterval, &device.TotalUsers, &device.LogEnabled, &device.Source)
 
 	if err != nil {
 		return device, fmt.Errorf("device not found: %w", err)
@@ -926,8 +967,8 @@ func (m *Manager) ListDevicesWithFilters(filters map[string]string) ([]*models.D
 
 	// Construir query com filtros
 	query := `
-		SELECT local_controller_id, name, ip_address, port, model, status, enabled, 
-		       event_interval, total_users, log_enabled, type
+		SELECT local_controller_id, name, ip_address, port, model, status, enabled,
+		       event_interval, total_users, log_enabled, type, source
 		FROM service.devices
 		WHERE 1=1
 	`
@@ -973,7 +1014,7 @@ func (m *Manager) ListDevicesWithFilters(filters map[string]string) ([]*models.D
 		err := rows.Scan(
 			&device.ID, &device.Name, &device.IPAddress, &device.Port,
 			&device.Model, &device.Status, &enabled, &device.EventInterval,
-			&device.TotalUsers, &logEnabled, &device.Type,
+			&device.TotalUsers, &logEnabled, &device.Type, &device.Source,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan device: %w", err)

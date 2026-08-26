@@ -87,5 +87,47 @@
                 window.Toast.ok('Configurações salvas');
             }).then(reavaliarSinal);
         });
+
+        // O toggle grava sozinho, sem passar pelo botão Salvar do
+        // formulário: ele não é credencial, e exigir "Salvar" para uma
+        // chave booleana faria o operador achar que precisa redigitar a
+        // senha para desligar o sync.
+        var syncToggle = document.getElementById('sync-enabled');
+        if (syncToggle) {
+            syncToggle.addEventListener('change', function () {
+                var ligado = syncToggle.checked;
+                syncToggle.disabled = true;
+
+                fetch('/api/settings/sync', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ enabled: ligado })
+                })
+                    .then(function (resposta) {
+                        return resposta.json().then(function (corpo) {
+                            return { ok: resposta.ok, corpo: corpo };
+                        });
+                    })
+                    .then(function (resultado) {
+                        if (!resultado.ok) {
+                            syncToggle.checked = !ligado;
+                            window.Toast.err(resultado.corpo.error || 'Falha ao gravar a configuração');
+                            return;
+                        }
+
+                        window.Toast.ok(
+                            ligado ? 'Sincronização com o W-Access ligada'
+                                   : 'Sincronização com o W-Access desligada'
+                        );
+                    })
+                    .catch(function (erro) {
+                        syncToggle.checked = !ligado;
+                        window.Toast.err('Falha de rede: ' + (erro.message || erro));
+                    })
+                    .then(function () {
+                        syncToggle.disabled = false;
+                    });
+            });
+        }
     });
 })();
