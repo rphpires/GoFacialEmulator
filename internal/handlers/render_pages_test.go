@@ -124,6 +124,16 @@ func TestDevicesHTMLMostraOrigem(t *testing.T) {
 	}
 }
 
+func TestDevicesHTMLTemBotoesDeCadastro(t *testing.T) {
+	html := renderizarDevices(t, nil)
+
+	for _, id := range []string{"new-emulator", "new-emulator-range", "emulator-form-modal"} {
+		if !strings.Contains(html, id) {
+			t.Errorf("quero o elemento %q na página", id)
+		}
+	}
+}
+
 func TestDevicesHTMLNaoOfereceRemoverEmDispositivoDoWXS(t *testing.T) {
 	html := renderizarDevices(t, []map[string]interface{}{
 		{
