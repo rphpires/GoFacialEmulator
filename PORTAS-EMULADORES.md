@@ -20,35 +20,35 @@ ports:
 
 ### **1. Origem das Portas**
 
-As portas dos emuladores **NÃO são definidas pela aplicação Go**. Elas vêm do **sistema WXS (W-Access)**.
+As portas dos emuladores têm duas origens possíveis, e a escolha é do
+operador:
+
+**Cadastro no próprio serviço.** Pela tela de dispositivos ou pela API
+(`POST /api/emulators` e `POST /api/emulators/range`), o operador define a
+porta de cada emulador. É o caminho para testar com qualquer sistema de
+controle de acesso, ou sem sistema nenhum.
+
+**Sincronização com o W-Access.** Com o vínculo ligado em
+**Configurações → Sincronizar dispositivos com o W-Access**, o serviço lê
+`CfgHWLocalControllers.BaseCommPort` e cria um emulador por controlador
+cujo `LocalControllerDescription` comece com `emulator`.
 
 ```
-WXS Database → LocalControllers.Port → GoFacialEmulator → Emulador na porta X
+Cadastro manual (UI ou API) ──┐
+                              ├──> service.devices.port ──> emulador na porta X
+WXS: LocalControllers.Port ───┘        (coluna source diz qual origem)
 ```
 
-### **2. Fluxo de Configuração**
+Os dois convivem. A sincronização só cria, atualiza e remove dispositivos
+de origem `wxs`; emuladores cadastrados à mão nunca são tocados por ela.
+Desligar o vínculo não apaga nada — apenas para de buscar.
 
-```
-┌─────────────────────────────────────────────────────────┐
-│ 1. WXS Database (SQL Server)                            │
-│    - Tabela: LocalControllers                           │
-│    - Campo: Port                                         │
-└────────────────┬────────────────────────────────────────┘
-                 │
-                 ▼
-┌─────────────────────────────────────────────────────────┐
-│ 2. GoFacialEmulator lê as configurações                 │
-│    - RefreshDevices() busca dados do WXS                │
-│    - Cria emulador usando a porta especificada          │
-└────────────────┬────────────────────────────────────────┘
-                 │
-                 ▼
-┌─────────────────────────────────────────────────────────┐
-│ 3. Emulador inicia na porta especificada                │
-│    - Hikvision ou Dahua                                  │
-│    - Porta definida pelo WXS                             │
-└─────────────────────────────────────────────────────────┘
-```
+### **Limite do lote**
+
+O cadastro em lote aceita no máximo **1000 portas** de uma vez, que é a
+largura do range publicado no `docker-compose.yml` (4000-4999). Um lote
+fora dessa faixa cadastra emuladores que, sob Docker, sobem mas nascem
+inalcançáveis de fora do contêiner.
 
 ## ⚙️ Configurar Portas no WXS
 
@@ -205,8 +205,8 @@ docker exec facial-emulator-app netstat -tuln | grep LISTEN
 ## 📝 Resumo
 
 - ✅ Range configurado: **4000-4999** (1000 emuladores)
-- ✅ Portas definidas pelo **WXS**, não pela aplicação
-- ✅ Configurar portas no WXS **ANTES** de criar emuladores
+- ✅ Portas cadastradas manualmente (UI/API) ou sincronizadas do **WXS** — os dois convivem
+- ✅ Ao usar o WXS, configurar as portas lá **ANTES** de sincronizar
 - ✅ Acessar via: `http://localhost:<porta>`
 - ✅ API principal: `http://localhost:8080`
 

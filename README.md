@@ -180,6 +180,91 @@ SERVER_PORT=7070
 - `POST /api/devices/{id}/stop` - Parar emulador
 - `GET /api/status` - Status do sistema
 
+## API de emuladores
+
+O serviço gerencia os próprios emuladores. Nenhuma rota exige
+autenticação — é ferramenta de laboratório, pensada para rede local.
+
+### Criar um
+
+```bash
+curl -X POST localhost:8080/api/emulators \
+  -H 'Content-Type: application/json' \
+  -d '{
+        "name": "lab-01",
+        "model": "Hikvision",
+        "ip_address": "192.168.1.50",
+        "port": 4001,
+        "event_interval": 10,
+        "enabled": true,
+        "auto_start": false
+      }'
+```
+
+`model` aceita `"Hikvision"` ou `"Dahua"`. Omitindo campos: `ip_address`
+vira `127.0.0.1`, `event_interval` vira `10`, `enabled` vira `true` e
+`auto_start` vira `false`.
+
+### Criar em lote
+
+```bash
+curl -X POST localhost:8080/api/emulators/range \
+  -H 'Content-Type: application/json' \
+  -d '{
+        "name_prefix": "lab",
+        "model": "Dahua",
+        "ip_address": "192.168.1.50",
+        "port_start": 4000,
+        "port_end": 4049,
+        "auto_start": false
+      }'
+```
+
+Gera um emulador por porta, nomeados `lab-4000`, `lab-4001` e assim por
+diante. Máximo de 1000 portas por lote. Se qualquer porta do intervalo já
+estiver cadastrada, a requisição falha com `400` listando os conflitos e
+**nada é criado**:
+
+```json
+{ "error": "portas já usadas por outros emuladores: [4003 4004]",
+  "conflicts": [4003, 4004] }
+```
+
+### Listar, editar e remover
+
+```bash
+curl localhost:8080/api/emulators
+
+curl -X PUT localhost:8080/api/emulators/900000 \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"lab-01","model":"Dahua","port":4001}'
+
+curl -X DELETE localhost:8080/api/emulators/900000
+```
+
+IDs manuais saem de `service.manual_device_id_seq`, que começa em
+`900000` — acima de qualquer `LocalControllerID` plausível vindo do
+W-Access.
+
+`PUT` é substituição total dos campos editáveis — campo ausente cai no
+padrão, não mantém o valor anterior.
+
+Remover apaga junto os cartões, faces e usuários cadastrados naquele
+emulador. Não há como desfazer. Se o emulador estiver rodando, a remoção
+para ele antes — não é preciso parar na mão.
+
+Dois casos devolvem `409`: editar ou remover um dispositivo que veio do
+W-Access (a verdade dele mora lá, e o próximo sync sobrescreveria), e
+editar (não remover) um emulador que está rodando (pare antes).
+
+### Controle e sincronização
+
+`/api/devices/{id}/start`, `/stop`, `/settings` e `/mode` continuam
+valendo para emuladores de qualquer origem.
+`GET /api/emulators/start`, `/stop` e `/refresh` agem sobre a frota
+inteira; `refresh` devolve `409` quando a sincronização com o W-Access
+está desligada.
+
 ### APIs dos Emuladores
 
 **Hikvision** (porta configurada):
