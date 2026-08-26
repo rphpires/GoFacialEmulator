@@ -130,10 +130,25 @@ func CloseAll() {
 }
 
 // GetWxsSettingsFromDB helper function que funciona com qualquer DBInterface
+//
+// WHERE host <> '' porque SetSyncEnabled pode gravar uma linha que carrega
+// só o toggle (host/porta/etc. vazios), quando nenhuma linha existia ainda
+// para guardar sync_enabled. Essa linha-sentinela responde "qual é o valor
+// do toggle?", não "existe uma conexão de W-Access configurada no banco?" —
+// são perguntas diferentes. Sem o filtro, essa linha se torna a mais recente
+// (ORDER BY id DESC) e é devolvida como se fosse a conexão gravada: host
+// fica vazio e cmd/emulator-service/main.go, ao ver a chamada ter sucesso em
+// vez de pgx.ErrNoRows, nunca cai no fallback para configs/config.yaml ou
+// WXS_*/WXS_DB_*, deixando wxsDB nil mesmo com a conexão configurada por
+// arquivo/env. Filtrando host vazio, uma linha-sentinela faz esta função
+// devolver pgx.ErrNoRows exatamente como se não houvesse linha nenhuma —
+// e, se além da sentinela existir uma linha real mais antiga, é a linha
+// real que volta, não a mais recente por id.
 func GetWxsSettingsFromDB(ctx context.Context, db DBInterface) (*WxsSettings, error) {
 	query := `
 		SELECT id, host, port, database, username, password, created_at, updated_at
 		FROM service.wxs_settings
+		WHERE host <> ''
 		ORDER BY id DESC
 		LIMIT 1
 	`

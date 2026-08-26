@@ -115,6 +115,12 @@ type dbFalso struct {
 	execs     []string
 	queryRows pgx.Rows
 	linha     pgx.Row
+
+	// queryRowSQLs acumula o texto de cada QueryRow recebido, na ordem —
+	// para testes que precisam confirmar que uma cláusula específica
+	// (ex.: "WHERE host <> ''") está de fato na query emitida, já que
+	// linhaFalsa/rowsFalsas não filtram nada de verdade.
+	queryRowSQLs []string
 }
 
 func (d *dbFalso) Query(ctx context.Context, sql string, args ...interface{}) (pgx.Rows, error) {
@@ -125,6 +131,7 @@ func (d *dbFalso) Query(ctx context.Context, sql string, args ...interface{}) (p
 }
 
 func (d *dbFalso) QueryRow(ctx context.Context, sql string, args ...interface{}) pgx.Row {
+	d.queryRowSQLs = append(d.queryRowSQLs, sql)
 	if d.linha == nil {
 		return linhaFalsa{}
 	}
