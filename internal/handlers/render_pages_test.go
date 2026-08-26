@@ -3,8 +3,11 @@ package handlers
 import (
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strings"
 	"testing"
+
+	"GoFacialEmulator/internal/database"
 
 	"github.com/gin-gonic/gin"
 )
@@ -131,6 +134,53 @@ func TestDevicesHTMLTemBotoesDeCadastro(t *testing.T) {
 		if !strings.Contains(html, id) {
 			t.Errorf("quero o elemento %q na página", id)
 		}
+	}
+}
+
+// renderizarSettings monta o contexto mínimo que settings.html exige.
+func renderizarSettings(t *testing.T, dados gin.H) string {
+	t.Helper()
+	return renderizarPagina(t, "settings.html", dados)
+}
+
+// tagDoToggleDeSync extrai só a tag <input ... id="sync-enabled" ...> do
+// HTML renderizado, para o teste checar "checked" presa a esse elemento —
+// e não a qualquer outra checkbox marcada na página.
+func tagDoToggleDeSync(t *testing.T, html string) string {
+	t.Helper()
+	re := regexp.MustCompile(`<input[^>]*id="sync-enabled"[^>]*>`)
+	tag := re.FindString(html)
+	if tag == "" {
+		t.Fatal("não encontrei o <input id=\"sync-enabled\"> na página")
+	}
+	return tag
+}
+
+func TestSettingsHTMLTemToggleDeSync(t *testing.T) {
+	html := renderizarSettings(t, gin.H{
+		"wxs_settings": &database.WxsSettings{Host: "10.0.0.2", Port: 1433},
+		"sync_enabled": true,
+	})
+
+	if !strings.Contains(html, "sync-enabled") {
+		t.Error("quero o toggle de sincronização na tela")
+	}
+
+	tag := tagDoToggleDeSync(t, html)
+	if !strings.Contains(tag, "checked") {
+		t.Errorf("sync ligado tem que vir marcado, tag: %s", tag)
+	}
+}
+
+func TestSettingsHTMLTemToggleDeSyncDesligado(t *testing.T) {
+	html := renderizarSettings(t, gin.H{
+		"wxs_settings": &database.WxsSettings{Host: "10.0.0.2", Port: 1433},
+		"sync_enabled": false,
+	})
+
+	tag := tagDoToggleDeSync(t, html)
+	if strings.Contains(tag, "checked") {
+		t.Errorf("sync desligado não pode vir marcado, tag: %s", tag)
 	}
 }
 

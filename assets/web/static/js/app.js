@@ -242,6 +242,16 @@
 
         fetch('/refresh')
             .then(function (resposta) {
+                // 409: sync desligado nas configurações — não há o que
+                // buscar. É uma recusa esperada, não uma falha genérica;
+                // o corpo traz a mensagem do servidor para o operador.
+                if (resposta.status === 409) {
+                    return resposta.json().then(function (corpo) {
+                        var erro = new Error(corpo.error || 'Sincronização com o W-Access está desligada');
+                        erro.tratado = true;
+                        throw erro;
+                    });
+                }
                 if (!resposta.ok) { throw new Error('HTTP ' + resposta.status); }
                 return aguardarConclusao();
             })
@@ -249,8 +259,8 @@
                 window.Toast.ok('Sincronização concluída. Recarregando…');
                 window.setTimeout(function () { window.location.reload(); }, 800);
             })
-            .catch(function () {
-                window.Toast.err('Falha ao sincronizar com o W-Access');
+            .catch(function (erro) {
+                window.Toast.err(erro && erro.tratado ? erro.message : 'Falha ao sincronizar com o W-Access');
                 botao.disabled = false;
             });
     }
