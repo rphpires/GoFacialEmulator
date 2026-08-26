@@ -212,3 +212,25 @@ func Conflicts(desejadas []int, ocupadas map[int]bool) []int {
 	sort.Ints(conflitos)
 	return conflitos
 }
+
+// duplicatasInternas devolve, ordenadas e sem repetição, as portas que
+// aparecem mais de uma vez em desejadas — um lote pedindo a mesma porta duas
+// vezes, o que Conflicts (que só compara contra o que já está gravado) não
+// enxerga.
+func duplicatasInternas(desejadas []int) []int {
+	contagem := map[int]int{}
+	for _, p := range desejadas {
+		contagem[p]++
+	}
+
+	vistas := map[int]bool{}
+	var duplicadas []int
+	for _, p := range desejadas {
+		if contagem[p] > 1 && !vistas[p] {
+			vistas[p] = true
+			duplicadas = append(duplicadas, p)
+		}
+	}
+	sort.Ints(duplicadas)
+	return duplicadas
+}

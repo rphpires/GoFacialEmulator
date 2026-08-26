@@ -64,6 +64,19 @@ func (m *Manager) criarVarios(ctx context.Context, specs []DeviceSpec) ([]models
 		desejadas = append(desejadas, s.Port)
 	}
 
+	// O lote precisa ser validado contra si mesmo, não só contra o que já
+	// está gravado: duas specs pedindo a mesma porta passariam as duas por
+	// Conflicts(desejadas, ocupadas) — nenhuma delas está "ocupada" ainda —
+	// e colidiriam só na hora do INSERT, ou pior, as duas seriam gravadas se
+	// o esquema não tiver UNIQUE(port) (e não tem, de propósito — ver o
+	// comentário de chaveLockCriacao). Hoje isso é inalcançável por
+	// RangeSpec.Expand (portas estritamente crescentes) com CreateDevice
+	// passando uma spec só, mas o design exige a checagem para qualquer
+	// chamador futuro de criarVarios com specs arbitrárias.
+	if duplicadas := duplicatasInternas(desejadas); len(duplicadas) > 0 {
+		return nil, &ConflictError{Ports: duplicadas}
+	}
+
 	conflito := &ConflictError{Ports: Conflicts(desejadas, ocupadas)}
 	if m.ServicePort > 0 {
 		conflito.Reserved = Conflicts(desejadas, map[int]bool{m.ServicePort: true})
@@ -222,6 +235,16 @@ func (m *Manager) UpdateDevice(ctx context.Context, id int, spec DeviceSpec) (mo
 
 // tabelasDeDados são todas as tabelas com device_id solto. Não há FK no
 // esquema, então a limpeza é explícita.
+//
+// Pressuposto: DeleteDevice abre a transação em m.ServiceDB e apaga direto
+// destas tabelas de emulator.*, mesmo que ServiceDB só devesse conhecer o
+// schema service. Isso só funciona porque service_db e emulator_db apontam
+// hoje para o mesmo banco Postgres (mesma instância, dois schemas). Se algum
+// dia forem apontados para bancos diferentes, esta transação passa a falhar
+// (ou, pior, apagar silenciosamente nada, se o schema emulator existir por
+// coincidência nos dois) porque m.ServiceDB não teria acesso às tabelas de
+// m.EmulatorDB. Nesse cenário, DeleteDevice precisaria de duas transações
+// coordenadas, uma por conexão.
 var tabelasDeDados = []string{
 	"emulator.dahua_cards",
 	"emulator.dahua_faces",

@@ -228,6 +228,15 @@ func (m *Manager) getDeviceType(model string) int {
 
 // upsertDevice insere ou atualiza um dispositivo
 func (m *Manager) upsertDevice(ctx context.Context, device models.Device) error {
+	// O WHERE no DO UPDATE é obrigatório, não decorativo: um LocalControllerID
+	// do W-Access que colida com a faixa manual (>= 900000 — ver
+	// service.manual_device_id_seq) não pode silenciosamente tomar conta de
+	// um dispositivo cadastrado à mão. Sem o filtro, a linha continuaria com
+	// source='manual', mas nome, IP, porta, modelo, habilitado e intervalo
+	// teriam sido sobrescritos pelo controlador do W-Access — a linha
+	// sobrevive, o conteúdo manual não. A qualificação pela tabela
+	// (service.devices.source, não só "source") é exigida pelo Postgres em
+	// WHERE de ON CONFLICT DO UPDATE.
 	query := `
 		INSERT INTO service.devices (
 			local_controller_id, name, ip_address, port, model, enabled, type,
@@ -242,6 +251,7 @@ func (m *Manager) upsertDevice(ctx context.Context, device models.Device) error 
 			type = EXCLUDED.type,
 			event_interval = EXCLUDED.event_interval,
 			updated_at = NOW()
+		WHERE service.devices.source = 'wxs'
 	`
 
 	_, err := m.ServiceDB.Exec(ctx, query,

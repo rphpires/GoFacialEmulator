@@ -1,8 +1,10 @@
 package emulator
 
 import (
+	"context"
 	"errors"
 	"reflect"
+	"strings"
 	"testing"
 
 	"GoFacialEmulator/internal/models"
@@ -57,6 +59,30 @@ func TestRefreshDevicesSemWxsDBDevolveSyncDisabled(t *testing.T) {
 	err := m.RefreshDevices()
 	if !errors.Is(err, ErrSyncDisabled) {
 		t.Errorf("quero ErrSyncDisabled, tenho %v", err)
+	}
+}
+
+// M-1: um LocalControllerID do W-Access que colida com a faixa manual
+// (>= 900000) não pode fazer o upsert do sync tomar conta de um dispositivo
+// cadastrado à mão. A defesa é o WHERE no DO UPDATE — este teste garante que
+// a query que sai do código carrega esse filtro.
+func TestUpsertDeviceFiltraPorSourceWxsNoConflito(t *testing.T) {
+	db := &dbFalso{}
+	m := &Manager{ServiceDB: db, Tracer: trace.NewTracer()}
+
+	dev := models.Device{
+		ID: 900001, Name: "colide", IPAddress: "10.0.0.5", Port: 4000,
+		Model: ModelDahua, Enabled: 1, EventInterval: 10,
+	}
+	if err := m.upsertDevice(context.Background(), dev); err != nil {
+		t.Fatalf("erro inesperado: %v", err)
+	}
+
+	if len(db.execs) != 1 {
+		t.Fatalf("quero 1 Exec, tenho %d: %v", len(db.execs), db.execs)
+	}
+	if !strings.Contains(db.execs[0], "WHERE service.devices.source = 'wxs'") {
+		t.Error("DO UPDATE sem o filtro por source deixaria um id manual ser tomado por um upsert do W-Access")
 	}
 }
 

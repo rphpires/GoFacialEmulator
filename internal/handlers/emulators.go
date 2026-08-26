@@ -82,18 +82,24 @@ func (h *Handler) apiCreateEmulator(c *gin.Context) {
 		return
 	}
 
-	resposta := gin.H{"emulator": dev}
 	if spec.AutoStart {
 		if err := h.manager.Start(dev.ID); err != nil {
 			// O cadastro deu certo; só o start falhou. 201 com o aviso
 			// dentro é mais honesto que 500 sobre um recurso criado.
-			resposta["start_error"] = err.Error()
-		} else {
-			resposta["started"] = true
+			resposta := gin.H{"emulator": dev, "start_error": err.Error()}
+			c.JSON(http.StatusCreated, resposta)
+			return
 		}
+		// dev foi montado por CreateDevice antes do start, com status
+		// "stopped" fixo. Sem esta linha, "started": true conviveria com
+		// "emulator": {"status": "stopped"} na mesma resposta — dois campos
+		// contando histórias diferentes sobre o mesmo recurso.
+		dev.Status = "running"
+		c.JSON(http.StatusCreated, gin.H{"emulator": dev, "started": true})
+		return
 	}
 
-	c.JSON(http.StatusCreated, resposta)
+	c.JSON(http.StatusCreated, gin.H{"emulator": dev})
 }
 
 // apiCreateEmulatorRange cadastra um emulador por porta do intervalo.

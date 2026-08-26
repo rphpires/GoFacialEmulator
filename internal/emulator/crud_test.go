@@ -182,6 +182,39 @@ func TestCreateDeviceRangeComColisaoNaoGravaNada(t *testing.T) {
 	}
 }
 
+// M-2: um lote pedindo a mesma porta duas vezes tem que ser recusado mesmo
+// quando a porta não está ocupada por ninguém — Conflicts só compara contra
+// o que já está gravado, então duas specs pedindo 4000 passariam as duas por
+// aquela checagem sozinha.
+func TestCriarVariosRecusaPortaDuplicadaDentroDoLote(t *testing.T) {
+	verdadeiro := true
+	tx := &txFalsa{queryRowFn: idSequencial(900001)}
+	m, _ := managerDeTeste(tx)
+
+	specs := []DeviceSpec{
+		{Name: "lab-4000-a", Model: ModelDahua, Port: 4000, IPAddress: IPPadrao, EventInterval: 10, Enabled: &verdadeiro},
+		{Name: "lab-4000-b", Model: ModelDahua, Port: 4000, IPAddress: IPPadrao, EventInterval: 10, Enabled: &verdadeiro},
+	}
+
+	_, err := m.criarVarios(context.Background(), specs)
+
+	var conf *ConflictError
+	if !errors.As(err, &conf) {
+		t.Fatalf("quero ConflictError, tenho %v", err)
+	}
+	if len(conf.Ports) != 1 || conf.Ports[0] != 4000 {
+		t.Errorf("conflitos: %v, quero [4000]", conf.Ports)
+	}
+	for _, sql := range tx.execs {
+		if strings.Contains(sql, "INSERT INTO service.devices") {
+			t.Error("nenhum INSERT podia ter acontecido")
+		}
+	}
+	if tx.comitou {
+		t.Error("transação não podia ter sido confirmada")
+	}
+}
+
 func TestDeleteDevicePurgaTodasAsTabelas(t *testing.T) {
 	tx := &txFalsa{}
 	m, db := managerDeTeste(tx)
