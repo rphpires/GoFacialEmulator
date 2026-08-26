@@ -214,12 +214,21 @@ func (h *Handler) setupMonitoringRoutes(router *gin.Engine) {
 func (h *Handler) setupAPIRoutes(router *gin.Engine) {
 	api := router.Group("/api")
 	{
-		// Controle de emuladores
 		emulators := api.Group("/emulators")
 		{
+			// Controle da frota inteira — já existiam, não mexer.
 			emulators.GET("/start", h.apiStartEmulators)
 			emulators.GET("/stop", h.apiStopEmulators)
 			emulators.GET("/refresh", h.apiRefreshEmulators)
+
+			// CRUD de emuladores. Separado de /api/devices, que continua
+			// existindo para controle (start/stop/settings/mode) e não
+			// distingue origem.
+			emulators.GET("", h.apiListEmulators)
+			emulators.POST("", h.apiCreateEmulator)
+			emulators.POST("/range", h.apiCreateEmulatorRange)
+			emulators.PUT("/:id", h.apiUpdateEmulator)
+			emulators.DELETE("/:id", h.apiDeleteEmulator)
 		}
 
 		// Gerenciamento de dispositivos
