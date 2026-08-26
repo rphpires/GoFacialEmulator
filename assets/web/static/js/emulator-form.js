@@ -34,8 +34,29 @@
     erro.hidden = false;
   }
 
+  // Valores de um formulário em branco. Usados tanto para abrir "Novo
+  // emulador"/"Criar em lote" limpos quanto como base da edição, que depois
+  // sobrescreve só os campos que o dispositivo de fato tem.
+  function resetarCampos() {
+    el('emulator-name').value = '';
+    el('emulator-prefix').value = '';
+    el('emulator-model').value = 'Hikvision';
+    el('emulator-ip').value = '127.0.0.1';
+    el('emulator-port').value = 4000;
+    el('emulator-port-start').value = 4000;
+    el('emulator-port-end').value = 4009;
+    el('emulator-interval').value = 10;
+    el('emulator-enabled').checked = true;
+    el('emulator-autostart').checked = false;
+  }
+
   function abrir(dados) {
     limparErro();
+    // Sempre limpar primeiro: sem isso, abrir "Novo emulador" depois de
+    // editar (ou depois de outra criação) reaproveitava nome/porta/IP que
+    // ficaram no DOM da abertura anterior. Os ramos abaixo sobrescrevem
+    // só o que o modo realmente usa.
+    resetarCampos();
 
     if (dados && dados.id) {
       modo = 'editar';
@@ -44,6 +65,14 @@
       el('emulator-name').value = dados.name || '';
       el('emulator-model').value = dados.model || 'Hikvision';
       el('emulator-port').value = dados.port || 4000;
+      // Sem estes três, corpoComum() enviaria os valores em branco do reset
+      // acima (IP 127.0.0.1, intervalo 10, habilitado marcado) num PUT que
+      // é substituição total — reescrevendo silenciosamente o IP, o
+      // intervalo e o enabled de verdade do dispositivo.
+      el('emulator-ip').value = dados.ip_address || '127.0.0.1';
+      el('emulator-interval').value =
+        Number.isFinite(dados.event_interval) ? dados.event_interval : 10;
+      el('emulator-enabled').checked = !!dados.enabled;
     } else if (dados && dados.lote) {
       modo = 'lote';
       idEmEdicao = null;

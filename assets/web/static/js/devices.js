@@ -248,7 +248,13 @@
                     id: btn.getAttribute('data-id'),
                     name: nomeCel ? nomeCel.textContent.trim() : '',
                     model: linha.children[3] ? linha.children[3].textContent.trim() : '',
-                    port: portaCel ? Number(portaCel.textContent.trim()) : null
+                    port: portaCel ? Number(portaCel.textContent.trim()) : null,
+                    // Vêm dos data-* do próprio botão (devices.html), que o
+                    // servidor preenche com ip_address/interval/enabled da
+                    // linha — ver getCurrentDevicesWithFilters em handlers.go.
+                    ip_address: btn.getAttribute('data-ip') || '',
+                    event_interval: Number(btn.getAttribute('data-interval')),
+                    enabled: btn.getAttribute('data-enabled') === '1'
                 });
             });
         });

@@ -165,8 +165,18 @@
               <span class="visually-hidden">Detalhes de {{ .name }}</span>
             </button>
             {{ if eq .source "manual" }}
+            <!-- data-ip/data-interval/data-enabled alimentam o formulário de
+                 edição direto do que o servidor já colocou nesta linha —
+                 sem eles, corpoComum() em emulator-form.js leria os campos
+                 do modal ainda com o valor padrão do template (IP
+                 127.0.0.1, intervalo 10, habilitado marcado) e o PUT, que é
+                 substituição total, reescreveria esses três campos do
+                 dispositivo com o valor errado. -->
             <button type="button" class="btn btn--sm device-edit"
                     data-id="{{ .lc_id }}" title="Editar"
+                    data-ip="{{ .ip_address }}"
+                    data-interval="{{ .interval }}"
+                    data-enabled="{{ .enabled }}"
                     {{ if eq .status "running" }}disabled{{ end }}>
               <svg class="icon" aria-hidden="true"><use href="/static/icons.svg#gear"></use></svg>
               <span class="visually-hidden">Editar {{ .name }}</span>
