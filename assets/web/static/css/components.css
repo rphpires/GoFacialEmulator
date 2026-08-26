@@ -460,6 +460,19 @@
     color: var(--warn);
 }
 
+/* Origem do dispositivo. Cores discretas: a informação é contexto, não
+   alerta — o estado (ativo/parado) é que precisa saltar. */
+.badge--manual {
+    background: var(--idle-dim);
+    color: var(--text-mid);
+}
+
+.badge--wxs {
+    background: var(--idle-dim);
+    color: var(--text-mid);
+    font-style: italic;
+}
+
 /* ----------------------------------------
    Empty state
    ---------------------------------------- */

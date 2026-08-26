@@ -71,6 +71,7 @@
         <th>ID</th>
         <th>Nome</th>
         <th>Modelo</th>
+        <th>Origem</th>
         <th class="num">Porta</th>
         <th>Modo</th>
         <th class="center">Log</th>
@@ -95,6 +96,16 @@
         </td>
         <td class="grid__name device-name-cell" title="{{ .name }}">{{ .name }}</td>
         <td>{{ .model }}</td>
+        <td>
+          <!-- Origem manda em quais ações a linha oferece: o que veio do
+               W-Access é sobrescrito pelo próximo sync, então editar ali
+               seria uma promessa que o serviço não cumpre. -->
+          {{ if eq .source "manual" }}
+          <span class="badge badge--manual">Manual</span>
+          {{ else }}
+          <span class="badge badge--wxs">W-Access</span>
+          {{ end }}
+        </td>
         <td class="num">{{ .port }}</td>
         <td class="center">
           <!-- LocalAuthentication só é lido pelo emulador Dahua; os demais
@@ -145,12 +156,25 @@
               <svg class="icon" aria-hidden="true"><use href="/static/icons.svg#users"></use></svg>
               <span class="visually-hidden">Detalhes de {{ .name }}</span>
             </button>
+            {{ if eq .source "manual" }}
+            <button type="button" class="btn btn--sm device-edit"
+                    data-id="{{ .lc_id }}" title="Editar"
+                    {{ if eq .status "running" }}disabled{{ end }}>
+              <svg class="icon" aria-hidden="true"><use href="/static/icons.svg#gear"></use></svg>
+              <span class="visually-hidden">Editar {{ .name }}</span>
+            </button>
+            <button type="button" class="btn btn--sm btn--halt device-remove"
+                    data-id="{{ .lc_id }}" data-name="{{ .name }}" title="Remover">
+              <svg class="icon" aria-hidden="true"><use href="/static/icons.svg#close"></use></svg>
+              <span class="visually-hidden">Remover {{ .name }}</span>
+            </button>
+            {{ end }}
           </div>
         </td>
       </tr>
       {{ else }}
       <tr>
-        <td colspan="11">
+        <td colspan="12">
           <div class="empty">
             <p class="empty__title">Nenhum dispositivo encontrado</p>
             <p>Ajuste os filtros ou sincronize com o W-Access para trazer os dispositivos.</p>

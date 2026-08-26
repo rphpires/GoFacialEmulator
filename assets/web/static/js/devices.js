@@ -9,6 +9,12 @@
 (function () {
     'use strict';
 
+    // Definida em Task 8; o stub evita ReferenceError se o modal ainda não
+    // existir na página.
+    window.abrirFormularioEmulador = window.abrirFormularioEmulador || function () {
+        window.Toast.err('Formulário de emulador indisponível');
+    };
+
     var ROTULOS = { running: 'ativo', stopped: 'parado', disabled: 'desabilitado', error: 'erro' };
 
     // ------------------------------------------------------------------
@@ -196,6 +202,56 @@
                     .catch(function () { window.Toast.err('Não foi possível parar os emuladores'); });
             });
         }
+
+        // Remover é irreversível e leva junto cartões e faces cadastrados
+        // naquele emulador — a confirmação precisa dizer isso, não só "tem
+        // certeza?".
+        document.querySelectorAll('.device-remove').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var id = btn.getAttribute('data-id');
+                var nome = btn.getAttribute('data-name') || id;
+                var ok = window.confirm(
+                    'Remover o emulador "' + nome + '"?\n\n' +
+                    'Os cartões, faces e usuários cadastrados nele também serão apagados. ' +
+                    'Não há como desfazer.'
+                );
+                if (!ok) { return; }
+
+                btn.disabled = true;
+                fetch('/api/emulators/' + id, { method: 'DELETE' })
+                    .then(function (resp) {
+                        return resp.json().then(function (corpo) {
+                            if (!resp.ok) {
+                                window.Toast.err(corpo.error || 'Falha ao remover o emulador');
+                                btn.disabled = false;
+                                return;
+                            }
+                            window.Toast.ok('Emulador ' + nome + ' removido');
+                            var linha = document.getElementById('device-' + id);
+                            if (linha) { linha.remove(); }
+                        });
+                    })
+                    .catch(function (err) {
+                        window.Toast.err('Falha ao remover: ' + err.message);
+                        btn.disabled = false;
+                    });
+            });
+        });
+
+        document.querySelectorAll('.device-edit').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var linha = document.getElementById('device-' + btn.getAttribute('data-id'));
+                if (!linha) { return; }
+                var nomeCel = linha.querySelector('.device-name-cell');
+                var portaCel = linha.querySelector('td.num');
+                window.abrirFormularioEmulador({
+                    id: btn.getAttribute('data-id'),
+                    name: nomeCel ? nomeCel.textContent.trim() : '',
+                    model: linha.children[3] ? linha.children[3].textContent.trim() : '',
+                    port: portaCel ? Number(portaCel.textContent.trim()) : null
+                });
+            });
+        });
     }
 
     function iniciarSelecao() {
