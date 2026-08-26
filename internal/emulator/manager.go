@@ -122,9 +122,21 @@ func (m *Manager) RefreshDevices() error {
 	}
 	defer m.refreshInProgress.Store(false)
 
-	// Verificar se WxsDB está disponível
+	// O vínculo com o Invenzi é opcional. Erro tipado, e não fmt.Errorf,
+	// porque o handler precisa distinguir "sync desligado" (estado
+	// esperado, 409) de "W-Access fora do ar" (falha, 502).
 	if m.WxsDB == nil {
-		return fmt.Errorf("WxsDB não está disponível - não é possível atualizar dispositivos")
+		return fmt.Errorf("%w: W-Access não configurado", ErrSyncDisabled)
+	}
+
+	gateCtx, gateCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ligado, err := database.GetSyncEnabled(gateCtx, m.ServiceDB)
+	gateCancel()
+	if err != nil {
+		return fmt.Errorf("failed to read sync setting: %w", err)
+	}
+	if !ligado {
+		return fmt.Errorf("%w: desligada nas configurações", ErrSyncDisabled)
 	}
 
 	m.Tracer.Info("Refreshing device list from WXS database")
@@ -235,38 +247,52 @@ func (m *Manager) upsertDevice(ctx context.Context, device models.Device) error 
 	return err
 }
 
-// cleanupOrphanedDevices remove dispositivos órfãos
+// orphanIDs devolve os dispositivos que o sync deve apagar: os de origem
+// W-Access que não vieram na última resposta. Emulador manual nunca é
+// órfão — ninguém além do próprio operador manda nele.
+func orphanIDs(devices []models.Device, validos map[int]bool) []int {
+	var orfaos []int
+	for _, d := range devices {
+		if d.Source == SourceManual {
+			continue
+		}
+		if !validos[d.ID] {
+			orfaos = append(orfaos, d.ID)
+		}
+	}
+	return orfaos
+}
+
+// cleanupOrphanedDevices remove dispositivos que sumiram do W-Access.
 func (m *Manager) cleanupOrphanedDevices(ctx context.Context, controllers []map[string]interface{}) error {
-	// Criar mapa de IDs válidos
 	validIDs := make(map[int]bool)
 	for _, controller := range controllers {
 		id := controller["LocalControllerID"].(int)
 		validIDs[id] = true
 	}
 
-	// Obter todos os dispositivos locais
 	devices, err := m.ListDevices()
 	if err != nil {
 		return err
 	}
 
-	// Remover dispositivos órfãos
-	for _, device := range devices {
-		if !validIDs[device.ID] {
-			// Parar emulador se estiver rodando
-			if emulator, exists := m.emulators[device.ID]; exists && emulator.IsRunning() {
-				m.Stop(device.ID)
-			}
-
-			// Remover do banco
-			_, err := m.ServiceDB.Exec(ctx, "DELETE FROM service.devices WHERE local_controller_id = $1", device.ID)
-			if err != nil {
-				m.Tracer.Error("Failed to delete orphaned device %d: %v", device.ID, err)
-			}
-
-			// Remover do watchdog
-			delete(m.watchdog, device.ID)
+	for _, id := range orphanIDs(devices, validIDs) {
+		if emulator, exists := m.emulators[id]; exists && emulator.IsRunning() {
+			m.Stop(id)
 		}
+
+		// O AND source garante que uma corrida entre o refresh e um
+		// cadastro manual não apague o cadastro: se a linha virou manual
+		// entre o SELECT e o DELETE, o DELETE não pega nada.
+		_, err := m.ServiceDB.Exec(ctx,
+			"DELETE FROM service.devices WHERE local_controller_id = $1 AND source = 'wxs'", id)
+		if err != nil {
+			m.Tracer.Error("Failed to delete orphaned device %d: %v", id, err)
+		}
+
+		m.watchdogMutex.Lock()
+		delete(m.watchdog, id)
+		m.watchdogMutex.Unlock()
 	}
 
 	return nil

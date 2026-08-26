@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"html/template"
 	"net/http"
 	"runtime"
@@ -248,6 +249,7 @@ func (h *Handler) setupAPIRoutes(router *gin.Engine) {
 			settings.GET("/wxs-status", h.getWxsStatus)
 			settings.POST("/test-wxs-connection", h.testWxsConnection)
 			settings.POST("/wxs", h.saveWxsSettings)
+			settings.POST("/sync", h.apiSetSyncEnabled)
 		}
 	}
 }
@@ -406,14 +408,30 @@ func (h *Handler) stopEmulators(c *gin.Context) {
 func (h *Handler) refreshDevices(c *gin.Context) {
 	h.tracer.Info(">>> Refreshing database")
 
-	// Executar refresh em background (goroutine)
+	// O gate é lido antes de disparar o trabalho: sync desligado é um
+	// estado que o operador precisa ver como recusa, não como um refresh
+	// que "iniciou" e morreu calado numa goroutine.
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
+	ligado, err := database.GetSyncEnabled(ctx, h.serviceDB)
+	cancel()
+	if err != nil {
+		h.tracer.Error("Failed to read sync setting: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao ler configuração de sincronização"})
+		return
+	}
+	if !ligado || h.manager.WxsDB == nil {
+		c.JSON(http.StatusConflict, gin.H{
+			"error": "Sincronização com o W-Access está desligada",
+		})
+		return
+	}
+
 	go func() {
 		if err := h.manager.RefreshDevices(); err != nil {
 			h.tracer.Error("Failed to refresh devices: %v", err)
 		}
 	}()
 
-	// Retornar imediatamente com sucesso
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Refresh iniciado em background",
 		"status":  "started",
@@ -514,7 +532,11 @@ func (h *Handler) apiRefreshEmulators(c *gin.Context) {
 	h.tracer.Info("Refreshing Emulators")
 
 	if err := h.manager.RefreshDevices(); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		if errors.Is(err, emulator.ErrSyncDisabled) {
+			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -908,17 +930,25 @@ func (h *Handler) settingsPage(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// Carregar configurações WXS do banco
+	// Sem linha gravada a tela precisa abrir mesmo assim, com os campos
+	// vazios — é exatamente a tela que o cliente usa para gravar a
+	// primeira configuração.
 	wxsSettings, err := database.GetWxsSettingsFromDB(ctx, h.serviceDB)
 	if err != nil {
-		h.tracer.Error("Failed to load WXS settings: %v", err)
-		h.renderPage(c, "error.html", http.StatusInternalServerError, gin.H{
-			"error": "Erro ao carregar configurações",
-		})
-		return
+		h.tracer.Info("No WXS settings yet: %v", err)
+		wxsSettings = &database.WxsSettings{}
 	}
 
-	h.renderPage(c, "settings.html", http.StatusOK, gin.H{"wxs_settings": wxsSettings})
+	syncLigado, err := database.GetSyncEnabled(ctx, h.serviceDB)
+	if err != nil {
+		h.tracer.Error("Failed to read sync setting: %v", err)
+		syncLigado = false
+	}
+
+	h.renderPage(c, "settings.html", http.StatusOK, gin.H{
+		"wxs_settings": wxsSettings,
+		"sync_enabled": syncLigado,
+	})
 }
 
 // testWxsConnection testa a conexão com o WXS
