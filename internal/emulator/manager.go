@@ -22,6 +22,11 @@ type Manager struct {
 	WxsDB      *database.WxsDB
 	Tracer     *trace.Tracer
 
+	// ServicePort é a porta HTTP do próprio serviço. Cadastrar um emulador
+	// nela produziria um dispositivo que nunca consegue subir, e o erro
+	// apareceria só no start, longe da causa.
+	ServicePort int
+
 	// Mapa de emuladores ativos (equivalente ao devices_watchdog do Python)
 	emulators     map[int]Emulator
 	emulatorMutex sync.RWMutex // Mutex dedicado para emulators

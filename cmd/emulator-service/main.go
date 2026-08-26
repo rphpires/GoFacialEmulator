@@ -147,6 +147,7 @@ func main() {
 
 	// Inicializar manager de emuladores
 	manager := emulator.NewManager(serviceDB, emulatorDB, wxsDB, tracer)
+	manager.ServicePort = cfg.Server.Port
 	if err := manager.Initialize(); err != nil {
 		log.Fatalf("Failed to initialize emulator manager: %v", err)
 	}
