@@ -633,6 +633,35 @@
    Painéis de formulário
    ---------------------------------------- */
 
+/* O <dialog> nativo nasce com a caixa branca e a borda preta do browser.
+   Numa página de fundo --ink-900 isso lê como erro de renderização, então
+   a regra abaixo só devolve ao modal a mesma linguagem visual dos painéis
+   que ele interrompe. */
+.modal {
+    padding: 0;
+    border: 1px solid var(--ink-600);
+    border-radius: var(--radius-lg);
+    background: var(--ink-800);
+    color: var(--text-hi);
+    box-shadow: var(--shadow-float);
+    width: min(520px, calc(100vw - var(--gap-5) * 2));
+    max-height: calc(100vh - var(--gap-5) * 2);
+    overflow: auto;
+}
+
+.modal::backdrop {
+    background: rgb(0 0 0 / 60%);
+}
+
+/* O .panel dentro do modal não é um cartão sobre a página: ele É o modal.
+   Sem isso a borda duplicaria a do <dialog>. .panel não define box-shadow
+   nem margin fora de margin-bottom, então só isso precisa de reset aqui. */
+.modal .panel {
+    margin-bottom: 0;
+    border: 0;
+    border-radius: 0;
+}
+
 .panel {
     max-width: 34rem;
     margin-bottom: var(--gap-5);
