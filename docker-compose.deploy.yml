@@ -38,14 +38,14 @@ services:
       # Precisa descrever exatamente o que a lista ports abaixo publica.
       # A aplicação usa esta variável para avisar quais dispositivos não
       # vão ser alcançados.
-      PUBLISHED_PORT_RANGE: "4000-4999"
+      PUBLISHED_PORT_RANGE: "4000-4399"
     ports:
-      - "7070:7070"
-      # 1000 emuladores. Para menos (startup mais rápido no Docker
-      # Desktop), troque a linha abaixo e a variável
+      # 7070 do host e do AnyDesk neste servidor; a UI sai em 8080.
+      # Dentro do container o serviço continua em 7070 (SERVER_PORT).
+      - "8080:7070"
+      # 400 emuladores. Para mais, troque a linha abaixo e a variável
       # PUBLISHED_PORT_RANGE acima pela mesma faixa.
-      # - "4000-4099:4000-4099"
-      - "4000-4999:4000-4999"
+      - "4000-4399:4000-4399"
     depends_on:
       postgres:
         condition: service_healthy
