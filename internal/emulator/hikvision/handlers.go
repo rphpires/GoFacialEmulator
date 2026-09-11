@@ -40,10 +40,6 @@ type HttpHostNotificationItem struct {
 	URL       string `xml:"url"`
 	IPAddress string `xml:"ipAddress"`
 	PortNo    string `xml:"portNo"`
-	// ParameterFormatType é XML ou JSON. O gerenciador manda JSON para o
-	// dispositivo facial (IoHikvisionCommunication.py:2739) e XML para o LPR
-	// (:1504); o GET tem de devolver o que foi gravado, não um valor fixo.
-	ParameterFormatType string `xml:"parameterFormatType"`
 }
 
 // parseHttpHostNotification extracts ipAddress, portNo, url from the raw
@@ -88,7 +84,6 @@ func (e *Emulator) SetupRoutes(router *gin.Engine) {
 	router.POST(acURL+"/UserInfo/Search", e.handlePostUserSearch)
 	router.POST(acURL+"/UserInfo/Record", e.handlePostUserRecord)
 	router.PUT(acURL+"/UserInfo/Modify", e.handlePutUserModify)
-	router.PUT(acURL+"/UserInfo/SetUp", e.handlePutUserSetUp)
 
 	// UserInfoDetail
 	router.GET(acURL+"/UserInfoDetail/DeleteProcess", e.handleGetUserDeleteProcess)
@@ -98,13 +93,10 @@ func (e *Emulator) SetupRoutes(router *gin.Engine) {
 	router.GET(acURL+"/CardInfo/Count", e.handleGetCardCount)
 	router.POST(acURL+"/CardInfo/Search", e.handlePostCardSearch)
 	router.POST(acURL+"/CardInfo/Record", e.handlePostCardRecord)
-	router.PUT(acURL+"/CardInfo/Delete", e.handlePutCardDelete)
 
 	// FingerPrint
 	router.POST(acURL+"/FingerPrint/SetUp", e.handlePostFingerprintSetup)
 	router.POST(acURL+"/FingerPrintUploadAll", e.handlePostFingerprintUploadAll)
-	router.PUT(acURL+"/FingerPrint/Delete", e.handlePutFingerPrintDelete)
-	router.POST(acURL+"/CaptureFingerPrint", e.handlePostCaptureFingerPrint)
 
 	// ========================= Intelligent =========================
 	intelliURL := "/ISAPI/Intelligent/FDLib"
@@ -178,12 +170,6 @@ func (e *Emulator) handleGetAcsCfg(c *gin.Context) {
 	localAuth, _ := e.repo.GetSetting("LocalAuthentication")
 	remoteCheckDoorEnabled := localAuth == ""
 
-	// checkChannelType ecoa o que o PUT gravou; antes era literal fixo.
-	checkChannelType, _ := e.repo.GetSetting("CheckChannelType")
-	if checkChannelType == "" {
-		checkChannelType = "ISAPIListen"
-	}
-
 	c.JSON(http.StatusOK, gin.H{
 		"AcsCfg": gin.H{
 			"uploadCapPic":                        true,
@@ -201,7 +187,7 @@ func (e *Emulator) handleGetAcsCfg(c *gin.Context) {
 			"remoteCheckDoorEnabled":              remoteCheckDoorEnabled,
 			"remoteStandaloneEnabled":             true,
 			"remoteCheckSet":                      0,
-			"checkChannelType":                    checkChannelType,
+			"checkChannelType":                    "ISAPIListen",
 			"externalCardReaderEnabled":           false,
 			"combinationAuthenticationTimeout":    5,
 			"combinationAuthenticationLimitOrder": true,
@@ -225,8 +211,7 @@ func (e *Emulator) handleGetAccessControlCapabilities(c *gin.Context) {
 func (e *Emulator) handlePutAcsCfg(c *gin.Context) {
 	var payload struct {
 		AcsCfg struct {
-			RemoteCheckDoorEnabled bool   `json:"remoteCheckDoorEnabled"`
-			CheckChannelType       string `json:"checkChannelType"`
+			RemoteCheckDoorEnabled bool `json:"remoteCheckDoorEnabled"`
 		} `json:"AcsCfg"`
 	}
 
@@ -254,12 +239,6 @@ func (e *Emulator) handlePutAcsCfg(c *gin.Context) {
 		return
 	}
 
-	if payload.AcsCfg.CheckChannelType != "" {
-		if err := e.repo.SetSetting("CheckChannelType", payload.AcsCfg.CheckChannelType); err != nil {
-			e.tracer.Error("AcsCfg: SetSetting CheckChannelType failed: %v", err)
-		}
-	}
-
 	c.JSON(http.StatusOK, gin.H{
 		"statusCode":    1,
 		"statusString":  "OK",
@@ -267,44 +246,7 @@ func (e *Emulator) handlePutAcsCfg(c *gin.Context) {
 	})
 }
 
-// handlePutStorageCfg atende PUT /ISAPI/AccessControl/AcsEvent/StorageCfg.
-// Com mode="time" o gerenciador está pedindo que o dispositivo apague os
-// eventos anteriores a checkTime, depois de tê-los coletado
-// (IoHikvisionCommunication.py:1210). Com mode="regular" é só configuração.
 func (e *Emulator) handlePutStorageCfg(c *gin.Context) {
-	var payload struct {
-		EventStorageCfg struct {
-			Mode      string `json:"mode"`
-			Period    int    `json:"period"`
-			CheckTime string `json:"checkTime"`
-		} `json:"EventStorageCfg"`
-	}
-	if err := c.BindJSON(&payload); err != nil {
-		e.tracer.Error("[StorageCfg] corpo inválido: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{
-			"statusCode":    6,
-			"statusString":  "Error",
-			"subStatusCode": "Invalid request",
-		})
-		return
-	}
-
-	cfg := payload.EventStorageCfg
-	if cfg.Mode == "time" && cfg.CheckTime != "" && e.eventLog != nil {
-		// checkTime vem sem fuso: é datetime.now() do gerenciador. Tem de ser
-		// lido no mesmo fuso em que o emulador carimba os eventos, senão a
-		// janela de purga sai deslocada e nada é apagado.
-		corte, err := time.ParseInLocation("2006-01-02 15:04:05", cfg.CheckTime, fusoDoDispositivo())
-		if err != nil {
-			e.tracer.Warning("[StorageCfg] checkTime %q ilegível: %v", cfg.CheckTime, err)
-		} else {
-			n := e.eventLog.PurgeBefore(corte)
-			e.tracer.Info("[StorageCfg] %d evento(s) descartado(s) antes de %s", n, cfg.CheckTime)
-		}
-	} else {
-		e.tracer.Info("[StorageCfg] mode=%s period=%d", cfg.Mode, cfg.Period)
-	}
-
 	c.JSON(http.StatusOK, gin.H{
 		"statusCode":    1,
 		"statusString":  "OK",
@@ -356,82 +298,17 @@ func (e *Emulator) handleRemoteCheck(c *gin.Context) {
 	writeHikvisionXML(c, http.StatusOK, "1", "OK", "ok")
 }
 
-// handlePostAcsEvent responde à busca de eventos offline
-// (POST /ISAPI/AccessControl/AcsEvent). O gerenciador pagina de 30 em 30 e
-// para quando responseStatusStrg == "NO MATCH" — IoHikvisionCommunication.py:1135.
-// Antes o emulador respondia "NO MATCH" sempre e read_events() nunca era
-// exercitado; agora serve o histórico real do dispositivo.
+// handlePostAcsEvent responde à busca de eventos (POST /ISAPI/AccessControl/AcsEvent).
+// Em modo online os eventos chegam por webhook, então retornamos "NO MATCH" — o
+// suficiente para o polling do cliente não receber 404. Evita ruído nos traces.
 func (e *Emulator) handlePostAcsEvent(c *gin.Context) {
-	var payload struct {
-		AcsEventCond struct {
-			SearchID             string `json:"searchID"`
-			SearchResultPosition int    `json:"searchResultPosition"`
-			MaxResults           int    `json:"maxResults"`
-			Major                int    `json:"major"`
-			Minor                int    `json:"minor"`
-		} `json:"AcsEventCond"`
-	}
-	if err := c.BindJSON(&payload); err != nil {
-		e.tracer.Error("[AcsEvent] corpo inválido: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{
-			"statusCode":    6,
-			"statusString":  "Error",
-			"subStatusCode": "Invalid request",
-		})
-		return
-	}
-
-	cond := payload.AcsEventCond
-	if cond.MaxResults <= 0 {
-		cond.MaxResults = 30
-	}
-
-	var recs []AcsEventRecord
-	total := 0
-	if e.eventLog != nil {
-		recs, total = e.eventLog.Page(cond.SearchResultPosition, cond.MaxResults)
-	}
-
-	if len(recs) == 0 {
-		c.JSON(http.StatusOK, gin.H{
-			"AcsEvent": gin.H{
-				"searchID":           cond.SearchID,
-				"responseStatusStrg": "NO MATCH",
-				"numOfMatches":       0,
-				"totalMatches":       total,
-				"InfoList":           []interface{}{},
-			},
-		})
-		return
-	}
-
-	loc := fusoDoDispositivo()
-	info := make([]gin.H, 0, len(recs))
-	for _, r := range recs {
-		info = append(info, gin.H{
-			"major":             r.Major,
-			"minor":             r.Minor,
-			"time":              r.Time.In(loc).Format("2006-01-02T15:04:05-07:00"),
-			"cardNo":            r.CardNo,
-			"cardReaderNo":      r.CardReaderNo,
-			"doorNo":            r.DoorNo,
-			"name":              r.Name,
-			"employeeNoString":  r.EmployeeNo,
-			"serialNo":          r.SerialNo,
-			"currentVerifyMode": "faceOrFpOrCardOrPw",
-		})
-	}
-
-	e.tracer.Info("[AcsEvent] offset=%d max=%d -> %d de %d",
-		cond.SearchResultPosition, cond.MaxResults, len(info), total)
-
 	c.JSON(http.StatusOK, gin.H{
 		"AcsEvent": gin.H{
-			"searchID":           cond.SearchID,
-			"responseStatusStrg": "OK",
-			"numOfMatches":       len(info),
-			"totalMatches":       total,
-			"InfoList":           info,
+			"searchID":           "0",
+			"responseStatusStrg":  "NO MATCH",
+			"numOfMatches":        0,
+			"totalMatches":        0,
+			"InfoList":            []interface{}{},
 		},
 	})
 }
@@ -659,74 +536,6 @@ func (e *Emulator) handlePutUserModify(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"statusCode":    1,
-		"statusString":  "OK",
-		"subStatusCode": "ok",
-	})
-}
-
-// handlePutUserSetUp implementa PUT /ISAPI/AccessControl/UserInfo/SetUp, o
-// endpoint de upsert do ISAPI: cria o utilizador se não existir, edita-o se
-// existir. É o caminho que o gateway usa para escrever utilizadores (evita a
-// corrida entre ler o estado do equipamento e escrever); Record/Modify ficam
-// para clientes que ainda façam a distinção.
-func (e *Emulator) handlePutUserSetUp(c *gin.Context) {
-	var payload struct {
-		UserInfo struct {
-			EmployeeNo   string `json:"employeeNo"`
-			Name         string `json:"name"`
-			Password     string `json:"password"`
-			LocalUIRight bool   `json:"localUIRight"`
-			Valid        struct {
-				BeginTime string `json:"beginTime"`
-				EndTime   string `json:"endTime"`
-			} `json:"Valid"`
-		} `json:"UserInfo"`
-	}
-
-	if err := c.BindJSON(&payload); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	localUIRight := "0"
-	if payload.UserInfo.LocalUIRight {
-		localUIRight = "1"
-	}
-
-	beginTime, _ := time.Parse("2006-01-02T15:04:05", payload.UserInfo.Valid.BeginTime)
-	endTime, _ := time.Parse("2006-01-02T15:04:05", payload.UserInfo.Valid.EndTime)
-
-	user := &User{
-		EmployeeNo:   payload.UserInfo.EmployeeNo,
-		Name:         payload.UserInfo.Name,
-		Password:     payload.UserInfo.Password,
-		LocalUIRight: localUIRight,
-		BeginTime:    beginTime,
-		EndTime:      endTime,
-	}
-
-	exists, err := e.repo.CheckIfUserExists(user.EmployeeNo)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	if exists {
-		err = e.repo.UpdateUser(user)
-	} else {
-		err = e.repo.AddUser(user)
-	}
-	if err != nil {
-		e.tracer.Error("[USER_SYNC] SetUp failed: employeeNo=%s, name=%s, existed=%v, error=%v", user.EmployeeNo, user.Name, exists, err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	totalUsers, _ := e.repo.GetTotalUsers()
-	e.tracer.Info("[USER_SYNC] SetUp ok: employeeNo=%s, name=%s, existed=%v, total_users=%d", user.EmployeeNo, user.Name, exists, totalUsers)
 
 	c.JSON(http.StatusOK, gin.H{
 		"statusCode":    1,
@@ -1246,20 +1055,13 @@ func (e *Emulator) handleGetHttpHosts(c *gin.Context) {
 	remotePort, _ := e.repo.GetSetting("RemotePort")
 	remoteURL, _ := e.repo.GetSetting("RemoteURL")
 
-	// O formato tem de ecoar o que o PUT gravou. Devolver "XML" fixo fazia o
-	// gerenciador ver uma configuração diferente da que ele mesmo enviou.
-	remoteFormat, _ := e.repo.GetSetting("RemoteFormat")
-	if remoteFormat == "" {
-		remoteFormat = "XML"
-	}
-
 	xmlContent := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <HttpHostNotificationList version="2.0" xmlns="http://www.isapi.org/ver20/XMLSchema">
     <HttpHostNotification>
         <id>1</id>
         <url>%s</url>
         <protocolType>HTTP</protocolType>
-        <parameterFormatType>%s</parameterFormatType>
+        <parameterFormatType>XML</parameterFormatType>
         <addressingFormatType>ipaddress</addressingFormatType>
         <ipAddress>%s</ipAddress>
         <portNo>%s</portNo>
@@ -1279,7 +1081,7 @@ func (e *Emulator) handleGetHttpHosts(c *gin.Context) {
         <portNo>0</portNo>
         <httpAuthenticationMethod>none</httpAuthenticationMethod>
     </HttpHostNotification>
-</HttpHostNotificationList>`, remoteURL, remoteFormat, remoteServer, remotePort)
+</HttpHostNotificationList>`, remoteURL, remoteServer, remotePort)
 
 	c.Header("Content-Type", "application/xml")
 	c.String(http.StatusOK, xmlContent)
@@ -1320,17 +1122,6 @@ func (e *Emulator) handlePutHttpHosts(c *gin.Context) {
 		writeHikvisionXML(c, http.StatusInternalServerError, "6", "Error", err.Error())
 		return
 	}
-
-	formato := strings.ToUpper(strings.TrimSpace(item.ParameterFormatType))
-	if formato == "" {
-		formato = "XML"
-	}
-	if err := e.repo.SetSetting("RemoteFormat", formato); err != nil {
-		e.tracer.Error("httpHosts: SetSetting RemoteFormat failed: %v", err)
-		writeHikvisionXML(c, http.StatusInternalServerError, "6", "Error", err.Error())
-		return
-	}
-	e.tracer.Info("httpHosts: parameterFormatType=%s persistido", formato)
 
 	e.tracer.Info("httpHosts: persisted OK, writing XML response")
 	writeHikvisionXML(c, http.StatusOK, "1", "OK", "ok")
@@ -1444,140 +1235,4 @@ func errorXMLResponse(message string) XMLResponseStatus {
 		StatusString:  "Error",
 		SubStatusCode: message,
 	}
-}
-
-// handlePutCardDelete atende PUT /ISAPI/AccessControl/CardInfo/Delete.
-// Corpo enviado pelo gerenciador:
-//
-//	{"CardInfoDelCond": {"EmployeeNoList": [{"employeeNo": "1001"}]}}
-//
-// É o primeiro passo de todo update de cartão (delete + Record) —
-// IoHikvisionCommunication.py:2295. Antes caía em 404 e o Record seguinte
-// podia bater em cardNoAlreadyExist.
-func (e *Emulator) handlePutCardDelete(c *gin.Context) {
-	var payload struct {
-		CardInfoDelCond struct {
-			EmployeeNoList []struct {
-				EmployeeNo string `json:"employeeNo"`
-			} `json:"EmployeeNoList"`
-		} `json:"CardInfoDelCond"`
-	}
-
-	if err := c.BindJSON(&payload); err != nil {
-		e.tracer.Error("[CardInfo/Delete] corpo inválido: %v", err)
-		writeHikvisionXML(c, http.StatusBadRequest, "6", "Error", "Invalid request")
-		return
-	}
-
-	total := 0
-	for _, item := range payload.CardInfoDelCond.EmployeeNoList {
-		if item.EmployeeNo == "" {
-			continue
-		}
-		n, err := e.deleteCardsFn(item.EmployeeNo)
-		if err != nil {
-			e.tracer.Error("[CardInfo/Delete] employeeNo=%s: %v", item.EmployeeNo, err)
-			writeHikvisionXML(c, http.StatusInternalServerError, "6", "Error", err.Error())
-			return
-		}
-		total += n
-	}
-
-	e.tracer.Info("[CardInfo/Delete] %d cartao(oes) removido(s)", total)
-	writeHikvisionXML(c, http.StatusOK, "1", "OK", "ok")
-}
-
-// handlePutFingerPrintDelete atende PUT /ISAPI/AccessControl/FingerPrint/Delete
-// (IoHikvisionCommunication.py:2080). Aceita tanto o detalhe único quanto a
-// lista, porque firmwares diferentes usam as duas formas.
-func (e *Emulator) handlePutFingerPrintDelete(c *gin.Context) {
-	var payload struct {
-		FingerPrintDelete struct {
-			Mode             string `json:"mode"`
-			EmployeeNoDetail struct {
-				EmployeeNo string `json:"employeeNo"`
-			} `json:"EmployeeNoDetail"`
-			EmployeeNoList []struct {
-				EmployeeNo string `json:"employeeNo"`
-			} `json:"EmployeeNoList"`
-		} `json:"FingerPrintDelete"`
-	}
-
-	if err := c.BindJSON(&payload); err != nil {
-		e.tracer.Error("[FingerPrint/Delete] corpo inválido: %v", err)
-		writeHikvisionXML(c, http.StatusBadRequest, "6", "Error", "Invalid request")
-		return
-	}
-
-	alvos := make([]string, 0, 1+len(payload.FingerPrintDelete.EmployeeNoList))
-	if n := payload.FingerPrintDelete.EmployeeNoDetail.EmployeeNo; n != "" {
-		alvos = append(alvos, n)
-	}
-	for _, item := range payload.FingerPrintDelete.EmployeeNoList {
-		if item.EmployeeNo != "" {
-			alvos = append(alvos, item.EmployeeNo)
-		}
-	}
-
-	total := 0
-	for _, employeeNo := range alvos {
-		n, err := e.deleteFingersFn(employeeNo)
-		if err != nil {
-			e.tracer.Error("[FingerPrint/Delete] employeeNo=%s: %v", employeeNo, err)
-			writeHikvisionXML(c, http.StatusInternalServerError, "6", "Error", err.Error())
-			return
-		}
-		total += n
-	}
-
-	e.tracer.Info("[FingerPrint/Delete] %d digital(is) removida(s)", total)
-	writeHikvisionXML(c, http.StatusOK, "1", "OK", "ok")
-}
-
-// handlePostCaptureFingerPrint atende POST /ISAPI/AccessControl/CaptureFingerPrint.
-// Pedido (XML): <CaptureFingerPrintCond><fingerNo>N</fingerNo></CaptureFingerPrintCond>.
-// Resposta (XML): <CaptureFingerPrint> com fingerData — único campo lido pelo
-// gerenciador em enroll_fingerprint (IoHikvisionCommunication.py:2503).
-// O template devolvido é sintético e estável: o emulador não tem sensor.
-func (e *Emulator) handlePostCaptureFingerPrint(c *gin.Context) {
-	var cond struct {
-		XMLName  xml.Name `xml:"CaptureFingerPrintCond"`
-		FingerNo string   `xml:"fingerNo"`
-	}
-
-	body, err := io.ReadAll(c.Request.Body)
-	if err != nil {
-		writeHikvisionXML(c, http.StatusBadRequest, "6", "Error", "Invalid body")
-		return
-	}
-	if err := xml.Unmarshal(body, &cond); err != nil {
-		e.tracer.Error("[CaptureFingerPrint] XML inválido: %v", err)
-		writeHikvisionXML(c, http.StatusBadRequest, "6", "Error", "Invalid XML")
-		return
-	}
-	fingerNo := strings.TrimSpace(cond.FingerNo)
-	if fingerNo == "" {
-		fingerNo = "1"
-	}
-
-	// Template sintético: 512 bytes determinísticos, base64. O gerenciador só
-	// repassa a string ("OK|<fingerData>"), não a interpreta.
-	bruto := make([]byte, 512)
-	for i := range bruto {
-		bruto[i] = byte((i*7 + 13) % 251)
-	}
-	fingerData := base64.StdEncoding.EncodeToString(bruto)
-
-	e.tracer.Info("[CaptureFingerPrint] fingerNo=%s, template de %d bytes", fingerNo, len(bruto))
-
-	resposta := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
-<CaptureFingerPrint version="2.0" xmlns="http://www.isapi.org/ver20/XMLSchema">
-<fingerNo>%s</fingerNo>
-<fingerPrintQuality>80</fingerPrintQuality>
-<fingerData>%s</fingerData>
-</CaptureFingerPrint>
-`, fingerNo, fingerData)
-
-	c.Header("Content-Type", "application/xml")
-	c.String(http.StatusOK, resposta)
 }
