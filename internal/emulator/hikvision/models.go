@@ -144,6 +144,10 @@ type Event struct {
 		Name                string  `json:"name"`
 		CardReaderKind      int     `json:"cardReaderKind"`
 		CardReaderNo        int     `json:"cardReaderNo"`
+		// DoorNo acompanha os eventos de porta. read_events() usa cardReaderNo
+		// e cai em doorNo quando o primeiro vem zerado
+		// (IoHikvisionCommunication.py:1163).
+		DoorNo              int     `json:"doorNo,omitempty"`
 		VerifyNo            int     `json:"verifyNo"`
 		EmployeeNoString    string  `json:"employeeNoString"`
 		SerialNo            int     `json:"serialNo"`

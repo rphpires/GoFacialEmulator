@@ -483,3 +483,36 @@ func (r *Repository) GetRandomUserAndCard() (name, cardNo, employeeNo string, er
 	err = r.db.QueryRow(ctx, queryRandomUserCard, r.deviceID).Scan(&name, &cardNo, &employeeNo)
 	return
 }
+
+// DeleteCardsByEmployeeNo remove todos os cartões de um portador e devolve
+// quantas linhas saíram. O gerenciador chama isso em todo update de cartão
+// (delete + Record) — ver IoHikvisionCommunication.py:2295.
+func (r *Repository) DeleteCardsByEmployeeNo(employeeNo string) (int, error) {
+	ctx, cancel := r.getWriteContext()
+	defer cancel()
+
+	tag, err := r.db.Exec(ctx,
+		"DELETE FROM emulator.hikvision_cards WHERE device_id = $1 AND employee_no = $2",
+		r.deviceID, employeeNo)
+	if err != nil {
+		return 0, err
+	}
+	r.cache.InvalidateDevice(r.deviceID)
+	return int(tag.RowsAffected()), nil
+}
+
+// DeleteFingerprintsByEmployeeNo remove as digitais de um portador.
+// Ver IoHikvisionCommunication.py:2080.
+func (r *Repository) DeleteFingerprintsByEmployeeNo(employeeNo string) (int, error) {
+	ctx, cancel := r.getWriteContext()
+	defer cancel()
+
+	tag, err := r.db.Exec(ctx,
+		"DELETE FROM emulator.hikvision_fingers WHERE device_id = $1 AND chid = $2",
+		r.deviceID, employeeNo)
+	if err != nil {
+		return 0, err
+	}
+	r.cache.InvalidateDevice(r.deviceID)
+	return int(tag.RowsAffected()), nil
+}

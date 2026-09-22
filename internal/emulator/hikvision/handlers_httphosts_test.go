@@ -47,3 +47,30 @@ func TestParseHttpHostNotification_Empty(t *testing.T) {
 		t.Fatal("expected error for empty list, got nil")
 	}
 }
+
+func TestParseHttpHostNotification_ExtractsParameterFormatType(t *testing.T) {
+	body := []byte(`<HttpHostNotificationList version="2.0" xmlns="http://www.isapi.org/ver20/XMLSchema">
+    <HttpHostNotification>
+        <id>1</id>
+        <url>/w-access</url>
+        <protocolType>HTTP</protocolType>
+        <parameterFormatType>JSON</parameterFormatType>
+        <addressingFormatType>ipaddress</addressingFormatType>
+        <ipAddress>192.168.1.7</ipAddress>
+        <portNo>9010</portNo>
+        <userName></userName>
+        <httpAuthenticationMethod>none</httpAuthenticationMethod>
+    </HttpHostNotification>
+</HttpHostNotificationList>`)
+
+	item, err := parseHttpHostNotification(body)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if item.ParameterFormatType != "JSON" {
+		t.Errorf("parameterFormatType: got %q, want JSON", item.ParameterFormatType)
+	}
+	if item.URL != "/w-access" || item.IPAddress != "192.168.1.7" || item.PortNo != "9010" {
+		t.Errorf("campos existentes regrediram: %+v", item)
+	}
+}

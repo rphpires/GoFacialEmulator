@@ -7,9 +7,12 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"net"
 	"net/http"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"GoFacialEmulator/internal/database"
@@ -31,11 +34,34 @@ type Emulator struct {
 	macAddress       string
 	deleteInProgress bool
 	startTime        *time.Time // Timestamp de quando o emulador foi iniciado
+
+	// eventRand sorteia o subEventType do modo standalone. Protegido porque o
+	// gerador de eventos pode rodar em mais de uma goroutine.
+	eventRand   *rand.Rand
+	eventRandMu sync.Mutex
+
+	// deleteCardsFn/deleteFingersFn permitem testar os handlers de remoção sem
+	// banco. Em produção NewEmulator os aponta para os métodos do repositório.
+	deleteCardsFn   func(employeeNo string) (int, error)
+	deleteFingersFn func(employeeNo string) (int, error)
+
+	// eventLog é o histórico de eventos que o dispositivo "tem em memória",
+	// consultado por POST AcsEvent e purgado por StorageCfg mode=time.
+	eventLog *eventLog
 }
 
 // intPtr retorna um ponteiro para o int fornecido (usado em campos de evento
 // opcionais que precisam distinguir "zero" de "ausente").
 func intPtr(i int) *int { return &i }
+
+// serialCounter numera os eventos como o dispositivo real: monotônico por
+// processo. O gerenciador usa serialNo como chave do remote check e
+// frontSerialNo (serialNo do evento anterior) como sinal de "já decidido".
+var serialCounter int64 = 4434
+
+func nextSerialNo() int {
+	return int(atomic.AddInt64(&serialCounter, 1))
+}
 
 // NewEmulator cria uma nova instância do emulador Hikvision
 func NewEmulator(db database.DBInterface, device models.Device, tracer *trace.Tracer) *Emulator {
@@ -52,9 +78,44 @@ func NewEmulator(db database.DBInterface, device models.Device, tracer *trace.Tr
 		macAddress:       macAddress,
 		deleteInProgress: false,
 		stopChan:         make(chan struct{}),
+		eventRand:        rand.New(rand.NewSource(time.Now().UnixNano())),
+		eventLog:         newEventLog(500),
 	}
 
+	emulator.deleteCardsFn = repo.DeleteCardsByEmployeeNo
+	emulator.deleteFingersFn = repo.DeleteFingerprintsByEmployeeNo
+
 	return emulator
+}
+
+// registrarEvento guarda o evento no histórico local de consulta offline. É o
+// que alimenta POST /ISAPI/AccessControl/AcsEvent; antes o emulador não
+// guardava nada e respondia sempre "NO MATCH".
+func (e *Emulator) registrarEvento(event *Event, quando time.Time) {
+	if e.eventLog == nil {
+		return
+	}
+	e.eventLog.Append(AcsEventRecord{
+		Time:         quando,
+		Major:        event.AccessControllerEvent.MajorEventType,
+		Minor:        event.AccessControllerEvent.SubEventType,
+		CardNo:       event.AccessControllerEvent.CardNo,
+		Name:         event.AccessControllerEvent.Name,
+		EmployeeNo:   event.AccessControllerEvent.EmployeeNoString,
+		CardReaderNo: event.AccessControllerEvent.CardReaderNo,
+		DoorNo:       event.AccessControllerEvent.DoorNo,
+		SerialNo:     event.AccessControllerEvent.SerialNo,
+	})
+}
+
+// sortearSubEvento devolve o próximo subEventType do modo standalone.
+func (e *Emulator) sortearSubEvento() int {
+	if e.eventRand == nil {
+		return MinorFaceVerifyPass
+	}
+	e.eventRandMu.Lock()
+	defer e.eventRandMu.Unlock()
+	return pickStandaloneSubEvent(e.eventRand)
 }
 
 // Start inicia o servidor do emulador
@@ -258,7 +319,7 @@ func (e *Emulator) generateOnlineEvent() error {
 	}
 
 	// Obtém o fuso horário local
-	loc, _ := time.LoadLocation("America/Sao_Paulo")
+	loc := fusoDoDispositivo()
 	currentTime := time.Now().In(loc)
 
 	// Criar o evento
@@ -309,6 +370,8 @@ func (e *Emulator) generateOnlineEvent() error {
 	event.AccessControllerEvent.FaceRect.X = 0.286
 	event.AccessControllerEvent.FaceRect.Y = 0.354
 	event.AccessControllerEvent.UnlockRoomNo = "3723243075"
+
+	e.registrarEvento(event, currentTime)
 
 	// Enviar evento para servidor remoto
 	if err := e.sendEventToRemoteServer(event); err != nil {
@@ -398,69 +461,74 @@ func (e *Emulator) sendEventToRemoteServer(event *Event) error {
 	return nil
 }
 
-// simulateDoorEvents simula eventos de porta
+// simulateDoorEvents simula a sequência de porta que o dispositivo real emite
+// depois de conceder um acesso: abertura (25) e, alguns segundos depois,
+// fechamento (26). O StandaloneAccessValidation do gerenciador depende desses
+// dois eventos para fechar o ciclo — ver IoHikvisionCommunication.py:1239-1250.
 func (e *Emulator) simulateDoorEvents() {
 	time.Sleep(2 * time.Second)
-	if err := e.sendDoorEvent("Open"); err != nil {
+	if err := e.sendDoorEvent(MinorDoorOpenNormal); err != nil {
 		e.tracer.Error("Failed to send door open event: %v", err)
 	}
 
 	time.Sleep(3 * time.Second)
-	if err := e.sendDoorEvent("Close"); err != nil {
+	if err := e.sendDoorEvent(MinorDoorCloseNormal); err != nil {
 		e.tracer.Error("Failed to send door close event: %v", err)
 	}
 }
 
-// sendDoorEvent envia um evento de estado da porta
-func (e *Emulator) sendDoorEvent(status string) error {
-	// Cria o evento de porta no formato Dahua (para compatibilidade)
-	currentTime := time.Now().UTC()
-	event := map[string]interface{}{
-		"Events": []map[string]interface{}{
-			{
-				"Action": "Pulse",
-				"Code":   "DoorStatus",
-				"Data": map[string]interface{}{
-					"Status": status,
-					"UTC":    currentTime.Unix(),
-				},
-				"Index":           0,
-				"PhysicalAddress": e.macAddress,
-			},
-		},
-		"Time": currentTime.Format("02-01-2006 15:04:05"),
+// buildDoorEvent monta um evento de porta no formato ISAPI. Antes o emulador
+// mandava um objeto Dahua ({"Events":[...]}) para /w-access; o gerenciador lê
+// event_json["dateTime"] e ["macAddress"], que não existem naquele formato, e
+// descartava o evento por exceção.
+func (e *Emulator) buildDoorEvent(subEventType int) *Event {
+	loc := fusoDoDispositivo()
+	currentTime := time.Now().In(loc)
+
+	event := &Event{
+		IPAddress:        e.device.IPAddress,
+		IPv6Address:      "fe80::be5e:33ff:fe57:a5cb",
+		PortNo:           e.device.Port,
+		Protocol:         "HTTP",
+		MacAddress:       e.macAddress,
+		ChannelID:        1,
+		DateTime:         currentTime.Format("2006-01-02T15:04:05-03:00"),
+		ActivePostCount:  1,
+		EventType:        "AccessControllerEvent",
+		EventState:       "active",
+		EventDescription: "Access Controller Event",
 	}
 
-	// Codifica o evento em JSON
-	eventJSON, err := json.Marshal(event)
-	if err != nil {
-		return fmt.Errorf("failed to marshal door event: %w", err)
-	}
+	serial := nextSerialNo()
 
-	// Formata o evento como multipart
-	boundary := "myboundary"
-	body := fmt.Sprintf("\r\n--%s\r\nContent-Type: text/plain\r\nContent-Disposition: form-data; name=\"info\"\r\n\r\n%s\r\n--%s--\r\n\r\n",
-		boundary, string(eventJSON), boundary)
+	event.AccessControllerEvent.DeviceName = "subdoorOne"
+	event.AccessControllerEvent.MajorEventType = 5
+	event.AccessControllerEvent.SubEventType = subEventType
+	event.AccessControllerEvent.CardReaderKind = 1
+	event.AccessControllerEvent.CardReaderNo = 1
+	event.AccessControllerEvent.DoorNo = 1
+	event.AccessControllerEvent.SerialNo = serial
+	event.AccessControllerEvent.UserType = "normal"
+	event.AccessControllerEvent.CurrentEvent = true
+	// Evento de estado de porta já vem decidido pelo dispositivo: frontSerialNo
+	// e statusValue presentes. A ausência deles é o que sinaliza remote check.
+	event.AccessControllerEvent.FrontSerialNo = intPtr(serial - 1)
+	event.AccessControllerEvent.StatusValue = intPtr(0)
+	event.AccessControllerEvent.AttendanceStatus = "undefined"
+	event.AccessControllerEvent.Mask = "unknown"
+	event.AccessControllerEvent.Helmet = "unknown"
 
-	// Monta a URL a partir das settings por dispositivo
-	server, _ := e.repo.GetSetting("RemoteServer")
-	port, _ := e.repo.GetSetting("RemotePort")
-	path, _ := e.repo.GetSetting("RemoteURL")
-	remoteURL := fmt.Sprintf("http://%s:%s%s", server, port, path)
-	req, err := http.NewRequest("POST", remoteURL, strings.NewReader(body))
-	if err != nil {
-		return fmt.Errorf("failed to create door event request: %w", err)
-	}
-	req.Header.Set("Content-Type", fmt.Sprintf("multipart/form-data; boundary=%s", boundary))
+	e.registrarEvento(event, currentTime)
 
-	client := &http.Client{Timeout: 5 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("failed to send door event: %w", err)
-	}
-	defer resp.Body.Close()
+	return event
+}
 
-	return nil
+// sendDoorEvent envia um evento de estado de porta para o servidor remoto,
+// pelo mesmo caminho multipart dos eventos de acesso (campo "event_log").
+func (e *Emulator) sendDoorEvent(subEventType int) error {
+	event := e.buildDoorEvent(subEventType)
+	e.tracer.Info("Sending door event subEventType=%d serialNo=%d", subEventType, event.AccessControllerEvent.SerialNo)
+	return e.sendEventToRemoteServer(event)
 }
 
 // generateRandomEvent gera um evento aleatório para streaming
@@ -481,7 +549,7 @@ func (e *Emulator) generateRandomEvent() ([]byte, error) {
 	e.tracer.Info("generateRandomEvent.Hik: Nome=%s", name)
 
 	// Obtém o fuso horário local
-	loc, _ := time.LoadLocation("America/Sao_Paulo")
+	loc := fusoDoDispositivo()
 	currentTime := time.Now().In(loc)
 
 	// Criar evento
@@ -499,23 +567,31 @@ func (e *Emulator) generateRandomEvent() ([]byte, error) {
 		EventDescription: "Access Controller Event",
 	}
 
+	// Modo standalone: o dispositivo decide sozinho, então o subtipo varia.
+	// Antes o emulador emitia sempre 75 (face reconhecida) e os caminhos de
+	// INVALID_CARD / BIOMETRIC_VERIFICATION_FAILED / CARD_EXPIRED do
+	// gerenciador nunca eram exercitados.
+	minor := e.sortearSubEvento()
+	serial := nextSerialNo()
+
 	// Preencher dados do evento de controle de acesso
 	event.AccessControllerEvent.DeviceName = "subdoorOne"
 	event.AccessControllerEvent.MajorEventType = 5
-	event.AccessControllerEvent.SubEventType = 75
+	event.AccessControllerEvent.SubEventType = minor
 	event.AccessControllerEvent.CardNo = cardNo
 	event.AccessControllerEvent.CardType = 1
 	event.AccessControllerEvent.Name = name
 	event.AccessControllerEvent.CardReaderKind = 1
 	event.AccessControllerEvent.CardReaderNo = 1
+	event.AccessControllerEvent.DoorNo = 1
 	event.AccessControllerEvent.VerifyNo = 189
 	event.AccessControllerEvent.EmployeeNoString = employeeNo
-	event.AccessControllerEvent.SerialNo = 4435
+	event.AccessControllerEvent.SerialNo = serial
 	event.AccessControllerEvent.UserType = "normal"
 	event.AccessControllerEvent.CurrentVerifyMode = "faceOrFpOrCardOrPw"
 	event.AccessControllerEvent.CurrentEvent = true
 	// Modo local: evento já decidido — frontSerialNo/statusValue presentes.
-	event.AccessControllerEvent.FrontSerialNo = intPtr(4434)
+	event.AccessControllerEvent.FrontSerialNo = intPtr(serial - 1)
 	event.AccessControllerEvent.AttendanceStatus = "undefined"
 	event.AccessControllerEvent.Label = ""
 	event.AccessControllerEvent.StatusValue = intPtr(0)
@@ -528,6 +604,16 @@ func (e *Emulator) generateRandomEvent() ([]byte, error) {
 	event.AccessControllerEvent.FaceRect.X = 0.286
 	event.AccessControllerEvent.FaceRect.Y = 0.354
 	event.AccessControllerEvent.UnlockRoomNo = "3723243075"
+
+	// Numa recusa o dispositivo real não reporta o portador — só o número
+	// lido. Zerar nome e matrícula evita que o gerenciador registre como
+	// identificado um acesso que ele mesmo vai recusar.
+	if !subEventIsGrant(minor) {
+		event.AccessControllerEvent.Name = ""
+		event.AccessControllerEvent.EmployeeNoString = ""
+	}
+
+	e.registrarEvento(event, currentTime)
 
 	// Codificar o evento em JSON compacto (dispositivos Hikvision reais
 	// não enviam o JSON indentado).
