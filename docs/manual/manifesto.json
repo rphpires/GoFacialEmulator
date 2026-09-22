@@ -2,7 +2,10 @@
   "alvos": {
     "docker": {
       "titulo": "GoFacialEmulator — Manual do pacote Docker",
-      "subtitulo": "Instalacao, configuracao e validacao",
+      "subtitulo": "Instalação, configuração e validação",
+      "pacote": "Pacote Docker",
+      "cabecalho": "GoFacial Emulator · Pacote Docker",
+      "resumo": "Instalar, configurar a conexão com o W-Access e validar que os dispositivos emulados chegam ao Site Controller.",
       "capitulos": [
         "docker/antes-de-comecar.md",
         "docker/instalar-docker-desktop.md",
@@ -17,7 +20,10 @@
     },
     "windows": {
       "titulo": "GoFacialEmulator — Manual do pacote Windows",
-      "subtitulo": "Instalacao, configuracao e validacao",
+      "subtitulo": "Instalação, configuração e validação",
+      "pacote": "Pacote Windows",
+      "cabecalho": "GoFacial Emulator · Pacote Windows",
+      "resumo": "Instalar, configurar a conexão com o W-Access e validar que os dispositivos emulados chegam ao Site Controller.",
       "capitulos": [
         "windows/antes-de-comecar.md",
         "windows/instalar-emulador.md",
@@ -31,7 +37,10 @@
     },
     "linux": {
       "titulo": "GoFacialEmulator — Manual do pacote Linux e WSL2",
-      "subtitulo": "Instalacao, configuracao e validacao",
+      "subtitulo": "Instalação, configuração e validação",
+      "pacote": "Pacote Linux e WSL2",
+      "cabecalho": "GoFacial Emulator · Pacote Linux",
+      "resumo": "Instalar, configurar a conexão com o W-Access e validar que os dispositivos emulados chegam ao Site Controller.",
       "capitulos": [
         "linux/antes-de-comecar.md",
         "linux/instalar-wsl.md",

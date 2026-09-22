@@ -1,80 +1,613 @@
-/* Folha de impressao dos manuais. Pensada para papel A4 e para leitura
-   por tecnico de campo: fonte grande, figura que nao quebra no meio. */
+/* Folha de impressao dos manuais. A4, leitura por tecnico de campo.
+   Direcao visual herdada do console (assets/web/static/css/tokens.css),
+   traduzida para papel: fundo claro, mesma familia tipografica, e a
+   REGRA DE COR do console mantida — laranja e ACAO e estrutura, nunca
+   estado. Estado e verde (esperado) ou vermelho (desvio).
+
+   Duas armadilhas do paged.js ja pagas aqui, nao reintroduzir:
+     - "break-after: page" no sumario JUNTO com "break-before: page" no
+       capitulo produz uma pagina em branco entre os dois. So o segundo.
+     - "page: <nome>" num capitulo aplica a pagina nomeada a TODAS as
+       paginas dele, nao so a primeira — nao serve para tirar o
+       cabecalho corrente so da pagina de abertura.
+
+   As @font-face e as strings de cabecalho sao injetadas por montar.mjs,
+   que conhece os caminhos absolutos das fontes e o alvo sendo montado. */
+
+:root {
+  --papel: #ffffff;
+  --faixa: #f4f6f8;
+  --faixa-barra: #f1f3f6;
+
+  --tinta: #10151c;
+  --texto: #232b36;
+  --texto-2: #323c4a;
+  --texto-3: #566070;
+  --texto-4: #8a93a3;
+
+  --regua: #e0e4ea;
+  --regua-fina: #edf0f4;
+
+  /* Acao. O mesmo laranja do console. Fundo: --acao. Texto pequeno:
+     --acao-texto, escurecido para nao sumir no papel. */
+  --acao: #ff8c00;
+  --acao-texto: #b35f00;
+  --acao-marca: #ffe7c6;
+
+  /* Estado. Nunca laranja. */
+  --ok: #1a7a55;
+  --alerta: #b3271e;
+  --neutro: #4a5568;
+
+  --sans: 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
+  --mono: 'IBM Plex Mono', 'Cascadia Mono', Consolas, monospace;
+}
+
+/* ============================================================
+   Pagina
+   ============================================================ */
 
 @page {
   size: A4;
-  margin: 20mm 18mm 22mm 18mm;
+  margin: 20mm 16mm 18mm 16mm;
 
-  @bottom-center {
+  @top-left {
+    content: string(corrente);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 7.5pt;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #8a93a3;
+    vertical-align: bottom;
+    padding-bottom: 4mm;
+  }
+
+  @top-right {
+    /* montar.mjs injeta o content com o nome do pacote */
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 7.5pt;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #8a93a3;
+    vertical-align: bottom;
+    padding-bottom: 4mm;
+  }
+
+  @bottom-left {
+    content: "Manual de instalação";
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 7pt;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #a3abb8;
+    vertical-align: top;
+    padding-top: 5mm;
+  }
+
+  @bottom-right {
     content: counter(page);
-    font-family: system-ui, sans-serif;
-    font-size: 9pt;
-    color: #666;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10pt;
+    font-weight: 600;
+    color: #b35f00;
+    vertical-align: top;
+    padding-top: 4.4mm;
   }
 }
 
-body {
-  font-family: system-ui, "Segoe UI", sans-serif;
-  font-size: 11pt;
-  line-height: 1.55;
-  color: #1a1a1a;
+/* A capa nao leva cabecalho, rodape nem numero. */
+@page :first {
+  @top-left { content: none; }
+  @top-right { content: none; }
+  @bottom-left { content: none; }
+  @bottom-right { content: none; }
 }
+
+body {
+  margin: 0;
+  font-family: var(--sans);
+  font-size: 11.5pt;
+  line-height: 1.62;
+  color: var(--texto);
+  background: var(--papel);
+  orphans: 2;
+  widows: 2;
+}
+
+/* Coluna de texto: 210mm - 32mm de margem - 16mm de recuo = 162mm. */
+.capitulo,
+#sumario {
+  padding: 0 8mm;
+}
+
+/* ============================================================
+   Capa
+   ============================================================ */
 
 .capa {
   break-after: page;
-  padding-top: 60mm;
-  text-align: center;
+  height: 259mm; /* A4 menos as margens verticais */
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 0 8mm;
 }
-.capa-titulo { font-size: 26pt; margin: 0 0 8mm; }
-.capa-subtitulo { font-size: 13pt; color: #555; }
 
-#sumario { break-after: page; }
-#sumario ol { list-style: none; padding-left: 0; }
-#sumario li { margin: 2mm 0; font-size: 12pt; }
-#sumario a { text-decoration: none; color: inherit; }
+.capa-topo {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  font-family: var(--mono);
+  font-size: 8pt;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+.capa-produto { color: var(--tinta); font-weight: 500; }
+.capa-selo { color: var(--texto-4); }
+
+.capa-meio { display: flex; flex-direction: column; gap: 12mm; }
+
+/* Motivo grafico: o medidor de frota da topbar do console, virado marca.
+   Decorativo — as cores aqui nao comunicam estado de coisa nenhuma. */
+.capa-barras {
+  display: flex;
+  align-items: flex-end;
+  gap: 1mm;
+  height: 15mm;
+}
+.capa-barra { flex: 1 1 0; }
+
+.capa-linha-1 {
+  font-size: 22pt;
+  color: var(--texto-3);
+  letter-spacing: -0.01em;
+}
+.capa-linha-2 {
+  font-size: 54pt;
+  font-weight: 600;
+  color: var(--tinta);
+  letter-spacing: -0.035em;
+  line-height: 1.02;
+  margin-top: 1mm;
+}
+.capa-regua {
+  width: 34mm;
+  height: 1.6mm;
+  background: var(--acao);
+  margin: 6mm 0 0;
+}
+.capa-resumo {
+  font-size: 12pt;
+  line-height: 1.6;
+  color: var(--texto-2);
+  max-width: 116mm;
+  margin-top: 6mm;
+}
+
+.capa-rodape { display: flex; flex-direction: column; gap: 5mm; }
+.capa-rodape-regua { height: 0.25mm; background: var(--regua); }
+.capa-meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6mm;
+  font-family: var(--mono);
+  font-size: 7.5pt;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--texto-4);
+}
+.capa-meta div { display: flex; flex-direction: column; gap: 1.4mm; }
+.capa-meta b { font-weight: 500; color: var(--tinta); letter-spacing: 0.07em; }
+
+/* ============================================================
+   Sumario
+   ============================================================ */
+
+#sumario > h2 {
+  font-size: 30pt;
+  font-weight: 600;
+  color: var(--tinta);
+  letter-spacing: -0.03em;
+  margin: 0;
+  line-height: 1;
+}
+.sumario-regua {
+  width: 25mm;
+  height: 1.3mm;
+  background: var(--acao);
+  margin: 5mm 0 14mm;
+}
+
+.sumario-lista { list-style: none; padding: 0; margin: 0; }
+.sumario-cap { margin-bottom: 6mm; break-inside: avoid; }
+
+.sumario-lista a {
+  display: flex;
+  align-items: baseline;
+  gap: 3mm;
+  text-decoration: none;
+  color: inherit;
+}
+.sumario-guia {
+  flex: 1 1 0;
+  border-bottom: 0.3mm dotted #c8cfd9;
+  transform: translateY(-1mm);
+}
+.sumario-lista a::after {
+  content: target-counter(attr(href url), page);
+  font-family: var(--mono);
+  font-size: 10.5pt;
+  color: var(--texto-3);
+}
+
+.sumario-num {
+  font-family: var(--mono);
+  font-size: 10.5pt;
+  font-weight: 600;
+  color: var(--acao-texto);
+  width: 7mm;
+  flex: 0 0 auto;
+}
+.sumario-titulo {
+  font-size: 12pt;
+  font-weight: 500;
+  color: var(--tinta);
+  white-space: nowrap;
+}
+
+.sumario-subs { list-style: none; padding: 0 0 0 10mm; margin: 2mm 0 0; }
+.sumario-subs li { margin-top: 1.4mm; }
+.sumario-subs .sumario-titulo {
+  font-size: 9.5pt;
+  font-weight: 400;
+  color: var(--texto-3);
+}
+.sumario-subs .sumario-guia { border-bottom-color: var(--regua); }
+.sumario-subs a::after { font-size: 9pt; color: var(--texto-4); }
+
+/* ============================================================
+   Abertura de capitulo
+   ============================================================ */
 
 .capitulo { break-before: page; }
-.capitulo h1 { font-size: 19pt; margin: 0 0 6mm; }
-.capitulo h2 { font-size: 14pt; margin: 8mm 0 3mm; break-after: avoid; }
 
-/* Figura nunca quebra entre paginas, e nunca fica separada da legenda. */
+/* Marcador invisivel que alimenta o cabecalho corrente. Precisa estar no
+   fluxo — nao trocar por position:absolute, que tira o elemento da
+   paginacao e o string-set para de valer na pagina certa. */
+.marcador-corrente {
+  display: block;
+  height: 0;
+  overflow: hidden;
+  string-set: corrente content(text);
+}
+
+.abertura {
+  margin: 0 -8mm 9mm;
+  padding: 9mm 8mm 8mm;
+  background: var(--faixa);
+  border-bottom: 0.3mm solid var(--regua);
+  break-after: avoid;
+  break-inside: avoid;
+}
+.abertura-topo { display: flex; align-items: center; gap: 7mm; }
+.abertura-numero {
+  font-family: var(--mono);
+  font-size: 44pt;
+  font-weight: 600;
+  color: var(--acao);
+  line-height: 0.82;
+  letter-spacing: -0.04em;
+}
+.abertura-rotulo {
+  font-family: var(--mono);
+  font-size: 7.5pt;
+  font-weight: 500;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--texto-4);
+  margin: 0 0 2mm;
+}
+.abertura h1 {
+  font-size: 25pt;
+  font-weight: 600;
+  color: var(--tinta);
+  letter-spacing: -0.028em;
+  line-height: 1.05;
+  margin: 0;
+}
+
+.neste-capitulo { margin-top: 8mm; }
+.neste-capitulo-rotulo {
+  font-family: var(--mono);
+  font-size: 7pt;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--texto-4);
+  margin: 0 0 3mm;
+}
+.neste-capitulo ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  columns: 2;
+  column-gap: 10mm;
+}
+.neste-capitulo li {
+  font-size: 9.5pt;
+  color: var(--texto-2);
+  margin-bottom: 1.6mm;
+  break-inside: avoid;
+  padding-left: 4mm;
+  position: relative;
+}
+.neste-capitulo li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 1.6mm;
+  width: 1.4mm;
+  height: 1.4mm;
+  background: var(--acao);
+}
+
+/* ============================================================
+   Corpo
+   ============================================================ */
+
+p { margin: 0 0 3.4mm; }
+
+.secao {
+  font-size: 14.5pt;
+  font-weight: 600;
+  color: var(--tinta);
+  letter-spacing: -0.018em;
+  margin: 9mm 0 4mm;
+  break-after: avoid;
+}
+.secao::after {
+  content: "";
+  display: block;
+  width: 11mm;
+  height: 0.8mm;
+  background: var(--acao);
+  margin-top: 2.4mm;
+}
+
+/* Secao que e um passo numerado ("## 1. Abrir o console"): o numero vira
+   um marcador de acao, e a regua sai — o numero ja e o sinal. */
+.secao-passo { display: flex; align-items: center; gap: 3.5mm; }
+.secao-passo::after { content: none; }
+.secao-numero {
+  flex: 0 0 auto;
+  width: 7mm;
+  height: 7mm;
+  background: var(--acao);
+  color: #ffffff;
+  font-family: var(--mono);
+  font-size: 10.5pt;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+h3 {
+  font-size: 11.5pt;
+  font-weight: 600;
+  color: var(--tinta);
+  margin: 6mm 0 2.5mm;
+  break-after: avoid;
+}
+
+strong { font-weight: 600; color: var(--tinta); }
+
+ul, ol { margin: 0 0 3.4mm; padding-left: 6mm; }
+li { margin-bottom: 1.6mm; }
+li::marker { color: var(--texto-4); }
+
+a { color: var(--acao-texto); text-decoration: none; }
+
+/* ============================================================
+   Figuras
+   ============================================================ */
+
 .figura {
   break-inside: avoid;
   margin: 6mm 0;
-  text-align: center;
 }
 .figura img {
+  display: block;
   max-width: 100%;
-  border: 1px solid #ddd;
-  border-radius: 3px;
+  border: 0.3mm solid #dde1e8;
 }
 .figura figcaption {
-  font-size: 9.5pt;
-  color: #555;
-  margin-top: 2mm;
+  display: flex;
+  gap: 2.5mm;
+  align-items: baseline;
+  font-size: 8.5pt;
+  color: var(--texto-3);
+  margin-top: 2.5mm;
 }
-
-/* Caixa que ocupa o lugar de uma figura ainda nao capturada. Precisa ser
-   visivelmente uma pendencia, nao passar por ilustracao. */
-.caixa-pendente {
-  border: 2px dashed #c00;
-  color: #c00;
-  padding: 18mm 6mm;
+.figura-num {
+  font-family: var(--mono);
+  font-size: 8pt;
   font-weight: 600;
+  color: var(--acao-texto);
+  white-space: nowrap;
 }
 
-code, pre {
-  font-family: "Cascadia Mono", Consolas, monospace;
-  font-size: 9.5pt;
+/* Caixa no lugar de uma captura que so um humano consegue tirar. Precisa
+   ser reconhecivel como pendencia, mas nao gritar mais alto que o texto —
+   o vermelho tracejado de antes dominava a pagina inteira. */
+.caixa-pendente {
+  border: 0.4mm dashed #c8cfd9;
+  background: #fbfcfd;
+  height: 26mm;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.6mm;
 }
-pre {
-  background: #f6f6f6;
-  border-left: 3px solid #999;
-  padding: 3mm 4mm;
+.pendente-rotulo {
+  font-family: var(--mono);
+  font-size: 7pt;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #a3abb8;
+}
+.pendente-alt { font-size: 9pt; color: var(--texto-4); }
+
+/* ============================================================
+   Avisos
+   ============================================================ */
+
+.aviso {
   break-inside: avoid;
-  white-space: pre-wrap;
+  margin: 5mm 0;
+  padding: 3.6mm 5mm 4.2mm;
+  border-top: 0.9mm solid var(--neutro);
+  background: var(--faixa);
+}
+.aviso-rotulo {
+  font-family: var(--mono);
+  font-size: 7.5pt;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--neutro);
+  margin: 0 0 2mm;
+}
+.aviso p { margin: 0 0 2mm; font-size: 11pt; }
+.aviso p:last-child { margin-bottom: 0; }
+
+.aviso-atencao { border-top-color: var(--alerta); background: #fdf3f2; }
+.aviso-atencao .aviso-rotulo { color: var(--alerta); }
+
+.aviso-dica { border-top-color: var(--ok); background: #f1f8f4; }
+.aviso-dica .aviso-rotulo { color: var(--ok); }
+
+/* ============================================================
+   Passos do roteiro de validacao
+   ============================================================ */
+
+.passo-linha {
+  display: grid;
+  grid-template-columns: 33mm minmax(0, 1fr);
+  gap: 5mm;
+  padding: 3mm 0;
+  border-bottom: 0.3mm solid var(--regua-fina);
+  break-inside: avoid;
+}
+/* Regua grossa abrindo o grupo: a primeira linha depois de qualquer
+   coisa que nao seja uma linha de passo. */
+:not(.passo-linha) + .passo-linha { border-top: 0.6mm solid var(--tinta); }
+/* ...menos quando o que veio antes foi a figura do proprio passo: ali a
+   regua grossa reabriria um grupo que nao acabou. */
+.figura + .passo-linha { border-top: 0; }
+
+.passo-rotulo {
+  font-family: var(--mono);
+  font-size: 7.5pt;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  padding-top: 1.4mm;
+}
+.passo-corpo { font-size: 11pt; }
+
+.passo-faca .passo-rotulo { color: var(--acao-texto); }
+.passo-esperado .passo-rotulo { color: var(--ok); }
+.passo-desvio .passo-rotulo { color: var(--alerta); }
+
+/* Figura que ilustra um passo alinha com a coluna do texto do passo. */
+.passo-linha + .figura { margin-left: 38mm; }
+
+/* ============================================================
+   Codigo
+   ============================================================ */
+
+code {
+  font-family: var(--mono);
+  font-size: 9.5pt;
+  background: var(--faixa);
+  padding: 0.3mm 1.2mm;
+  color: var(--tinta);
 }
 
-table { border-collapse: collapse; width: 100%; break-inside: avoid; }
-th, td { border: 1px solid #ccc; padding: 2mm 3mm; text-align: left; font-size: 10pt; }
-th { background: #f0f0f0; }
+.bloco {
+  break-inside: avoid;
+  margin: 4.5mm 0;
+  border: 0.3mm solid var(--regua);
+  background: #f8f9fb;
+}
+.bloco-barra {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.8mm 3.6mm;
+  border-bottom: 0.3mm solid var(--regua);
+  background: var(--faixa-barra);
+  font-family: var(--mono);
+  font-size: 8pt;
+  color: var(--texto-3);
+}
+.bloco-barra-acao {
+  font-size: 7pt;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--texto-4);
+}
+.bloco pre {
+  margin: 0;
+  padding: 3.4mm 4mm;
+  font-family: var(--mono);
+  font-size: 9.5pt;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  color: var(--texto);
+}
+.bloco pre code { background: none; padding: 0; font-size: inherit; }
+
+/* ============================================================
+   Tabelas
+   ============================================================ */
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 4mm 0 5mm;
+  break-inside: auto;
+}
+thead { display: table-header-group; }
+tr { break-inside: avoid; }
+
+th {
+  font-family: var(--mono);
+  font-size: 7.5pt;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  text-align: left;
+  color: var(--texto-4);
+  padding: 0 4mm 2.2mm 0;
+  border-bottom: 0.6mm solid var(--tinta);
+  vertical-align: bottom;
+}
+th:first-child { color: var(--tinta); }
+th:last-child { color: var(--acao-texto); padding-right: 0; }
+
+td {
+  font-size: 9.5pt;
+  line-height: 1.5;
+  color: var(--texto-2);
+  padding: 3.2mm 4mm 3.2mm 0;
+  border-bottom: 0.3mm solid var(--regua-fina);
+  vertical-align: top;
+}
+td:first-child { font-weight: 500; color: var(--tinta); width: 29%; }
+td:nth-child(2) { color: var(--texto-3); width: 27%; }
+td:last-child { padding-right: 0; }
+td code { font-size: 8.5pt; }

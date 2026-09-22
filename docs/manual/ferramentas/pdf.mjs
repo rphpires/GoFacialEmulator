@@ -9,7 +9,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { createRequire } from 'node:module'
 
-import { chromium } from 'playwright'
+import { abrirNavegador } from './navegador.mjs'
 
 const AQUI = dirname(fileURLToPath(import.meta.url))
 const RAIZ = resolve(AQUI, '..')
@@ -25,10 +25,7 @@ const RAIZ_PAGEDJS = dirname(dirname(require.resolve('pagedjs')))
 const PAGEDJS = join(RAIZ_PAGEDJS, 'dist', 'paged.polyfill.js')
 
 export async function imprimir(caminhoHtml, caminhoPdf) {
-  // channel: 'chrome' usa o Chrome ja instalado na maquina. Nunca rodamos
-  // "playwright install" — os browsers proprios do Playwright sao 150 MB
-  // que nao precisamos baixar.
-  const browser = await chromium.launch({ channel: 'chrome' })
+  const browser = await abrirNavegador()
   try {
     const page = await browser.newPage()
     await page.goto(pathToFileURL(caminhoHtml).href, { waitUntil: 'load' })

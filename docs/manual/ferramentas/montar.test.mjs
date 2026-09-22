@@ -49,8 +49,12 @@ test('capitulos sao numerados automaticamente', async () => {
 
   const { html } = await montar('teste', { raiz })
 
-  assert.match(html, /1\.\s*Antes de comecar/)
-  assert.match(html, /2\.\s*Instalar/)
+  // O numero do capitulo vive na faixa de abertura, separado do titulo,
+  // porque os dois sao desenhados de formas diferentes.
+  assert.match(html, /abertura-numero">01<[\s\S]*?<h1>Antes de comecar<\/h1>/)
+  assert.match(html, /abertura-numero">02<[\s\S]*?<h1>Instalar<\/h1>/)
+  assert.match(html, /sumario-num">1<[\s\S]*?Antes de comecar/)
+  assert.match(html, /sumario-num">2<[\s\S]*?Instalar/)
 })
 
 test('sumario lista todos os capitulos', async () => {
@@ -151,4 +155,86 @@ test('capitulo sem cabecalho de titulo falha o build', async () => {
     /comum\/a\.md/,
     'a mensagem precisa dizer qual capitulo ficou sem titulo'
   )
+})
+
+test('subsecoes entram no sumario e na abertura do capitulo', async () => {
+  const raiz = await cenario(
+    ['comum/a.md'],
+    { 'comum/a.md': '# Instalar\n\n## Baixar\n\ntexto\n\n## Rodar\n\ntexto\n' }
+  )
+
+  const { html } = await montar('teste', { raiz })
+
+  assert.match(html, /class="sumario-subs"/)
+  assert.match(html, /href="#cap-1-s1"/)
+  assert.match(html, /href="#cap-1-s2"/)
+  assert.match(html, /neste-capitulo[\s\S]*?Baixar[\s\S]*?Rodar/)
+})
+
+test('secao numerada vira passo com marcador de acao', async () => {
+  const raiz = await cenario(
+    ['comum/a.md'],
+    { 'comum/a.md': '# Roteiro\n\n## 1. Abrir o console\n\ntexto\n' }
+  )
+
+  const { html } = await montar('teste', { raiz })
+
+  assert.match(html, /class="secao secao-passo"/)
+  assert.match(html, /secao-numero">1<\/span><span>Abrir o console</,
+    'o numero sai do titulo e vira marcador; o texto fica sem ele')
+})
+
+test('linhas do roteiro viram faixas rotuladas', async () => {
+  const raiz = await cenario(
+    ['comum/a.md'],
+    {
+      'comum/a.md':
+        '# Roteiro\n\n' +
+        '**Faça:** abra o console.\n\n' +
+        '**Tem que acontecer:** a lista carrega.\n\n' +
+        '**Se não acontecer:** veja Problemas.\n'
+    }
+  )
+
+  const { html } = await montar('teste', { raiz })
+
+  assert.match(html, /passo-linha passo-faca[\s\S]*?abra o console/)
+  assert.match(html, /passo-linha passo-esperado[\s\S]*?a lista carrega/)
+  assert.match(html, /passo-linha passo-desvio[\s\S]*?veja Problemas/)
+  assert.doesNotMatch(html, /<p><strong>Faça:<\/strong>/,
+    'a linha de passo nao pode sobrar tambem como paragrafo comum')
+})
+
+test('callout vira aviso com rotulo', async () => {
+  const raiz = await cenario(
+    ['comum/a.md'],
+    { 'comum/a.md': '# Portas\n\n> [!atencao]\n> a porta pode ficar fora da faixa.\n' }
+  )
+
+  const { html } = await montar('teste', { raiz })
+
+  assert.match(html, /class="aviso aviso-atencao"/)
+  assert.match(html, /aviso-rotulo">Atenção</)
+  assert.doesNotMatch(html, /\[!atencao\]/, 'o marcador nao pode vazar para o PDF')
+})
+
+test('marcador de aviso desconhecido falha o build', async () => {
+  const raiz = await cenario(
+    ['comum/a.md'],
+    { 'comum/a.md': '# Portas\n\n> [!cuidado]\n> texto\n' }
+  )
+
+  await assert.rejects(() => montar('teste', { raiz }), /cuidado/)
+})
+
+test('bloco de codigo com arquivo na info string ganha barra', async () => {
+  const raiz = await cenario(
+    ['comum/a.md'],
+    { 'comum/a.md': '# Portas\n\n```yaml docker-compose.yml\nports: []\n```\n' }
+  )
+
+  const { html } = await montar('teste', { raiz })
+
+  assert.match(html, /bloco-barra"><span>docker-compose\.yml<\/span>/)
+  assert.match(html, /bloco-barra-acao">yaml</)
 })
