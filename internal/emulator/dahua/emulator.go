@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -32,6 +33,28 @@ type Emulator struct {
 	remoteServer    string
 	remotePort      string
 	remoteServerURL string
+
+	// configs guarda o que o gerenciador grava via configManager.cgi. Antes o
+	// emulador respondia OK e descartava tudo, e o getConfig só sabia
+	// responder a tabela Network.
+	configs *configStore
+
+	// eventLog é o histórico da tabela AccessControlCardRec, consultado pelo
+	// recordFinder quando o gerenciador varre eventos offline.
+	eventLog *dahuaEventLog
+
+	// countCardsFn resolve a contagem de cartões para o getQuerySize.
+	// Injetável para permitir teste de handler sem banco.
+	countCardsFn func() (int, error)
+
+	// pushChan carrega parts multipart prontas para serem escritas na conexão
+	// de stream aberta. É por aí que sai o evento de enroll de digital: o
+	// gerenciador o espera no stream (IoDahuaCommunication.py:1356), não num
+	// POST para /notification.
+	pushChan chan []byte
+
+	// enrollFn dispara o evento de enroll. Injetável para teste.
+	enrollFn func(userID string)
 }
 
 // NewEmulator cria uma nova instância do emulador Dahua
@@ -48,12 +71,179 @@ func NewEmulator(db database.DBInterface, device models.Device, tracer *trace.Tr
 		running:    false,
 		macAddress: macAddress,
 		stopChan:   make(chan struct{}),
+		configs:    newConfigStore(macAddress),
+		eventLog:   newDahuaEventLog(500),
+		pushChan:   make(chan []byte, 8),
+	}
+
+	emulator.enrollFn = emulator.enviarEventoEnrollDigital
+
+	emulator.countCardsFn = func() (int, error) {
+		contagem, err := repo.CountItems()
+		if err != nil {
+			return 0, err
+		}
+		return contagem.Cards, nil
 	}
 
 	// Inicializar configurações do servidor remoto
 	emulator.initializeRemoteSettings()
 
 	return emulator
+}
+
+// registrarEvento guarda o acesso no histórico local (AccessControlCardRec).
+// Antes o emulador não guardava nada e o recordFinder devolvia a tabela de
+// cartões no lugar dos eventos, o que virava evento fantasma no gerenciador.
+func (e *Emulator) registrarEvento(cardName, cardNo string, userID int, quando time.Time) {
+	if e.eventLog == nil {
+		return
+	}
+	e.eventLog.Append(CardRecEntry{
+		CreateTime: quando,
+		CardNo:     cardNo,
+		CardName:   cardName,
+		UserID:     userID,
+		ReaderID:   1,
+		Method:     15, // EventMethod.FACE
+		ErrorCode:  0,  // ErrorCodeEvents.NO_ERROR
+		Status:     1,
+	})
+}
+
+// keepAliveConfig lê o que o gerenciador gravou em
+// Intelbras_ModeCfg.KeepAlive.* no setConfig. Devolve defaults do device real
+// quando algum campo veio vazio.
+func (e *Emulator) keepAliveConfig() (bool, time.Duration, string) {
+	if e.configs == nil {
+		return false, 5 * time.Second, "/keepalive"
+	}
+
+	ativo := strings.EqualFold(e.configs.Get("Intelbras_ModeCfg.KeepAlive.Enable"), "true")
+
+	intervalo := 5 * time.Second
+	if s := e.configs.Get("Intelbras_ModeCfg.KeepAlive.Interval"); s != "" {
+		if n, err := strconv.Atoi(s); err == nil && n > 0 {
+			intervalo = time.Duration(n) * time.Second
+		}
+	}
+
+	path := e.configs.Get("Intelbras_ModeCfg.KeepAlive.Path")
+	if path == "" {
+		path = "/keepalive"
+	}
+
+	return ativo, intervalo, path
+}
+
+// startKeepAlive mantém o GET periódico ao endpoint /keepalive do gerenciador
+// enquanto o emulador estiver rodando. Reavalia a configuração a cada ciclo,
+// porque o gerenciador liga e desliga o modo online em tempo de execução.
+// Antes o emulador nunca chamava esse endpoint: as chaves KeepAlive.* eram
+// aceitas no setConfig e descartadas.
+func (e *Emulator) startKeepAlive() {
+	go func() {
+		ticker := time.NewTicker(time.Second)
+		defer ticker.Stop()
+
+		var ultimo time.Time
+		client := &http.Client{Timeout: 2 * time.Second}
+
+		for {
+			select {
+			case <-e.stopChan:
+				return
+			case agora := <-ticker.C:
+				ativo, intervalo, path := e.keepAliveConfig()
+				if !ativo || e.remoteServerURL == "" {
+					continue
+				}
+				if agora.Sub(ultimo) < intervalo {
+					continue
+				}
+				ultimo = agora
+
+				url := e.remoteServerURL + path
+				resp, err := client.Get(url)
+				if err != nil {
+					e.tracer.Warning("[keepalive] %s falhou: %v", url, err)
+					continue
+				}
+				resp.Body.Close()
+			}
+		}
+	}()
+}
+
+// buildStreamTextPart embrulha um payload numa part text/plain do multipart
+// que o stream usa. parse_event_data fatia o corpo pelo Content-Length, então
+// ele é obrigatório: sem o header o payload multilinha é truncado.
+func buildStreamTextPart(payload []byte) []byte {
+	return []byte(fmt.Sprintf("%s--myboundary%sContent-Type: text/plain%sContent-Length: %d%s%s%s%s",
+		crlf, crlf, crlf, len(payload), crlf, crlf, string(payload), crlf))
+}
+
+// pushStreamEvent enfileira uma part para a conexão de stream ativa. Se não há
+// stream aberto (ou a fila encheu), o evento é descartado — um dispositivo real
+// também não guarda o que ninguém está escutando.
+func (e *Emulator) pushStreamEvent(part []byte) {
+	if e.pushChan == nil {
+		return
+	}
+	select {
+	case e.pushChan <- part:
+	default:
+		e.tracer.Warning("[stream] fila cheia ou sem ouvinte; evento descartado")
+	}
+}
+
+// buildEnrollEvent monta o evento de coleta de digital que o dispositivo real
+// empurra pelo stream depois de accessControl.cgi?action=captureFingerprint.
+// O gerenciador desvia o evento assim que encontra a chave CollectResult
+// (IoDahuaCommunication.py:1356) e lê Fingerprint para gravar o template.
+func buildEnrollEvent(mac, userID string, sucesso bool) *Event {
+	resultado := sucesso
+	agora := time.Now()
+
+	bruto := make([]byte, 512)
+	for i := range bruto {
+		bruto[i] = byte((i*11 + 7) % 251)
+	}
+
+	return &Event{
+		Events: []EventData{{
+			Action: "Pulse",
+			Code:   "FingerPrintCollect",
+			Data: EventDataDetails{
+				CollectResult: &resultado,
+				UserID:        userID,
+				ReaderID:      "1",
+				CreateTime:    agora.Unix(),
+				UTC:           agora.Unix(),
+				Fingerprint:   base64.StdEncoding.EncodeToString(bruto),
+			},
+			Index:           0,
+			PhysicalAddress: mac,
+		}},
+		Time: agora.Format("2006-01-02 15:04:05"),
+	}
+}
+
+// enviarEventoEnrollDigital emite o evento de enroll depois de um atraso curto,
+// simulando o tempo de encostar o dedo no sensor. O gerenciador bloqueia até
+// 70s esperando por ele em enroll_fingerprint.
+func (e *Emulator) enviarEventoEnrollDigital(userID string) {
+	go func() {
+		time.Sleep(2 * time.Second)
+
+		corpo, err := json.Marshal(buildEnrollEvent(e.macAddress, userID, true))
+		if err != nil {
+			e.tracer.Error("[enroll] marshal: %v", err)
+			return
+		}
+		e.tracer.Info("[enroll] emitindo evento de coleta para UserID=%s", userID)
+		e.pushStreamEvent(buildStreamTextPart(corpo))
+	}()
 }
 
 // initializeRemoteSettings inicializa as configurações do servidor remoto
@@ -164,6 +354,10 @@ func (e *Emulator) Start() error {
 	if e.device.EventInterval > 0 {
 		go e.startEventGenerator()
 	}
+
+	// Keepalive: só bate de fato depois de o gerenciador ligar
+	// Intelbras_ModeCfg.KeepAlive.Enable via setConfig.
+	e.startKeepAlive()
 
 	return nil
 }
@@ -285,6 +479,10 @@ func (e *Emulator) generateRandomEventParts() ([]byte, []byte, error) {
 	}
 	e.tracer.Info("Random card fetched - CardNumber: %s, CardName: %s, UserID: %d", cardNo, cardName, userID)
 
+	// Registrar no histórico local: é ele que o recordFinder serve quando o
+	// gerenciador varre AccessControlCardRec depois de um período offline.
+	e.registrarEvento(cardName, cardNo, userID, time.Now())
+
 	// Gerar evento no formato Dahua (texto simples com \r\n como equipamento real)
 	eventText := fmt.Sprintf("Events[0].Alive=100\r\n"+
 		"Events[0].CardName=%s\r\n"+
@@ -373,6 +571,7 @@ func (e *Emulator) generateOnlineEvent() error {
 	}
 
 	currentTime := time.Now()
+	e.registrarEvento(cardName, cardNo, userID, currentTime)
 	unixTime := currentTime.Unix()
 
 	// Decodificar a imagem para obter o tamanho real

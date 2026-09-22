@@ -108,32 +108,50 @@ type EventData struct {
 
 // EventDataDetails detalhes específicos do evento (formato igual ao dispositivo real Dahua)
 type EventDataDetails struct {
-	Alive            int               `json:"Alive,omitempty"`
-	BlockId          int               `json:"BlockId,omitempty"`
-	CardName         string            `json:"CardName,omitempty"`
-	CardNo           string            `json:"CardNo,omitempty"`
-	CardStatus       int               `json:"CardStatus,omitempty"`
-	CardType         int               `json:"CardType"`
+	Alive      int    `json:"Alive,omitempty"`
+	BlockId    int    `json:"BlockId,omitempty"`
+	CardName   string `json:"CardName,omitempty"`
+	CardNo     string `json:"CardNo,omitempty"`
+	CardStatus int    `json:"CardStatus,omitempty"`
+	CardType   int    `json:"CardType"`
+	// CollectResult só existe no evento de enroll de digital, disparado por
+	// accessControl.cgi?action=captureFingerprint. O gerenciador desvia o
+	// evento assim que vê a chave — IoDahuaCommunication.py:1356. É ponteiro
+	// para que uma coleta falhada (false) não suma por causa do omitempty.
+	CollectResult    *bool             `json:"CollectResult,omitempty"`
 	CreateTime       int64             `json:"CreateTime,omitempty"`
 	Door             int               `json:"Door"`
 	ErrorCode        int               `json:"ErrorCode"`
 	EventGroupID     int               `json:"EventGroupID,omitempty"`
 	FaceIndex        int               `json:"FaceIndex,omitempty"`
 	FeatureId        int               `json:"FeatureId,omitempty"`
+	// Fingerprint carrega o template coletado no evento de enroll.
+	Fingerprint      string            `json:"Fingerprint,omitempty"`
 	HatColor         string            `json:"HatColor,omitempty"`
 	HatType          int               `json:"HatType,omitempty"`
 	ImageInfo        []ImageInfo       `json:"ImageInfo,omitempty"`
 	Method           int               `json:"Method"`
 	ObjectProperties *ObjectProperties `json:"ObjectProperties,omitempty"`
-	ReaderID         string            `json:"ReaderID"`
-	RealUTC          int64             `json:"RealUTC,omitempty"`
-	Similarity       int               `json:"Similarity,omitempty"`
-	SnapPath         string            `json:"SnapPath,omitempty"`
-	Status           int               `json:"Status"`
-	Type             string            `json:"Type"`
-	UTC              int64             `json:"UTC"`
-	UserID           string            `json:"UserID"`
-	UserType         int               `json:"UserType"`
+	// QRCodeStr acompanha os eventos com Method=14 (QRCODE) e alimenta a
+	// validação TOTP em extract_card_number_from_event.
+	QRCodeStr  string `json:"QRCodeStr,omitempty"`
+	ReaderID   string `json:"ReaderID"`
+	RealUTC    int64  `json:"RealUTC,omitempty"`
+	Similarity int    `json:"Similarity,omitempty"`
+	SnapPath   string `json:"SnapPath,omitempty"`
+	Status     int    `json:"Status"`
+	// TrafficCar é o bloco de LPR. extract_card_number_from_event testa
+	// TrafficCar.PlateNumber antes de qualquer outra coisa.
+	TrafficCar *TrafficCar `json:"TrafficCar,omitempty"`
+	Type       string      `json:"Type"`
+	UTC        int64       `json:"UTC"`
+	UserID     string      `json:"UserID"`
+	UserType   int         `json:"UserType"`
+}
+
+// TrafficCar carrega a placa lida em eventos de LPR.
+type TrafficCar struct {
+	PlateNumber string `json:"PlateNumber"`
 }
 
 // ObjectProperties propriedades do objeto detectado

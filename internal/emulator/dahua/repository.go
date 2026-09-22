@@ -5,8 +5,21 @@ import (
 	"GoFacialEmulator/internal/cache"
 	"GoFacialEmulator/internal/database"
 	"context"
+	"errors"
 	"fmt"
 	"time"
+)
+
+// ErrCardUserIDTaken e ErrCardNoTaken distinguem os dois motivos pelos quais
+// o device real (medido na bancada, Intelbras SS 5531 MF EX) rejeita um
+// recordUpdater.cgi?action=insert em AccessControlCard. O device só permite
+// UMA linha por UserID (ErrCardUserIDTaken, code 286064929) e não permite o
+// mesmo CardNo em duas linhas de UserID diferentes (ErrCardNoTaken, code
+// 286064930). Antes as duas causas eram indistinguíveis: CheckIfCardExists
+// devolvia um bool só, e o handler respondia sempre "Error\nBad Request!".
+var (
+	ErrCardUserIDTaken = errors.New("dahua: UserID já possui um cartão AccessControlCard")
+	ErrCardNoTaken     = errors.New("dahua: CardNo pertence a um UserID diferente")
 )
 
 // Queries pré-definidas (prepared statements automáticos)
@@ -146,15 +159,33 @@ func (r *Repository) CountItems() (*CountItems, error) {
 
 // ====================== CARD OPERATIONS ======================
 
-// CheckIfCardExists verifica se um cartão já existe
-func (r *Repository) CheckIfCardExists(cardNo string, userID int) (bool, error) {
+// cardExistsForUserID verifica se o UserID já tem uma linha em
+// AccessControlCard. O device real permite só UMA por UserID.
+func (r *Repository) cardExistsForUserID(userID int) (bool, error) {
 	ctx, cancel := r.getWriteContext()
 	defer cancel()
 
 	var count int
 	err := r.db.QueryRow(ctx,
-		`SELECT COUNT(*) FROM emulator.dahua_cards 
-         WHERE device_id = $1 AND (card_no = $2 OR user_id = $3)`,
+		`SELECT COUNT(*) FROM emulator.dahua_cards
+         WHERE device_id = $1 AND user_id = $2`,
+		r.deviceID, userID).Scan(&count)
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
+// cardNoBelongsToOtherUser verifica se o CardNo já está associado a um
+// UserID diferente do que está sendo inserido.
+func (r *Repository) cardNoBelongsToOtherUser(cardNo string, userID int) (bool, error) {
+	ctx, cancel := r.getWriteContext()
+	defer cancel()
+
+	var count int
+	err := r.db.QueryRow(ctx,
+		`SELECT COUNT(*) FROM emulator.dahua_cards
+         WHERE device_id = $1 AND card_no = $2 AND user_id <> $3`,
 		r.deviceID, cardNo, userID).Scan(&count)
 	if err != nil {
 		return false, err
@@ -183,13 +214,25 @@ func (r *Repository) AddCard(cardName string, userID int, cardNo string, validDa
 	ctx, cancel := r.getWriteContext()
 	defer cancel()
 
-	// Verificar se já existe
-	exists, err := r.CheckIfCardExists(cardNo, userID)
+	// Ordem medida na bancada: um UserID que já tem cartão é rejeitado
+	// (286064929) mesmo que o CardNo seja novo; só depois disso o CardNo
+	// duplicado de outro UserID é rejeitado (286064930). Os dois casos nunca
+	// foram medidos combinados, mas essa ordem é a única testável com os dois
+	// erros sendo mutuamente exclusivos nos exemplos da bancada.
+	temCartao, err := r.cardExistsForUserID(userID)
 	if err != nil {
 		return 0, err
 	}
-	if exists {
-		return 0, fmt.Errorf("card with UserID %d or CardNo %s already exists", userID, cardNo)
+	if temCartao {
+		return 0, ErrCardUserIDTaken
+	}
+
+	cartaoDeOutro, err := r.cardNoBelongsToOtherUser(cardNo, userID)
+	if err != nil {
+		return 0, err
+	}
+	if cartaoDeOutro {
+		return 0, ErrCardNoTaken
 	}
 
 	// Obter próximo RecNo
@@ -403,7 +446,10 @@ func (r *Repository) RemoveFace(userID int) error {
 	return err
 }
 
-// FindRemoteFaces retorna informações para busca de faces
+// FindRemoteFaces retorna informações para busca de faces - Total é a
+// contagem GLOBAL do device (sem filtro por UserID). Só é correto quando a
+// requisição não veio com Condition.UserID; ver FindRemoteFacesByUserID para
+// o caso filtrado.
 func (r *Repository) FindRemoteFaces() (*FindFaceResponse, error) {
 	ctx, cancel := r.getWriteContext()
 	defer cancel()
@@ -418,6 +464,36 @@ func (r *Repository) FindRemoteFaces() (*FindFaceResponse, error) {
 	return &FindFaceResponse{
 		Token: 1 + (int(time.Now().Unix()) % 30),
 		Total: count,
+	}, nil
+}
+
+// FindRemoteFacesByUserID resolve Total para UM UserID específico - 0 ou 1,
+// nunca a contagem global. Medido na bancada: FaceInfoManager.cgi?action=
+// startFind&Condition.UserID=<id> devolve Total=0 quando o UserID não tem
+// face e Total=1 quando tem (a especificação do fabricante, seção 12.3.4,
+// documenta exatamente isso: "Total ... return 0 if not found"). Antes o
+// handler ignorava Condition.UserID e chamava FindRemoteFaces(), que devolve
+// a contagem GLOBAL de faces do device - crescente e alheia ao UserID
+// consultado, inclusive subindo depois de um remove de outro usuário. O
+// gateway usa esse Total para decidir HasFace; com a contagem global,
+// HasFace nunca dava false.
+func (r *Repository) FindRemoteFacesByUserID(userID int) (*FindFaceResponse, error) {
+	existe, err := r.CheckIfFaceExists(userID)
+	if err != nil {
+		return nil, err
+	}
+
+	total := 0
+	if existe {
+		total = 1
+	}
+
+	// Token não carrega significado medido (a especificação não documenta um
+	// valor esperado) - mantido no mesmo esquema do FindRemoteFaces só para
+	// não introduzir uma segunda convenção de Token no mesmo endpoint.
+	return &FindFaceResponse{
+		Token: 1 + (int(time.Now().Unix()) % 30),
+		Total: total,
 	}, nil
 }
 
@@ -464,4 +540,21 @@ func (r *Repository) GetRandomCard() (cardName, cardNo string, userID int, err e
 
 	err = r.db.QueryRow(ctx, queryRandomCard, r.deviceID).Scan(&cardName, &cardNo, &userID)
 	return
+}
+
+// GetCardUserIDByRecNo resolve o UserID a partir do RecNo. O gerenciador
+// remove cartões por RecNo, mas a face é indexada por UserID — e o device real
+// derruba as duas coisas juntas.
+func (r *Repository) GetCardUserIDByRecNo(recNo int) (int, error) {
+	ctx, cancel := r.getWriteContext()
+	defer cancel()
+
+	var userID int
+	err := r.db.QueryRow(ctx,
+		"SELECT user_id FROM emulator.dahua_cards WHERE device_id = $1 AND rec_no = $2",
+		r.deviceID, recNo).Scan(&userID)
+	if err != nil {
+		return 0, err
+	}
+	return userID, nil
 }
