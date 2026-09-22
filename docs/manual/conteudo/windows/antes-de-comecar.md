@@ -1,4 +1,4 @@
-# Antes de comecar
+# Antes de começar
 
 Este manual cobre o pacote Windows do GoFacialEmulator — a versão que roda
 direto no Windows, sem precisar de nenhum outro programa instalado antes.
@@ -18,10 +18,11 @@ ZIP.
 
 Extraia o ZIP em `C:\GoFacialEmulator`.
 
-Evite extrair dentro de **Área de Trabalho**, **Documentos** ou de uma
-pasta sincronizada pelo **OneDrive** — a sincronização automática dessas
-pastas atrapalha o banco de dados embutido enquanto o emulador está em
-uso.
+> [!atencao]
+> Evite extrair dentro de **Área de Trabalho**, **Documentos** ou de uma
+> pasta sincronizada pelo **OneDrive** — a sincronização automática dessas
+> pastas atrapalha o banco de dados embutido enquanto o emulador está em
+> uso.
 
 Com o pacote extraído no lugar certo, siga para o próximo capítulo:
 instalar o emulador.

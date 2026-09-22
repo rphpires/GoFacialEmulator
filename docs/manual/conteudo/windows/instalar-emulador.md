@@ -2,7 +2,7 @@
 
 Na pasta onde você extraiu o ZIP (`C:\GoFacialEmulator`):
 
-![Pasta extraida em C:\GoFacialEmulator](img/manual/windows-pasta.png)
+![Pasta extraída em C:\GoFacialEmulator](img/manual/windows-pasta.png)
 
 ## Instalar
 
@@ -15,7 +15,7 @@ aparece:
 ✅ Instalado. Rode INICIAR.bat
 ```
 
-![Janela do INSTALAR.bat concluida](img/manual/windows-instalar.png)
+![Janela do INSTALAR.bat concluída](img/manual/windows-instalar.png)
 
 Rodar `INSTALAR.bat` de novo, por engano ou para conferir, não faz mal
 nenhum: ele detecta que o banco já existe e não apaga nada — só avisa "O

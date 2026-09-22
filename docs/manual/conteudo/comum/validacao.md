@@ -1,4 +1,4 @@
-# Roteiro de validacao
+# Roteiro de validação
 
 Depois de instalar e configurar a conexão com o W-Access, siga estes
 passos na ordem. Cada um diz o que fazer e o que precisa acontecer; se
@@ -72,4 +72,4 @@ no log do dispositivo quanto no log da aplicação.
 **Se não acontecer:** confira se **Gravar log de eventos** estava
 marcado antes do evento acontecer — ele só registra o que acontece depois
 de ligado — e veja o caminho do log da aplicação para o seu pacote no
-capítulo Onde estao os logs.
+capítulo Onde estão os logs.

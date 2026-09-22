@@ -7,7 +7,7 @@ import { mkdir, readFile, access } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { chromium } from 'playwright'
+import { abrirNavegador } from './navegador.mjs'
 
 import { cssDeCallout } from './callout.mjs'
 
@@ -32,7 +32,13 @@ const ESCALA = 2
 // esperando 100s; nenhum prazo "resolve" esse caso, entao o valor so precisa
 // separar "lento mas vivo" de "definitivamente parado" sem prender a suite
 // do emulador (12 figuras ja publicadas) atras de uma instalacao fora do ar.
-const LOGIN_TIMEOUT_MS = 20_000
+// Medido nesta instalacao (192.168.1.138, IIS em RPH-SRV): a propria
+// Login.aspx leva ~35s para completar o 'load' — dois redirects (o segundo
+// injeta o id de sessao WebForms no caminho) e so entao o HTML. 20s cortava
+// a navegacao antes mesmo da pagina existir, e o sintoma era enganoso:
+// aparecia como servidor inalcancavel, quando o servidor so era lento.
+// 90s da folga de 2.5x sobre o medido sem deixar de ser finito.
+const LOGIN_TIMEOUT_MS = 90_000
 
 // desenharNumeros desenha o numero de cada marcador como <div> real no
 // documento, por cima de tudo.
@@ -427,104 +433,205 @@ async function suiteWxs(browser, env) {
     deviceScaleFactor: ESCALA,
     ignoreHTTPSErrors: true
   })
-  const page = await context.newPage()
+  let page = await context.newPage()
 
-  // waitUntil: 'load', nao 'networkidle' — confirmado que a Login.aspx
-  // mantem trafego de fundo (o aviso "SERVICE NOT RUNNING" no rodape parece
-  // sondar o backend periodicamente), entao 'networkidle' nunca assenta
-  // mesmo quando a pagina em si carregou por completo. 'load' e o que o
-  // relato de exploracao (task-4-report.md) confirmou que completa
-  // normalmente mesmo com o servico de backend fora do ar.
+  // insistir repete um passo ate ele passar ou o prazo acabar, com aba nova
+  // a cada rodada.
+  //
+  // Numa estacao que roda Docker o Chromium aborta navegacoes em voo com
+  // net::ERR_NETWORK_CHANGED toda vez que uma interface de rede aparece ou
+  // some — e cada container que sobe cria um veth novo. Confirmado com
+  // `docker events` na estacao de desenvolvimento: ha "network connect" e
+  // "container start" o tempo todo, enquanto o mesmo endereco respondia
+  // normalmente via curl. E falha de ambiente, nao do servidor, e a janela de
+  // ~35s que cada tela do W-Access leva para carregar da azar com facilidade.
+  //
+  // Insistir por TEMPO, e nao por numero de tentativas: um aborto volta em
+  // ~5s, um carregamento que da certo leva ~35s. Contar tentativas gastaria o
+  // orcamento em meia duzia de abortos rapidos sem nunca dar ao servidor uma
+  // janela inteira.
+  //
+  // A aba e recriada a cada rodada porque reaproveitar a que ficou na pagina
+  // de erro interna do Chromium faz a navegacao seguinte ser cancelada por
+  // ela, e o sintoma vira "interrupted by another navigation to
+  // chrome-error://chromewebdata/", que esconde o erro verdadeiro. A pausa
+  // antes de tentar de novo evita disparar um goto por cima de outro.
+  const PRAZO_PADRAO_MS = 5 * 60_000
+  async function insistir (rotulo, passo, prazoMs = PRAZO_PADRAO_MS) {
+    const limite = Date.now() + prazoMs
+    let ultimoErro = null
+    let rodada = 0
+    while (Date.now() < limite) {
+      rodada += 1
+      try {
+        return await passo()
+      } catch (erro) {
+        ultimoErro = erro
+        console.warn(
+          `[captura] ${rotulo}: tentativa ${rodada} falhou ` +
+          `(${erro.message.split('\n')[0]})`
+        )
+        await page.close().catch(() => {})
+        page = await context.newPage()
+        await page.waitForTimeout(4000)
+      }
+    }
+    throw ultimoErro
+  }
+
+  // Etapa 1: chegar na tela de login.
+  //
+  // waitUntil: 'load', nao 'networkidle' — confirmado que a Login.aspx mantem
+  // trafego de fundo (o aviso do rodape sonda o backend periodicamente),
+  // entao 'networkidle' nunca assenta mesmo com a pagina ja carregada.
+  //
+  // Servidor fora do ar NAO lanca: vira aviso e a suite do W-Access inteira e
+  // pulada dali, porque a suite do emulador (12 figuras publicadas) nao pode
+  // ficar refem de uma instalacao do W-Access parada.
   try {
-    await page.goto(env.WXS_URL, { waitUntil: 'load', timeout: LOGIN_TIMEOUT_MS })
+    await insistir('abrir o W-Access', async () => {
+      await page.goto(env.WXS_URL, { waitUntil: 'load', timeout: LOGIN_TIMEOUT_MS })
+      if (page.url().startsWith('chrome-error')) throw new Error('navegacao abortada')
+    })
   } catch (erro) {
     console.warn(
-      `[captura] W-Access inalcancavel em ${env.WXS_URL} (${erro.message}) — ` +
+      `[captura] W-Access inalcancavel em ${env.WXS_URL} (${erro.message.split('\n')[0]}) — ` +
       'suite pulada, as capturas do emulador seguem normalmente.'
     )
     await context.close()
     return
   }
 
-  // A tela de login e fotografada ANTES de preencher, para o manual mostrar
-  // o campo vazio e nao a credencial de quem gerou.
-  //
-  // Os tres seletores abaixo sao CONFIRMADOS (ver task-4-report.md, obtidos
-  // com page.$$eval sobre todos os <input> da Login.aspx real): a pagina e
-  // WebForms e tem VARIOS input[type="text"] visiveis ao mesmo tempo (campos
-  // ocultos de telemetria do cliente), entao um seletor generico por type
-  // bateria em mais de um elemento e falharia por ambiguidade no modo
-  // estrito do Playwright.
-  await disparar(page, {
-    url: null,
-    arquivo: 'wxs-login.png'
-  })
-
-  await page.fill('#txt_Operator', env.WXS_USUARIO)
-  await page.fill('#txt_Password', env.WXS_SENHA)
-  await page.click('#btnBD_Login')
-
-  // E aqui que o backend do W-Access pode travar: o handler de login faz
-  // (aparentemente) uma chamada sincrona pro servico Windows que fala com o
-  // banco/hardware, e se esse servico estiver fora do ar o POST nunca
-  // recebe resposta — nem sucesso, nem erro, nenhum evento de rede novo.
-  // Prazo limitado de proposito, ver LOGIN_TIMEOUT_MS.
-  //
-  // 'load', nao 'networkidle': confirmado nesta mesma execucao que a
-  // Login.aspx nunca assenta em rede ociosa (ver comentario no goto()
-  // acima) — um sucesso de login provavelmente troca de pagina (redirect
-  // pos-autenticacao), o que dispara um novo evento 'load' de verdade; um
-  // travamento nao dispara evento nenhum de qualquer forma, entao 'load'
-  // deteta os dois casos sem correr o risco de nunca assentar numa pagina
-  // pos-login que tambem tenha trafego de fundo.
-  try {
-    await page.waitForLoadState('load', { timeout: LOGIN_TIMEOUT_MS })
-  } catch {
+  // O rodape da Login.aspx anuncia quando o servico Windows do W-Access esta
+  // parado. Com ele parado nenhuma figura desta suite presta: a de login sai
+  // com um aviso vermelho de erro que nao tem nada a ver com o passo que o
+  // manual ensina, e o POST de login nao recebe resposta, entao as tres
+  // seguintes nem existem. Figura com erro estampado e pior que figura
+  // pendente — ninguem revisando o PDF adivinha que aquele vermelho nao devia
+  // estar ali.
+  if (/SERVICE NOT RUNNING/i.test(await page.content())) {
     console.warn(
-      `[captura] login do W-Access nao completou em ${LOGIN_TIMEOUT_MS / 1000}s — ` +
-      'servico de backend provavelmente fora do ar (ver task-4-report.md). ' +
-      'wxs-pos-login.png, wxs-controladores.png e wxs-inicial.png ficam pendentes.'
+      '[captura] W-Access respondeu, mas o servico esta parado ' +
+      '("INVENZI W-ACCESS SERVICE NOT RUNNING" no rodape da tela de login) — ' +
+      'suite pulada. Inicie o servico no servidor e rode de novo; nenhuma ' +
+      'figura do W-Access sai util com ele parado.'
     )
     await context.close()
     return
   }
 
-  // A tela inicial depois do login, so para o manual mostrar que o acesso
-  // deu certo antes de mandar navegar.
+  // A tela de login e fotografada ANTES de preencher, para o manual mostrar o
+  // campo vazio e nao a credencial de quem gerou.
+  //
+  // Os tres seletores sao confirmados na Login.aspx real: a pagina e WebForms
+  // e tem varios input[type="text"] visiveis ao mesmo tempo (campos ocultos de
+  // telemetria do cliente), entao um seletor generico por type bateria em mais
+  // de um elemento e falharia por ambiguidade no modo estrito do Playwright.
+  await disparar(page, {
+    url: null,
+    arquivo: 'wxs-login.png'
+  })
+
+  // Etapa 2: entrar. Repete o passo inteiro (abrir, preencher, submeter)
+  // porque um aborto de rede no meio deixa a aba na pagina de erro, e nao
+  // adianta so reenviar o formulario que nao existe mais.
+  await insistir('login no W-Access', async () => {
+    if (!page.url().includes('Login.aspx')) {
+      await page.goto(env.WXS_URL, { waitUntil: 'load', timeout: LOGIN_TIMEOUT_MS })
+    }
+    await page.fill('#txt_Operator', env.WXS_USUARIO)
+    await page.fill('#txt_Password', env.WXS_SENHA)
+    await page.click('#btnBD_Login')
+    await page.waitForLoadState('load', { timeout: LOGIN_TIMEOUT_MS })
+    await page.waitForTimeout(4000)
+    if (page.url().startsWith('chrome-error')) throw new Error('navegacao abortada')
+    if (page.url().includes('Login.aspx')) throw new Error('continuou na tela de login')
+  })
+
+  // A tela inicial depois do login (Default.aspx, que carrega a lista de
+  // cardholders num iframe), so para o manual mostrar que o acesso deu certo.
   await disparar(page, {
     url: null,
     arquivo: 'wxs-pos-login.png'
   })
 
-  // NAO CONFIRMADO — o login nunca completou durante o desenvolvimento desta
-  // suite (ver task-4-report.md), entao esta tela nunca foi vista de
-  // verdade. Textos de menu chutados cobrindo ingles (idioma confirmado
-  // desta instalacao, "OPERATOR:"/"PASSWORD:"/"LOGIN" na tela de login) e
-  // portugues, caso outra instalacao esteja localizada. Na primeira execucao
-  // real: se a regex nao casar, o Playwright lanca apontando qual — leia o
-  // texto verdadeiro do link na tela e troque so a regex correspondente
-  // abaixo, nao adicione mais alternativas "por garantia".
-  // 'load' pelo mesmo motivo do wait pos-login: 'networkidle' nao assenta
-  // nesta instalacao.
-  await page.getByRole('link', { name: /devices|dispositivos/i }).first().click()
-  await page.getByRole('link', { name: /controllers|controladores/i }).first().click()
-  await page.waitForLoadState('load')
+  // O W-Access carrega o id da sessao NO CAMINHO da URL
+  // (.../W-Access/(S(<id>))/Default.aspx), e nao so em cookie. Toda tela
+  // seguinte precisa ser aberta debaixo desse mesmo prefixo, senao a sessao
+  // se perde e o servidor devolve a tela de login de novo.
+  const base = page.url().slice(0, page.url().lastIndexOf('/') + 1)
+
+  // Etapa 3: a lista de controladores.
+  //
+  // O caminho pela interface e SYSTEM > HARDWARE SETTINGS > Devices, que abre
+  // CfgSYLocalitiesFullHierarchy.aspx. Vamos direto na URL em vez de clicar os
+  // tres niveis: o menu e um TreeView de WebForms que faz um postback por
+  // nivel, e cada postback e mais uma navegacao exposta ao aborto de rede
+  // descrito em insistir(). A URL e estavel, o menu nao precisa ser encenado.
+  //
+  // A arvore abre fechada, so com as localidades. A busca por "emulator"
+  // expande exatamente os controladores do emulador — que e o que o capitulo
+  // manda o leitor procurar.
+  //
+  // O clique vai pelo DOM (element.click()) e nao pelo mouse: durante os
+  // postbacks o W-Access cobre a tela com #ctl00_DivProgress, um overlay que
+  // intercepta ponteiro e faz o clique real expirar. Nao ha nada de visual a
+  // validar no botao de busca, so o postback que ele dispara.
+  async function abrirListaDeControladores () {
+    await page.goto(base + 'CfgSYLocalitiesFullHierarchy.aspx', {
+      waitUntil: 'load',
+      timeout: LOGIN_TIMEOUT_MS
+    })
+    if (page.url().startsWith('chrome-error')) throw new Error('navegacao abortada')
+    await page.$eval('#ctl00_ContentPlaceHolder1_txt_Search', (campo, valor) => {
+      campo.value = valor
+    }, 'emulator')
+    await page.$eval('#ctl00_ContentPlaceHolder1_btn_Search', (botao) => botao.click())
+
+    // Espera pelo resultado, e nao por tempo fixo: os nos da arvore sao
+    // <span class="rtIn"> do RadTreeView, e os controladores do emulador
+    // aparecem como "CTRL_emulator_NNN - emulator_NN [host:porta]".
+    await page.waitForFunction(() => {
+      return [...document.querySelectorAll('span.rtIn')]
+        .some((no) => /^CTRL_emulator/i.test((no.innerText || '').trim()))
+    }, null, { timeout: 90_000 })
+    await page.waitForTimeout(1500)
+  }
+
+  await insistir('lista de controladores', abrirListaDeControladores)
 
   await disparar(page, {
     url: null,
     arquivo: 'wxs-controladores.png'
   })
 
-  // NAO CONFIRMADO, mesmo motivo acima. Abre o primeiro controlador da lista
-  // pra chegar na tela de cadastro (wxs-inicial.png), onde a descricao
-  // emulator_NN, o endereco e o BaseCommPort sao preenchidos pelo tecnico.
-  // `table a` e um chute generico (a tabela de controladores provavelmente
-  // usa <a> dentro de <table> pra abrir o registro, como e comum em grids do
-  // WebForms) — na primeira execucao real, confirme isso olhando o DOM da
-  // tela de controladores; se for outro elemento (linha clicavel, botao de
-  // icone), troque so este seletor.
-  await page.locator('table a').first().click()
-  await page.waitForLoadState('load')
+  // Etapa 4: o cadastro de um controlador.
+  //
+  // Clicar no no NAO navega: o formulario do controlador carrega por AJAX no
+  // painel da direita, na mesma URL. Por isso a espera e pelo conteudo do
+  // painel — o rotulo "ID: NNN", que so existe com um controlador carregado —
+  // e nao por evento de navegacao, que nunca vem.
+  //
+  // force: true porque o mesmo overlay de progresso (#ctl00_DivProgress) pode
+  // estar por cima quando o clique acontece.
+  //
+  // O primeiro CTRL_emulator da lista serve: a figura existe para mostrar
+  // ONDE ficam a descricao comecando com `emulator`, o endereco e o
+  // BaseCommPort, nao para documentar um controlador especifico.
+  await insistir('cadastro do controlador', async () => {
+    // Uma tentativa que falhou trocou a aba, e a aba nova nasce em branco —
+    // sem a lista, sem a busca. Refazer o caminho antes de procurar o no e o
+    // que torna esta etapa capaz de se recuperar sozinha.
+    const no = page.locator('span.rtIn').filter({ hasText: /^CTRL_emulator/ }).first()
+    if (await no.count() === 0) await abrirListaDeControladores()
+    await no.scrollIntoViewIfNeeded()
+    await no.click({ force: true })
+    await page.waitForSelector(
+      '#ctl00_ContentPlaceHolder1_ControlLocalController_lbl_ID',
+      { state: 'visible', timeout: 90_000 }
+    )
+    await page.waitForTimeout(1500)
+  })
 
   await disparar(page, {
     url: null,
@@ -536,7 +643,7 @@ async function suiteWxs(browser, env) {
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   await mkdir(DESTINO, { recursive: true })
-  const browser = await chromium.launch({ channel: 'chrome' })
+  const browser = await abrirNavegador()
   try {
     await suiteEmulador(browser)
 

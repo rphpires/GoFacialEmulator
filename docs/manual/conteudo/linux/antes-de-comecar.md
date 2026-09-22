@@ -1,4 +1,4 @@
-# Antes de comecar
+# Antes de começar
 
 Este manual cobre o pacote Linux do GoFacialEmulator, e vale para dois
 públicos diferentes:

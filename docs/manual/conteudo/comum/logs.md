@@ -1,4 +1,4 @@
-# Onde estao os logs
+# Onde estão os logs
 
 Cada pacote grava os logs em um lugar um pouco diferente. Esta tabela
 mostra onde procurar em cada um.

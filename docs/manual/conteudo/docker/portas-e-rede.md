@@ -19,17 +19,19 @@ conseguir falar com um dispositivo emulado, a porta dele precisa estar
 máquina Windows.
 
 Neste pacote, a faixa publicada é **4000 a 4499**. Um controlador cadastrado
-no W-Access com porta dentro dessa faixa funciona normalmente. Um
-controlador com porta **fora** dessa faixa sobe do mesmo jeito — o
-dispositivo aparece ativo, verde, sem erro nenhum na tela — mas a porta
-dele fica escutando só dentro do contêiner, e o Site Controller não
-consegue alcançá-la. É exatamente o sintoma do passo 3 do Roteiro de
-validação.
+no W-Access com porta dentro dessa faixa funciona normalmente.
+
+> [!atencao]
+> Um controlador com porta **fora** dessa faixa sobe do mesmo jeito — o
+> dispositivo aparece ativo, verde, sem erro nenhum na tela — mas a porta
+> dele fica escutando só dentro do contêiner, e o Site Controller não
+> consegue alcançá-la. É exatamente o sintoma do passo 3 do Roteiro de
+> validação.
 
 Quando isso acontece, a lista de dispositivos mostra um aviso no topo da
 tela:
 
-![Aviso de portas nao publicadas](img/gerado/emulador-aviso-portas.png)
+![Aviso de portas não publicadas](img/gerado/emulador-aviso-portas.png)
 
 ## Como alargar a faixa
 
@@ -38,7 +40,7 @@ arquivo `sistema\docker-compose.yml`, dentro da pasta onde o pacote foi
 extraído. Duas partes desse arquivo precisam mudar **juntas, para a mesma
 faixa** — mudar só uma delas não resolve:
 
-```yaml
+```yaml sistema\docker-compose.yml
     environment:
       ...
       PUBLISHED_PORT_RANGE: "4000-4499"
@@ -55,8 +57,9 @@ sempre a mesma em qualquer pacote.
 
 ## Em Linux não há limite
 
-Esse limite de faixa publicada existe só na versão para Windows deste
-pacote. Rodando este mesmo pacote Docker em um servidor Linux (usando os
-scripts `.sh` em vez dos `.bat`), o contêiner usa a rede do próprio
-servidor — não há faixa para configurar, e qualquer porta que o W-Access
-peça funciona.
+> [!nota]
+> Esse limite de faixa publicada existe só na versão para Windows deste
+> pacote. Rodando este mesmo pacote Docker em um servidor Linux (usando os
+> scripts `.sh` em vez dos `.bat`), o contêiner usa a rede do próprio
+> servidor — não há faixa para configurar, e qualquer porta que o W-Access
+> peça funciona.

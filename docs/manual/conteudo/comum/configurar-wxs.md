@@ -39,7 +39,7 @@ de comunicação.
 
 ## A tela de conexão do emulador
 
-![Tela de conexao com o W-Access](img/gerado/emulador-configuracoes.png)
+![Tela de conexão com o W-Access](img/gerado/emulador-configuracoes.png)
 
 No console do emulador, abra a página **Conexão W-Access** e preencha:
 
@@ -53,9 +53,12 @@ digitada em texto simples, para conferir antes de salvar.
 
 ## Testar, salvar e sincronizar
 
-Antes de sair da página, clique em **Testar conexão**. Se o teste falhar,
-revise servidor, banco, usuário e senha — não adianta salvar uma conexão
-que não funciona. Com o teste dando certo, clique em **Salvar**.
+> [!dica]
+> Antes de sair da página, clique em **Testar conexão**. Se o teste falhar,
+> revise servidor, banco, usuário e senha — não adianta salvar uma conexão
+> que não funciona.
+
+Com o teste dando certo, clique em **Salvar**.
 
 Volte para a página **Dispositivos** e use o botão **Sincronizar com o
 W-Access**, na barra lateral, para o emulador buscar os controladores com

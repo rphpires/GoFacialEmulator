@@ -18,7 +18,7 @@ No PowerShell, rode:
 wsl --install
 ```
 
-![Saida do comando wsl --install](img/manual/wsl-install.png)
+![Saída do comando wsl --install](img/manual/wsl-install.png)
 
 Quando ele pedir, reinicie o computador.
 
@@ -26,7 +26,7 @@ Depois de reiniciar, o Ubuntu abre sozinho pela primeira vez e pede para
 você criar um usuário e uma senha para dentro do Linux — esse usuário é
 independente da sua conta do Windows, escolha o que preferir.
 
-![Primeira abertura do Ubuntu pedindo usuario](img/manual/wsl-primeiro-uso.png)
+![Primeira abertura do Ubuntu pedindo usuário](img/manual/wsl-primeiro-uso.png)
 
 ## Atenção: o modo de rede do WSL2
 

@@ -42,4 +42,4 @@ Se outro programa na mesma máquina já estiver usando a porta de um
 controlador, o dispositivo correspondente aparece como inalcançável na
 tela do emulador, e o log da aplicação (`sistema\logs\trace.log`) traz o
 erro do próprio Windows explicando qual porta e por quê. Veja o capítulo
-Onde estao os logs para o caminho completo.
+Onde estão os logs para o caminho completo.

@@ -132,7 +132,7 @@ A gaveta é o painel que desliza da direita para mostrar tudo sobre um
 único dispositivo. Ela abre pelo terceiro botão da coluna Ações, o de
 duas pessoas.
 
-![A gaveta, aba de usuarios](img/gerado/emulador-gaveta-usuarios.png)
+![A gaveta, aba de usuários](img/gerado/emulador-gaveta-usuarios.png)
 
 No topo da gaveta ficam a luz de estado — a mesma cor da coluna Estado —
 e o nome do dispositivo com o número do controlador ao lado. Logo abaixo
@@ -143,7 +143,7 @@ cartão, se tem face cadastrada e validade. O campo de busca no topo filtra
 por nome ou ID, e a paginação (**Anterior** / **Próxima**) navega pelo
 restante da lista.
 
-![A gaveta, aba de configuracoes](img/gerado/emulador-gaveta-config.png)
+![A gaveta, aba de configurações](img/gerado/emulador-gaveta-config.png)
 
 A aba **Configurações** tem duas partes. Em cima, a seção **Emulador**:
 a mesma caixa **Gravar log de eventos** que aparece na coluna Log da
@@ -168,7 +168,7 @@ a página abre de novo.
 
 ## A página de comparação
 
-![A pagina de comparacao](img/gerado/emulador-comparacao.png)
+![A página de comparação](img/gerado/emulador-comparacao.png)
 
 Esta página compara, controlador por controlador, o total de usuários
 cadastrado no W-Access, no gerenciador do W-Access e no emulador. Ela não
