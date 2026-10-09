@@ -39,8 +39,13 @@ type Manager struct {
 	shutdownChan   chan struct{}
 	watchdogTicker *time.Ticker
 
-	statusListeners []StatusChangeListener
-	listenersMutex  sync.RWMutex
+	hub fleetHub
+
+	// starting reserva os IDs com start em andamento. O start de um
+	// emulador pode levar até 10 s; segurar emulatorMutex durante esse tempo
+	// serializava o StartAll inteiro e travava ListDevices (e, com ele, a
+	// tela) enquanto a frota subia.
+	starting map[int]bool
 
 	// Controle de refresh em andamento com atomic
 	refreshInProgress atomic.Bool
@@ -61,14 +66,6 @@ type WatchdogInfo struct {
 	LastStatus   string
 }
 
-type StatusChangeEvent struct {
-	DeviceID int    `json:"device_id"`
-	Status   string `json:"status"`
-	Name     string `json:"name"`
-}
-
-type StatusChangeListener chan StatusChangeEvent
-
 // NewManager cria um novo gerenciador de emuladores
 func NewManager(serviceDB database.DBInterface, emulatorDB database.DBInterface, wxsDB *database.WxsDB, tracer *trace.Tracer) *Manager {
 	return &Manager{
@@ -80,9 +77,7 @@ func NewManager(serviceDB database.DBInterface, emulatorDB database.DBInterface,
 		watchdog:       make(map[int]*WatchdogInfo),
 		shutdownChan:   make(chan struct{}),
 		watchdogTicker: time.NewTicker(10 * time.Second), // Equivalente ao schedule.every(10).seconds
-
-		statusListeners: make([]StatusChangeListener, 0),
-		listenersMutex:  sync.RWMutex{},
+		starting:       make(map[int]bool),
 	}
 }
 
@@ -182,6 +177,8 @@ func (m *Manager) RefreshDevices() error {
 		m.Tracer.Error("Failed to cleanup orphaned devices: %v", err)
 	}
 
+	// Inclusões e remoções em massa: a tela relê a frota inteira.
+	m.notifyResync()
 	return nil
 }
 
@@ -337,6 +334,10 @@ func (m *Manager) ListDevices() ([]models.Device, error) {
 	for id, emulator := range m.emulators {
 		statusMap[id] = emulator.IsRunning()
 	}
+	iniciando := make(map[int]bool, len(m.starting))
+	for id := range m.starting {
+		iniciando[id] = true
+	}
 	m.emulatorMutex.RUnlock()
 
 	// Processar rows sem lock
@@ -352,9 +353,12 @@ func (m *Manager) ListDevices() ([]models.Device, error) {
 		}
 
 		// Atualizar status baseado no snapshot (sem lock adicional!)
-		if running, ok := statusMap[device.ID]; ok && running {
+		switch {
+		case statusMap[device.ID]:
 			device.Status = "running"
-		} else {
+		case iniciando[device.ID]:
+			device.Status = "starting"
+		default:
 			device.Status = "stopped"
 		}
 
@@ -452,16 +456,41 @@ func (m *Manager) getDeviceUnsafe(id int) (models.Device, error) {
 
 // Start inicia um emulador específico - equivalente ao start_emulators() do Python
 func (m *Manager) Start(id int) error {
+	// Reserva o ID e solta o mutex antes do start propriamente dito: o
+	// emulador abre porta e conexões, o que pode levar segundos, e o mutex
+	// é o mesmo que ListDevices usa para ler o estado da frota.
 	m.emulatorMutex.Lock()
-	defer m.emulatorMutex.Unlock()
-
-	// Verificar se já está rodando
 	if emulator, exists := m.emulators[id]; exists && emulator.IsRunning() {
+		m.emulatorMutex.Unlock()
 		return fmt.Errorf("emulator %d already running", id)
 	}
+	if m.starting[id] {
+		m.emulatorMutex.Unlock()
+		return fmt.Errorf("emulator %d is already starting", id)
+	}
+	if m.starting == nil {
+		m.starting = make(map[int]bool)
+	}
+	m.starting[id] = true
+	m.emulatorMutex.Unlock()
 
-	// Obter informações do dispositivo com timeout
+	err := m.startReserved(id)
+
+	m.emulatorMutex.Lock()
+	delete(m.starting, id)
+	m.emulatorMutex.Unlock()
+
+	// Falha também notifica: o cliente que pediu o start está esperando o
+	// estado final, e o último erro vai junto na releitura.
+	m.NotifyChanged(id)
+	return err
+}
+
+// startReserved faz o start de um ID já reservado em m.starting.
+func (m *Manager) startReserved(id int) error {
+	m.emulatorMutex.RLock()
 	device, err := m.getDeviceUnsafe(id)
+	m.emulatorMutex.RUnlock()
 	if err != nil {
 		return fmt.Errorf("failed to get device info: %w", err)
 	}
@@ -470,19 +499,16 @@ func (m *Manager) Start(id int) error {
 		return fmt.Errorf("device %d is disabled", id)
 	}
 
-	// Criar emulador baseado no modelo
 	emulator, err := m.createEmulator(device)
 	if err != nil {
 		return fmt.Errorf("failed to create emulator: %w", err)
 	}
 
-	// Iniciar emulador com timeout usando canal
 	startErrChan := make(chan error, 1)
 	go func() {
 		startErrChan <- emulator.Start()
 	}()
 
-	// Aguardar inicialização com timeout de 10 segundos
 	select {
 	case err := <-startErrChan:
 		m.recordStartResult(id, err)
@@ -498,9 +524,10 @@ func (m *Manager) Start(id int) error {
 	}
 
 	// Armazenar emulador ANTES de atualizar banco (para garantir consistência)
+	m.emulatorMutex.Lock()
 	m.emulators[id] = emulator
+	m.emulatorMutex.Unlock()
 
-	// Atualizar status no banco SINCRONAMENTE durante startup para evitar race conditions
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -519,10 +546,6 @@ func (m *Manager) Start(id int) error {
 	m.watchdogMutex.Unlock()
 
 	m.Tracer.Info("Started emulator for device %d (%s)", id, device.Name)
-
-	// Notificar mudança de status
-	go m.notifyStatusChange(id, "running", device.Name)
-
 	return nil
 }
 
@@ -541,52 +564,42 @@ func (m *Manager) createEmulator(device models.Device) (Emulator, error) {
 // Stop para um emulador específico
 func (m *Manager) Stop(id int) error {
 	m.emulatorMutex.Lock()
-	defer m.emulatorMutex.Unlock()
-
 	emulator, exists := m.emulators[id]
 	if !exists || !emulator.IsRunning() {
+		m.emulatorMutex.Unlock()
 		return fmt.Errorf("emulator %d not running", id)
 	}
 
-	// Obter nome do dispositivo antes de parar
-	device, err := m.getDeviceUnsafe(id)
-	deviceName := "Unknown"
-	if err == nil {
-		deviceName = device.Name
-	}
-
-	// Parar emulador
 	if err := emulator.Stop(); err != nil {
+		m.emulatorMutex.Unlock()
 		return fmt.Errorf("failed to stop emulator: %w", err)
 	}
+	delete(m.emulators, id)
+	m.emulatorMutex.Unlock()
 
-	// Atualizar status no banco
+	m.markStopped(id)
+	m.Tracer.Info("Stopped emulator for device %d", id)
+	m.NotifyChanged(id)
+	return nil
+}
+
+// markStopped grava o estado parado e zera o watchdog. Fica fora do
+// emulatorMutex: é I/O de banco, e segurar o mutex aqui travava a leitura
+// da frota.
+func (m *Manager) markStopped(id int) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	_, err = m.ServiceDB.Exec(ctx, "UPDATE service.devices SET status = 'stopped' WHERE local_controller_id = $1", id)
-	if err != nil {
+	if _, err := m.ServiceDB.Exec(ctx, "UPDATE service.devices SET status = 'stopped' WHERE local_controller_id = $1", id); err != nil {
 		m.Tracer.Error("Failed to update device status: %v", err)
 	}
 
-	// Remover do mapa
-	delete(m.emulators, id)
-
-	// Atualizar watchdog (com proteção)
 	m.watchdogMutex.Lock()
 	if info, exists := m.watchdog[id]; exists {
 		info.LastStatus = "stopped"
 		info.FailureCount = 0
 	}
 	m.watchdogMutex.Unlock()
-
-	m.Tracer.Info("Stopped emulator for device %d", id)
-
-	// ADICIONAR ESTA LINHA:
-	// Notificar mudança de status
-	go m.notifyStatusChange(id, "stopped", deviceName)
-
-	return nil
 }
 
 // StartAll inicia todos os emuladores habilitados com controle de concorrência e retry
@@ -705,28 +718,26 @@ func (m *Manager) StartAll() error {
 
 // StopAll para todos os emuladores
 func (m *Manager) StopAll() {
+	// Tira o mapa inteiro de uma vez e para fora do mutex: parar e gravar
+	// no banco um por um com o mutex preso travava ListDevices até o fim.
 	m.emulatorMutex.Lock()
-	defer m.emulatorMutex.Unlock()
+	ativos := m.emulators
+	m.emulators = make(map[int]Emulator)
+	m.emulatorMutex.Unlock()
 
-	for id, emulator := range m.emulators {
-		if emulator.IsRunning() {
-			if err := emulator.Stop(); err != nil {
-				m.Tracer.Error("Failed to stop emulator %d: %v", id, err)
-			}
-
-			// Atualizar status no banco
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			_, err := m.ServiceDB.Exec(ctx, "UPDATE service.devices SET status = 'stopped' WHERE local_controller_id = $1", id)
-			cancel()
-
-			if err != nil {
-				m.Tracer.Error("Failed to update device status: %v", err)
-			}
+	for id, emulator := range ativos {
+		if !emulator.IsRunning() {
+			continue
 		}
+		if err := emulator.Stop(); err != nil {
+			m.Tracer.Error("Failed to stop emulator %d: %v", id, err)
+		}
+		m.markStopped(id)
+		// A versão anterior não notificava aqui: "Parar todos" só
+		// aparecia na tela depois de um F5.
+		m.NotifyChanged(id)
 	}
 
-	// Limpar mapa
-	m.emulators = make(map[int]Emulator)
 	m.Tracer.Info("Stopped all emulators")
 }
 
@@ -773,7 +784,7 @@ func (m *Manager) checkDeviceHealth(device models.Device) {
 
 	// Atualizar total_users se emulador estiver rodando (ANTES de acessar watchdog)
 	if isRunning && emulator != nil {
-		m.updateDeviceTotalUsers(device.ID, emulator)
+		m.updateDeviceTotalUsers(device.ID, device.TotalUsers, emulator)
 	}
 
 	// Acessar watchdog com proteção de mutex
@@ -798,7 +809,7 @@ func (m *Manager) checkDeviceHealth(device models.Device) {
 			m.Tracer.Info("Attempting to restart device %d after %d failures", device.ID, failureCount)
 			if err := m.Start(device.ID); err != nil {
 				m.Tracer.Error("Failed to restart device %d: %v", device.ID, err)
-				go m.notifyStatusChange(device.ID, "error", device.Name)
+				m.NotifyChanged(device.ID)
 			} else {
 				// Resetar contador após sucesso
 				m.watchdogMutex.Lock()
@@ -819,38 +830,33 @@ func (m *Manager) checkDeviceHealth(device models.Device) {
 	}
 }
 
-func (m *Manager) updateDeviceTotalUsers(deviceID int, emulator Emulator) {
-	// Obter total de usuários usando a interface comum
+// updateDeviceTotalUsers grava a contagem de usuários quando ela muda e
+// avisa a tela. Antes gravava todo dispositivo rodando a cada ciclo do
+// watchdog, mesmo sem mudança (1000 UPDATEs e 2000 linhas de trace a cada
+// 10 s numa frota grande), e não avisava ninguém — a coluna Usuários só
+// mudava com F5.
+func (m *Manager) updateDeviceTotalUsers(deviceID, atual int, emulator Emulator) {
 	totalUsers, err := emulator.GetTotalUsers()
 	if err != nil {
-		// Log do erro mas não interromper o processo
 		m.Tracer.Error("[WATCHDOG] Failed to get total users for device %d: %v", deviceID, err)
 		return
 	}
+	if totalUsers == atual {
+		return
+	}
 
-	// Log para rastreamento
-	m.Tracer.Info("[WATCHDOG] Device %d: Updating total_users to %d", deviceID, totalUsers)
-
-	// Atualizar no banco (com timeout curto para não travar)
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	result, err := m.ServiceDB.Exec(ctx,
+	if _, err := m.ServiceDB.Exec(ctx,
 		"UPDATE service.devices SET total_users = $1, updated_at = NOW() WHERE local_controller_id = $2",
-		totalUsers, deviceID)
-
-	if err != nil {
+		totalUsers, deviceID); err != nil {
 		m.Tracer.Error("[WATCHDOG] Failed to update total_users for device %d: %v", deviceID, err)
 		return
 	}
 
-	// Verificar se a linha foi atualizada
-	rowsAffected := result.RowsAffected()
-	if rowsAffected == 0 {
-		m.Tracer.Warning("[WATCHDOG] Device %d: No rows updated (device may not exist in database)", deviceID)
-	} else {
-		m.Tracer.Info("[WATCHDOG] Device %d: Successfully updated total_users=%d", deviceID, totalUsers)
-	}
+	m.Tracer.Info("[WATCHDOG] Device %d: total_users %d -> %d", deviceID, atual, totalUsers)
+	m.NotifyChanged(deviceID)
 }
 
 // Shutdown fecha o manager gracefully
@@ -885,56 +891,8 @@ func (m *Manager) UpdateDeviceSettings(id int, logEnabled bool) error {
 		return fmt.Errorf("failed to update device settings: %w", err)
 	}
 
+	m.NotifyChanged(id)
 	return nil
-}
-
-func (m *Manager) AddStatusListener() StatusChangeListener {
-	m.listenersMutex.Lock()
-	defer m.listenersMutex.Unlock()
-
-	listener := make(StatusChangeListener, 10) // Buffer de 10 eventos
-	m.statusListeners = append(m.statusListeners, listener)
-	return listener
-}
-
-// RemoveStatusListener remove um listener
-func (m *Manager) RemoveStatusListener(listener StatusChangeListener) {
-	m.listenersMutex.Lock()
-	defer m.listenersMutex.Unlock()
-
-	for i, l := range m.statusListeners {
-		if l == listener {
-			close(l)
-			m.statusListeners = append(m.statusListeners[:i], m.statusListeners[i+1:]...)
-			break
-		}
-	}
-}
-
-func (m *Manager) notifyStatusChange(deviceID int, status string, deviceName string) {
-	m.listenersMutex.RLock()
-	defer m.listenersMutex.RUnlock()
-
-	event := StatusChangeEvent{
-		DeviceID: deviceID,
-		Status:   status,
-		Name:     deviceName,
-	}
-
-	// ADICIONAR ESTE LOG:
-	m.Tracer.Info("Notifying status change: Device %d (%s) -> %s. Active listeners: %d",
-		deviceID, deviceName, status, len(m.statusListeners))
-
-	for i, listener := range m.statusListeners {
-		select {
-		case listener <- event:
-			// ADICIONAR ESTE LOG:
-			m.Tracer.Info("Successfully sent event to listener %d", i)
-		default:
-			// Se o canal estiver cheio, pula (evita bloqueio)
-			m.Tracer.Warning("Status listener %d channel full, skipping event for device %d", i, deviceID)
-		}
-	}
 }
 
 func (m *Manager) GetPoolStats() map[string]interface{} {

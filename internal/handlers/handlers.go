@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"runtime"
 	"strconv"
+	"sync"
 	"time"
 
 	"GoFacialEmulator/assets"
@@ -336,81 +337,127 @@ func (h *Handler) mainPage(c *gin.Context) {
 	h.renderPage(c, "devices.html", http.StatusOK, context)
 }
 
-// startEmulators inicia emuladores selecionados
-func (h *Handler) startEmulators(c *gin.Context) {
-	var requestBody struct {
-		Devices   []string        `json:"devices"`
-		EnableLog map[string]bool `json:"enable_log"`
-	}
-
-	if err := c.ShouldBindJSON(&requestBody); err != nil {
-		h.tracer.Error("Failed to bind JSON: %v", err)
-		c.Redirect(http.StatusSeeOther, "/")
-		return
-	}
-
-	h.tracer.Info(">>> Starting Emulators")
-
-	// Atualizar configurações de log
-	h.updateLogEnabled(requestBody.EnableLog)
-
-	h.tracer.Info("## Start Emulators - Devices received: %+v", requestBody.Devices)
-
-	// Iniciar emuladores
-	for _, deviceStr := range requestBody.Devices {
-		if deviceStr == "all" {
-			h.manager.StartAll()
-			break
-		}
-
-		h.tracer.Info("## strconv.Atoi deviceID: %s", deviceStr)
-		deviceID, err := strconv.Atoi(deviceStr)
-		if err != nil {
-			h.tracer.Error("Invalid device ID: %s", deviceStr)
-			continue
-		}
-
-		h.tracer.Info("## Starting single deviceID: %s", deviceStr)
-		if err := h.manager.Start(deviceID); err != nil {
-			h.tracer.Error("Failed to start device %d: %v", deviceID, err)
-		}
-	}
-
-	c.Redirect(http.StatusSeeOther, "/")
+// controlRequest é o corpo de /start e /stop: IDs de dispositivo ou "all".
+type controlRequest struct {
+	Devices   []string        `json:"devices"`
+	EnableLog map[string]bool `json:"enable_log"`
 }
 
-// stopEmulators para emuladores selecionados
-func (h *Handler) stopEmulators(c *gin.Context) {
-	var requestBody struct {
-		Devices []string `json:"devices"`
-	}
+// controlFailure é uma falha de start/stop devolvida ao cliente.
+type controlFailure struct {
+	ID    int    `json:"id"`
+	Error string `json:"error"`
+}
 
-	if err := c.ShouldBindJSON(&requestBody); err != nil {
-		h.tracer.Error("Failed to bind JSON: %v", err)
-		c.Redirect(http.StatusSeeOther, "/")
+// parseControlIDs separa "all" dos IDs numéricos. IDs inválidos viram
+// falha em vez de sumir calados.
+func parseControlIDs(devices []string) (all bool, ids []int, invalid []string) {
+	for _, d := range devices {
+		if d == "all" {
+			return true, nil, nil
+		}
+		id, err := strconv.Atoi(d)
+		if err != nil {
+			invalid = append(invalid, d)
+			continue
+		}
+		ids = append(ids, id)
+	}
+	return false, ids, invalid
+}
+
+// controlSyncLimit é até quantos dispositivos /start e /stop esperam o
+// resultado antes de responder. Acima disso (e para "all") o trabalho vai
+// para background e o resultado chega pelo stream: um start pode levar até
+// 10 s, e uma requisição de minutos prendia o botão e estourava o timeout
+// do navegador.
+const controlSyncLimit = 5
+
+// startEmulators inicia emuladores selecionados.
+//
+// Responde JSON. A versão anterior respondia 303 para "/" em qualquer
+// caso: o fetch seguia o redirect, renderizava a página inteira e jogava
+// fora, e uma falha de start nunca chegava a quem clicou.
+func (h *Handler) startEmulators(c *gin.Context) {
+	var req controlRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "corpo inválido"})
 		return
 	}
 
-	h.tracer.Info(">>> Stopping Emulators")
+	h.updateLogEnabled(req.EnableLog)
 
-	for _, deviceStr := range requestBody.Devices {
-		if deviceStr == "all" {
-			h.manager.StopAll()
-			break
-		}
-
-		deviceID, err := strconv.Atoi(deviceStr)
-		if err != nil {
-			h.tracer.Error("Invalid device ID: %s", deviceStr)
-			continue
-		}
-
-		if err := h.manager.Stop(deviceID); err != nil {
-			h.tracer.Error("Failed to stop device %d: %v", deviceID, err)
-		}
+	all, ids, invalid := parseControlIDs(req.Devices)
+	if all {
+		go func() {
+			if err := h.manager.StartAll(); err != nil {
+				h.tracer.Error("StartAll: %v", err)
+			}
+		}()
+		c.JSON(http.StatusAccepted, gin.H{"accepted": "all"})
+		return
 	}
 
-	c.Redirect(http.StatusSeeOther, "/")
+	h.runControl(c, ids, invalid, h.manager.Start)
+}
+
+// stopEmulators para emuladores selecionados.
+func (h *Handler) stopEmulators(c *gin.Context) {
+	var req controlRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "corpo inválido"})
+		return
+	}
+
+	all, ids, invalid := parseControlIDs(req.Devices)
+	if all {
+		go h.manager.StopAll()
+		c.JSON(http.StatusAccepted, gin.H{"accepted": "all"})
+		return
+	}
+
+	h.runControl(c, ids, invalid, h.manager.Stop)
+}
+
+// runControl aplica acao a cada ID. Poucos: espera e devolve as falhas.
+// Muitos: dispara em background com concorrência limitada e responde 202.
+func (h *Handler) runControl(c *gin.Context, ids []int, invalid []string, acao func(int) error) {
+	falhas := make([]controlFailure, 0)
+	for _, bruto := range invalid {
+		falhas = append(falhas, controlFailure{Error: "ID inválido: " + bruto})
+	}
+
+	if len(ids) > controlSyncLimit {
+		go func() {
+			sem := make(chan struct{}, 20)
+			var wg sync.WaitGroup
+			for _, id := range ids {
+				wg.Add(1)
+				sem <- struct{}{}
+				go func(id int) {
+					defer wg.Done()
+					defer func() { <-sem }()
+					if err := acao(id); err != nil {
+						h.tracer.Error("device %d: %v", id, err)
+					}
+				}(id)
+			}
+			wg.Wait()
+		}()
+		c.JSON(http.StatusAccepted, gin.H{"accepted": len(ids), "failed": falhas})
+		return
+	}
+
+	ok := 0
+	for _, id := range ids {
+		if err := acao(id); err != nil {
+			h.tracer.Error("device %d: %v", id, err)
+			falhas = append(falhas, controlFailure{ID: id, Error: err.Error()})
+			continue
+		}
+		ok++
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": ok, "failed": falhas})
 }
 
 // refreshDevices atualiza lista de dispositivos
@@ -728,10 +775,10 @@ func (h *Handler) updateLogEnabled(devices map[string]bool) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	for portStr, enabled := range devices {
-		port, err := strconv.Atoi(portStr)
+	for idStr, enabled := range devices {
+		id, err := strconv.Atoi(idStr)
 		if err != nil {
-			h.tracer.Error("Invalid port: %s", portStr)
+			h.tracer.Error("Invalid device id: %s", idStr)
 			continue
 		}
 
@@ -740,10 +787,13 @@ func (h *Handler) updateLogEnabled(devices map[string]bool) {
 			logEnabled = 1
 		}
 
-		query := "UPDATE service.devices SET log_enabled = $1 WHERE port = $2"
-		_, err = h.serviceDB.Exec(ctx, query, logEnabled, port)
+		// A chave é o ID do dispositivo (devices.js monta o mapa com
+		// data-id). A versão anterior filtrava por porta, e a flag só era
+		// gravada quando o ID coincidia com a porta.
+		query := "UPDATE service.devices SET log_enabled = $1 WHERE local_controller_id = $2"
+		_, err = h.serviceDB.Exec(ctx, query, logEnabled, id)
 		if err != nil {
-			h.tracer.Error("Failed to update log setting for port %d: %v", port, err)
+			h.tracer.Error("Failed to update log setting for device %d: %v", id, err)
 		}
 	}
 }

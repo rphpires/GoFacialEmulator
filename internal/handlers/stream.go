@@ -1,12 +1,14 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"time"
 
+	"GoFacialEmulator/internal/emulator"
 	"GoFacialEmulator/internal/models"
 
 	"github.com/gin-gonic/gin"
@@ -21,19 +23,28 @@ const streamKeepalive = 20 * time.Second
 // milissegundos. Enviado uma vez, na abertura do stream.
 const streamRetry = 3000
 
-// deviceView é a forma de um dispositivo no wire do SSE. Espelha as
-// colunas que a tabela mostra, para o cliente conseguir redesenhar uma
-// linha inteira sem uma segunda requisição.
+// streamCoalesce é a janela em que avisos seguidos viram um frame só. Um
+// "Iniciar todos" gera um aviso por emulador; sem a janela, cada aviso
+// custava uma leitura da frota inteira por aba aberta.
+const streamCoalesce = 150 * time.Millisecond
+
+// deviceView é a forma de um dispositivo no wire do SSE. Carrega tudo o
+// que a tabela mostra, para o cliente desenhar uma linha inteira — inclusive
+// uma linha nova — sem uma segunda requisição.
 type deviceView struct {
 	ID         int    `json:"id"`
 	Name       string `json:"name"`
 	Model      string `json:"model"`
+	IPAddress  string `json:"ip_address"`
 	Port       int    `json:"port"`
 	Status     string `json:"status"`
 	Enabled    int    `json:"enabled"`
 	LogEnabled int    `json:"log_enabled"`
 	Interval   int    `json:"interval"`
 	TotalUsers int    `json:"total_users"`
+	Source     string `json:"source"`
+	Mode       string `json:"mode"`
+	LastError  string `json:"last_error,omitempty"`
 }
 
 // newDeviceView aplica a mesma regra da tabela: Enabled == 0 vence o
@@ -49,12 +60,15 @@ func newDeviceView(d models.Device) deviceView {
 		ID:         d.ID,
 		Name:       d.Name,
 		Model:      d.Model,
+		IPAddress:  d.IPAddress,
 		Port:       d.Port,
 		Status:     status,
 		Enabled:    d.Enabled,
 		LogEnabled: d.LogEnabled,
 		Interval:   d.EventInterval,
 		TotalUsers: d.TotalUsers,
+		Source:     d.Source,
+		Mode:       modoStandalone,
 	}
 }
 
@@ -70,18 +84,46 @@ func writeSSE(w io.Writer, event string, payload interface{}) error {
 	return err
 }
 
+// pendencias acumula os avisos de uma janela de agregação.
+type pendencias struct {
+	alterados map[int]bool
+	removidos map[int]bool
+	resync    bool
+}
+
+func novasPendencias() *pendencias {
+	return &pendencias{alterados: map[int]bool{}, removidos: map[int]bool{}}
+}
+
+func (p *pendencias) vazia() bool {
+	return !p.resync && len(p.alterados) == 0 && len(p.removidos) == 0
+}
+
+// registrar incorpora um aviso. Remoção depois de alteração vence, e
+// vice-versa: vale o último que aconteceu.
+func (p *pendencias) registrar(ev emulator.FleetEvent) {
+	switch ev.Kind {
+	case emulator.FleetResync:
+		p.resync = true
+	case emulator.FleetRemoved:
+		delete(p.alterados, ev.DeviceID)
+		p.removidos[ev.DeviceID] = true
+	default:
+		delete(p.removidos, ev.DeviceID)
+		p.alterados[ev.DeviceID] = true
+	}
+}
+
 // handleStream serve /events.
 //
-// Três coisas que a versão anterior não fazia e que apareciam como "o
-// tempo real não funciona":
+// Protocolo:
 //
-//  1. Snapshot no connect. Antes o stream só falava em mudança de estado,
-//     então uma aba aberta depois de uma transição ficava com o HTML
-//     server-rendered antigo por tempo indeterminado.
-//  2. Keepalive. Sem tráfego, um proxy derruba a conexão ociosa; o browser
-//     reconecta, mas o ciclo se repetia sem ninguém perceber.
-//  3. retry:. Sem ele o browser usa o default próprio, que varia entre
-//     implementações.
+//	snapshot -> { devices: [...], counts }            estado completo
+//	delta    -> { devices: [...], removed: [ids], counts }
+//
+// O snapshot vai na abertura, depois de um sync com o W-Access e sempre
+// que o canal deste cliente transbordou — nesse caso algum aviso se
+// perdeu, e só a releitura completa garante que a tela não fica errada.
 func (h *Handler) handleStream(c *gin.Context) {
 	c.Header("Content-Type", "text/event-stream")
 	c.Header("Cache-Control", "no-cache")
@@ -101,57 +143,61 @@ func (h *Handler) handleStream(c *gin.Context) {
 		return
 	}
 
-	listener := h.manager.AddStatusListener()
-	defer h.manager.RemoveStatusListener(listener)
+	// Assina antes do snapshot: um aviso que chegue entre os dois cai na
+	// janela seguinte em vez de se perder.
+	listener := h.manager.AddFleetListener()
+	defer h.manager.RemoveFleetListener(listener)
 
-	if err := h.writeSnapshot(c.Writer); err != nil {
+	if err := h.writeSnapshot(c.Request.Context(), c.Writer); err != nil {
 		h.tracer.Error("SSE: falha ao enviar snapshot: %v", err)
 		return
 	}
 	flusher.Flush()
 
-	ticker := time.NewTicker(streamKeepalive)
-	defer ticker.Stop()
+	keepalive := time.NewTicker(streamKeepalive)
+	defer keepalive.Stop()
+
+	// Timer parado até o primeiro aviso de uma janela.
+	janela := time.NewTimer(time.Hour)
+	janela.Stop()
+	pend := novasPendencias()
 
 	clientGone := c.Request.Context().Done()
 
 	for {
 		select {
-		case event, ok := <-listener:
+		case ev, ok := <-listener.C:
 			if !ok {
 				return
 			}
+			if pend.vazia() {
+				janela.Reset(streamCoalesce)
+			}
+			pend.registrar(ev)
 
-			devices, err := h.manager.ListDevices()
+		case <-janela.C:
+			var err error
+			if pend.resync || listener.TakeOverflow() {
+				err = h.writeSnapshot(c.Request.Context(), c.Writer)
+			} else {
+				err = h.writeDelta(c.Request.Context(), c.Writer, pend)
+			}
+			pend = novasPendencias()
 			if err != nil {
-				h.tracer.Error("SSE: falha ao listar dispositivos: %v", err)
-				continue
-			}
-
-			payload := gin.H{
-				"device_id": event.DeviceID,
-				"status":    event.Status,
-				"counts":    countFleet(devices),
-			}
-
-			// A linha inteira acompanha o evento, para o cliente atualizar
-			// contadores de usuários e flags sem uma segunda requisição.
-			for _, d := range devices {
-				if d.ID == event.DeviceID {
-					payload["device"] = newDeviceView(d)
-					break
-				}
-			}
-
-			if err := writeSSE(c.Writer, "device", payload); err != nil {
+				h.tracer.Error("SSE: falha ao enviar atualização: %v", err)
 				return
 			}
 			flusher.Flush()
 
-		case <-ticker.C:
+		case <-keepalive.C:
 			// Comentário SSE: mantém a conexão quente e é ignorado pelo
-			// EventSource.
-			if _, err := fmt.Fprint(c.Writer, ": keepalive\n\n"); err != nil {
+			// EventSource. Aproveita a batida para recuperar um overflow
+			// que não tenha vindo acompanhado de nenhum aviso posterior.
+			if listener.TakeOverflow() {
+				if err := h.writeSnapshot(c.Request.Context(), c.Writer); err != nil {
+					return
+				}
+			} else if _, err := fmt.Fprint(c.Writer, ": keepalive\n\n"); err != nil {
 				return
 			}
 			flusher.Flush()
@@ -162,21 +208,83 @@ func (h *Handler) handleStream(c *gin.Context) {
 	}
 }
 
-// writeSnapshot manda a frota inteira, para o cliente partir de um estado
-// conhecido em vez de confiar no que veio no HTML.
-func (h *Handler) writeSnapshot(w io.Writer) error {
+// fleetViews lê a frota e monta as views com modo e último erro de start.
+func (h *Handler) fleetViews(ctx context.Context) ([]deviceView, FleetCounts, error) {
 	devices, err := h.manager.ListDevices()
 	if err != nil {
-		return err
+		return nil, FleetCounts{}, err
+	}
+
+	ids := make([]int32, 0, len(devices))
+	for _, d := range devices {
+		ids = append(ids, int32(d.ID))
+	}
+	modos, err := h.getDeviceModes(ctx, ids)
+	if err != nil {
+		// Mesma decisão da listagem: coluna imprecisa é melhor que stream
+		// morto.
+		h.tracer.Error("SSE: falha ao ler modos: %v", err)
+		modos = map[int]string{}
 	}
 
 	views := make([]deviceView, 0, len(devices))
 	for _, d := range devices {
-		views = append(views, newDeviceView(d))
+		v := newDeviceView(d)
+		if modo, ok := modos[d.ID]; ok {
+			v.Mode = modo
+		}
+		v.LastError = h.manager.LastStartError(d.ID)
+		views = append(views, v)
+	}
+	return views, countFleet(devices), nil
+}
+
+// writeSnapshot manda a frota inteira, para o cliente partir de um estado
+// conhecido em vez de confiar no que veio no HTML.
+func (h *Handler) writeSnapshot(ctx context.Context, w io.Writer) error {
+	views, counts, err := h.fleetViews(ctx)
+	if err != nil {
+		return err
 	}
 
 	return writeSSE(w, "snapshot", gin.H{
 		"devices": views,
-		"counts":  countFleet(devices),
+		"counts":  counts,
+	})
+}
+
+// writeDelta manda só os dispositivos que mudaram na janela. Um ID
+// alterado que não está mais na frota é tratado como removido.
+func (h *Handler) writeDelta(ctx context.Context, w io.Writer, p *pendencias) error {
+	views, counts, err := h.fleetViews(ctx)
+	if err != nil {
+		return err
+	}
+
+	mudaram := make([]deviceView, 0, len(p.alterados))
+	presentes := make(map[int]bool, len(views))
+	for _, v := range views {
+		presentes[v.ID] = true
+		if p.alterados[v.ID] {
+			mudaram = append(mudaram, v)
+		}
+	}
+
+	removidos := make([]int, 0, len(p.removidos))
+	for id := range p.removidos {
+		if !presentes[id] {
+			removidos = append(removidos, id)
+		}
+	}
+	for id := range p.alterados {
+		if !presentes[id] {
+			removidos = append(removidos, id)
+		}
+	}
+
+	return writeSSE(w, "delta", gin.H{
+		"devices": mudaram,
+		"removed": removidos,
+		"counts":  counts,
 	})
 }

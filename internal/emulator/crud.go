@@ -134,6 +134,15 @@ func (m *Manager) criarVarios(ctx context.Context, specs []DeviceSpec) ([]models
 	}
 	m.watchdogMutex.Unlock()
 
+	// Lote grande vira um resync só, em vez de mil avisos individuais.
+	if len(devices) > 20 {
+		m.notifyResync()
+	} else {
+		for _, dev := range devices {
+			m.NotifyChanged(dev.ID)
+		}
+	}
+
 	return devices, nil
 }
 
@@ -222,6 +231,8 @@ func (m *Manager) UpdateDevice(ctx context.Context, id int, spec DeviceSpec) (mo
 	if err := tx.Commit(ctx); err != nil {
 		return models.Device{}, fmt.Errorf("erro ao confirmar atualização: %w", err)
 	}
+
+	m.NotifyChanged(id)
 
 	return models.Device{
 		ID: id, Name: spec.Name, IPAddress: spec.IPAddress, Port: spec.Port,
@@ -315,6 +326,7 @@ func (m *Manager) DeleteDevice(ctx context.Context, id int) error {
 	m.emulatorMutex.Unlock()
 
 	m.Tracer.Info("Removed manual device %d", id)
+	m.notifyRemoved(id)
 	return nil
 }
 

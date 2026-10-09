@@ -158,5 +158,8 @@ func (h *Handler) apiSetDeviceMode(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Não foi possível trocar o modo do dispositivo"})
 		return
 	}
+	if h.manager != nil {
+		h.manager.NotifyChanged(id)
+	}
 	c.JSON(http.StatusOK, gin.H{"mode": corpo.Mode})
 }
