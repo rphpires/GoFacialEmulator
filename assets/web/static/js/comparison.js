@@ -26,14 +26,34 @@
             fetch('/comparison_refresh')
                 .then(function (resposta) {
                     if (!resposta.ok) { throw new Error('HTTP ' + resposta.status); }
-                    window.Toast.ok('Recontagem concluída. Recarregando…');
-                    window.setTimeout(function () { window.location.reload(); }, 800);
+                    return atualizarTabela();
+                })
+                .then(function () {
+                    window.Toast.ok('Recontagem concluída');
                 })
                 .catch(function () {
                     window.Toast.err('Não foi possível recontar os usuários');
-                    botao.disabled = false;
-                });
+                })
+                .then(function () { botao.disabled = false; });
         });
+    }
+
+    // Busca a mesma página de novo e troca só a tabela e a paginação. A
+    // versão anterior recarregava a página inteira depois de recontar.
+    function atualizarTabela() {
+        return fetch(window.location.href, { headers: { Accept: 'text/html' } })
+            .then(function (r) {
+                if (!r.ok) { throw new Error('HTTP ' + r.status); }
+                return r.text();
+            })
+            .then(function (html) {
+                var nova = new DOMParser().parseFromString(html, 'text/html');
+                ['#comparison-grid tbody', '.pager__pages'].forEach(function (seletor) {
+                    var atual = document.querySelector(seletor);
+                    var vinda = nova.querySelector(seletor);
+                    if (atual && vinda) { atual.replaceWith(document.adoptNode(vinda)); }
+                });
+            });
     }
 
     function iniciarPaginacao() {

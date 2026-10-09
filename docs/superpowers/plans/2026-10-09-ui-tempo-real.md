@@ -46,7 +46,7 @@ recarregam a página.
 
 ## Plano de implementação
 
-### Fase 1 — Backend: eventos completos, ordenados e baratos
+### Fase 1 — Backend: eventos completos, ordenados e baratos ✅ `47e2b81`
 1. `Manager`: listener com buffer maior e flag de overflow (cliente recebe snapshot em vez de perder evento). Notificação síncrona e não-bloqueante (ordem preservada). Tipos: `changed`, `removed`, `resync`.
 2. Notificar em: Start (sucesso e falha), Stop, StopAll, watchdog (erro e mudança de `total_users`), Create/CreateRange/Update/Delete, RefreshDevices (resync), log, modo.
 3. Stream: agrega eventos numa janela curta (~150 ms) e manda **um** frame `delta` `{devices, removed, counts}` com uma query só. Overflow/resync → `snapshot`.
@@ -55,7 +55,7 @@ recarregam a página.
 6. Watchdog só grava/notifica `total_users` quando muda; log em nível debug.
 7. `Start` não segura o mutex global durante o start do emulador (reserva por ID).
 
-### Fase 2 — Frontend: tabela dirigida pelo stream
+### Fase 2 — Frontend: tabela dirigida pelo stream ✅ `da24cd6`
 1. `FleetStream` mantém o store (mapa id → dispositivo) e publica `snapshot`/`delta`.
 2. `devices.js` desenha o `tbody` a partir do store, com diff por linha (preserva foco/seleção), filtro instantâneo, ordenação, paginação no cliente e estado na URL.
 3. Ações por delegação de eventos; sem `location.reload()` em criar/editar/excluir/sincronizar.
@@ -64,6 +64,21 @@ recarregam a página.
 6. Drawer acompanha o dispositivo aberto (LED, log, recarrega usuários quando `total_users` muda).
 7. Alcançabilidade reavaliada após mudanças de estado (debounce).
 
-### Fase 3 — Demais telas
+### Fase 3 — Demais telas (1 ✅; 2 contínuo)
 1. Comparação: Recontar atualiza a tabela sem recarregar.
 2. Revisão visual geral (espaçamentos, responsivo, estados vazios/carregando).
+
+## Verificação (2026-10-09)
+
+- `go test ./internal/...` verde (inclui testes novos do hub, da agregação e do contrato da página).
+- Serviço local (porta 7171) + Chromium headless: linha criada por API aparece sem reload; start,
+  "Parar todos", log, modo, seleção/barra em lote, drawer e remoção refletidos ao vivo; Recontar
+  na comparação sem reload.
+- Carga: 40 emuladores iniciados por seleção sobem em ~0,7 s (antes, em série); o stream mandou
+  1 snapshot + 5 deltas e o estado final do cliente bate com o servidor.
+
+## Pendências / próximos passos
+
+- Comparação ainda pagina no servidor (só o Recontar ficou sem reload).
+- `/favicon.ico` responde 404 (pré-existente).
+- Medidor da topbar se sobrepõe em telas estreitas (pré-existente).
