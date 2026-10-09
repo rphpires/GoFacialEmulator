@@ -196,6 +196,7 @@
 
 .page-head {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: var(--gap-4);
     margin-bottom: var(--gap-4);

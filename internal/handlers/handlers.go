@@ -282,59 +282,22 @@ func (h *Handler) corsMiddleware() gin.HandlerFunc {
 // Web Interface Handlers
 
 func (h *Handler) mainPage(c *gin.Context) {
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "10"))
-
-	// Capturar filtros da query string
-	filters := map[string]string{
-		"id":   c.Query("id"),
-		"name": c.Query("name"),
-		"port": c.Query("port"),
-	}
-
-	// Dispositivos filtrados para a tabela
-	devices, _, err := h.getCurrentDevicesWithFilters(filters)
+	// A tabela é desenhada no cliente a partir do estado da frota, que o
+	// stream mantém atualizado. O servidor só embute a frota atual para a
+	// primeira pintura não esperar o snapshot do SSE. Filtro, ordenação e
+	// paginação acontecem no cliente: antes cada um era uma recarga da
+	// página com duas leituras da frota.
+	views, counts, err := h.fleetViews(c.Request.Context())
 	if err != nil {
 		h.tracer.Error("Failed to get current devices: %v", err)
 		h.renderPage(c, "error.html", http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Paginação dos dispositivos filtrados
-	totalDevices := len(devices)
-	start := (page - 1) * perPage
-	end := start + perPage
-	if end > totalDevices {
-		end = totalDevices
-	}
-
-	var paginatedDevices []map[string]interface{}
-	if start < totalDevices {
-		paginatedDevices = devices[start:end]
-	}
-
-	totalPages := (totalDevices + perPage - 1) / perPage
-
-	// Contadores vêm de countFleet para o header concordar com a tabela:
-	// desabilitado é um estado próprio, não um "parado".
-	fleetDevices, err := h.manager.ListDevices()
-	if err != nil {
-		h.tracer.Error("Failed to list devices for counters: %v", err)
-		fleetDevices = nil
-	}
-	counts := countFleet(fleetDevices)
-
-	context := gin.H{
-		"devices":       paginatedDevices,
-		"page":          page,
-		"total_pages":   totalPages,
-		"per_page":      perPage,
-		"page_range":    paginationRange(page, totalPages),
+	h.renderPage(c, "devices.html", http.StatusOK, gin.H{
+		"fleet":         views,
 		"counter_cards": counts.toMap(),
-		"filters":       filters,
-	}
-
-	h.renderPage(c, "devices.html", http.StatusOK, context)
+	})
 }
 
 // controlRequest é o corpo de /start e /stop: IDs de dispositivo ou "all".
@@ -912,66 +875,6 @@ func (h *Handler) refreshUsersComparison() {
 func (h *Handler) getPoolStats(c *gin.Context) {
 	stats := h.manager.GetPoolStats()
 	c.JSON(http.StatusOK, stats)
-}
-
-func (h *Handler) getCurrentDevicesWithFilters(filters map[string]string) ([]map[string]interface{}, int, error) {
-	devices, err := h.manager.ListDevicesWithFilters(filters)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	// Modo de operação de todos os dispositivos numa consulta só. Uma
-	// consulta por dispositivo dentro do laço abaixo giraria centenas de
-	// idas ao banco a cada carregamento de página.
-	ids := make([]int32, 0, len(devices))
-	for _, device := range devices {
-		ids = append(ids, int32(device.ID))
-	}
-	modos, err := h.getDeviceModes(context.Background(), ids)
-	if err != nil {
-		// Falha de leitura não derruba a listagem: a coluna mostra o
-		// padrão e o erro fica no log. Uma tela de dispositivos em
-		// branco seria pior que uma coluna imprecisa.
-		h.tracer.Error("Failed to read device modes: %v", err)
-		modos = map[int]string{}
-	}
-
-	var currentDevices []map[string]interface{}
-	deviceStatusRunning := 0
-
-	for _, device := range devices {
-		// Determinar status considerando se está habilitado
-		status := device.Status
-		if device.Enabled == 0 {
-			status = "disabled"
-		} else if device.Status == "running" {
-			deviceStatusRunning++
-		}
-
-		// Dispositivo sem linha em emulator.device_settings usa o padrão
-		// standalone — o mesmo recuo de getDeviceMode.
-		modo, ok := modos[device.ID]
-		if !ok {
-			modo = modoStandalone
-		}
-
-		currentDevices = append(currentDevices, map[string]interface{}{
-			"lc_id":       device.ID,
-			"name":        device.Name,
-			"ip_address":  device.IPAddress,
-			"port":        device.Port,
-			"log_enabled": device.LogEnabled,
-			"model":       device.Model,
-			"status":      status,
-			"enabled":     device.Enabled,
-			"interval":    device.EventInterval,
-			"total":       device.TotalUsers,
-			"local_auth":  modo,
-			"source":      device.Source,
-		})
-	}
-
-	return currentDevices, deviceStatusRunning, nil
 }
 
 // getRefreshStatus retorna o status da operação de refresh

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
@@ -25,15 +26,12 @@ func TestRenderTodasAsPaginas(t *testing.T) {
 		dados  gin.H
 	}{
 		{"devices.html", gin.H{
-			"devices": []map[string]interface{}{{
-				"lc_id": 123, "name": "Portaria Norte", "model": "hikvision",
-				"port": 7070, "log_enabled": 1, "status": "running",
-				"interval": 30, "total": 412, "source": "wxs",
+			"fleet": []deviceView{{
+				ID: 123, Name: "Portaria Norte", Model: "Hikvision", Port: 7070,
+				LogEnabled: 1, Status: "running", Interval: 30, TotalUsers: 412,
+				Source: "wxs", Mode: modoOnline,
 			}},
-			"page": 1, "total_pages": 3, "per_page": 10,
-			"page_range":    []int{1, 2, 3},
 			"counter_cards": FleetCounts{Total: 3, Running: 1, Stopped: 1, Disabled: 1}.toMap(),
-			"filters":       map[string]string{"id": "", "name": "", "port": ""},
 		}},
 		{"comparison.html", gin.H{
 			"values": []map[string]interface{}{{
@@ -96,41 +94,47 @@ func renderizarPagina(t *testing.T, pagina string, dados gin.H) string {
 }
 
 // renderizarDevices monta o contexto mínimo que devices.html exige.
-func renderizarDevices(t *testing.T, devices []map[string]interface{}) string {
+func renderizarDevices(t *testing.T, fleet []deviceView) string {
 	t.Helper()
 	return renderizarPagina(t, "devices.html", gin.H{
-		"devices":       devices,
-		"page":          1,
-		"total_pages":   1,
-		"per_page":      10,
-		"page_range":    []int{1},
+		"fleet":         fleet,
 		"counter_cards": FleetCounts{}.toMap(),
-		"filters":       map[string]string{"id": "", "name": "", "port": ""},
 	})
 }
 
-func TestDevicesHTMLMostraOrigem(t *testing.T) {
-	html := renderizarDevices(t, []map[string]interface{}{
-		{
-			"lc_id": 900001, "name": "lab-4000", "ip_address": "127.0.0.1",
-			"port": 4000, "log_enabled": 0, "model": "Dahua", "status": "stopped",
-			"enabled": 1, "interval": 10, "total": 0, "local_auth": "standalone",
-			"source": "manual",
-		},
-	})
+// A tabela é desenhada no cliente; o que o servidor garante é a frota
+// embutida como JSON válido para a primeira pintura.
+func TestDevicesHTMLEmbuteAFrotaComoJSON(t *testing.T) {
+	html := renderizarDevices(t, []deviceView{{
+		ID: 900001, Name: "lab </script> 4000", Model: "Dahua", Port: 4000,
+		Status: "stopped", Enabled: 1, Interval: 10, Source: "manual", Mode: modoStandalone,
+	}})
 
-	if !strings.Contains(html, "Manual") {
-		t.Error("quero o badge de origem manual na grade")
+	re := regexp.MustCompile(`(?s)<script type="application/json" id="fleet-initial">(.*?)</script>`)
+	m := re.FindStringSubmatch(html)
+	if m == nil {
+		t.Fatal("não encontrei o <script id=\"fleet-initial\">")
 	}
-	if !strings.Contains(html, "device-remove") {
-		t.Error("quero o botão de remover em dispositivo manual")
+
+	var frota []deviceView
+	if err := json.Unmarshal([]byte(m[1]), &frota); err != nil {
+		t.Fatalf("frota embutida não é JSON válido: %v\n%s", err, m[1])
+	}
+	if len(frota) != 1 || frota[0].ID != 900001 || frota[0].Source != "manual" {
+		t.Errorf("frota embutida = %+v", frota)
+	}
+	if frota[0].Name != "lab </script> 4000" {
+		t.Errorf("nome com </script> não sobreviveu ao escape: %q", frota[0].Name)
 	}
 }
 
 func TestDevicesHTMLTemBotoesDeCadastro(t *testing.T) {
 	html := renderizarDevices(t, nil)
 
-	for _, id := range []string{"new-emulator", "new-emulator-range", "emulator-form-modal"} {
+	for _, id := range []string{
+		"new-emulator", "new-emulator-range", "emulator-form-modal",
+		"device-rows", "bulk-bar", "filter-q", "pager-pages",
+	} {
 		if !strings.Contains(html, id) {
 			t.Errorf("quero o elemento %q na página", id)
 		}
@@ -181,20 +185,5 @@ func TestSettingsHTMLTemToggleDeSyncDesligado(t *testing.T) {
 	tag := tagDoToggleDeSync(t, html)
 	if strings.Contains(tag, "checked") {
 		t.Errorf("sync desligado não pode vir marcado, tag: %s", tag)
-	}
-}
-
-func TestDevicesHTMLNaoOfereceRemoverEmDispositivoDoWXS(t *testing.T) {
-	html := renderizarDevices(t, []map[string]interface{}{
-		{
-			"lc_id": 17, "name": "Portaria", "ip_address": "10.0.0.7",
-			"port": 7070, "log_enabled": 0, "model": "Hikvision", "status": "stopped",
-			"enabled": 1, "interval": 10, "total": 3, "local_auth": "online",
-			"source": "wxs",
-		},
-	})
-
-	if strings.Contains(html, "device-remove") {
-		t.Error("dispositivo do W-Access não pode oferecer remoção")
 	}
 }

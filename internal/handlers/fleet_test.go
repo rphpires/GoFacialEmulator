@@ -10,7 +10,7 @@ import (
 // TestCountFleet cobre a decisão que hoje faz o header divergir da tabela:
 // um dispositivo com Enabled == 0 é "disabled" mesmo que o Status gravado
 // diga outra coisa, e nunca deve ser contado como stopped. A tabela já
-// aplica essa regra (handlers.go, getCurrentDevicesWithFilters); os
+// aplica essa regra (stream.go, newDeviceView); os
 // contadores não aplicavam.
 func TestCountFleet(t *testing.T) {
 	casos := []struct {

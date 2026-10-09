@@ -130,6 +130,26 @@
     return { url: '/api/emulators', method: 'POST', body };
   }
 
+  function avisarResultado(corpo) {
+    const ids = [];
+    if (corpo.emulator) ids.push(corpo.emulator.id);
+    (corpo.created || []).forEach((c) => ids.push(c.id));
+    window.DevicesTable?.destacar(ids);
+
+    if (modo === 'editar') {
+      window.Toast.ok(`Emulador ${idEmEdicao} atualizado`);
+    } else if (ids.length > 1) {
+      window.Toast.ok(`${ids.length} emuladores criados`);
+    } else {
+      window.Toast.ok('Emulador criado');
+    }
+
+    const falhas = corpo.start_errors || (corpo.start_error ? [{ error: corpo.start_error }] : []);
+    if (falhas.length > 0) {
+      window.Toast.err(`Criado, mas não iniciou: ${falhas[0].error}`);
+    }
+  }
+
   el('emulator-form-save').addEventListener('click', async () => {
     limparErro();
     const { url, method, body } = requisicao();
@@ -157,7 +177,8 @@
       }
 
       modal.close();
-      window.location.reload();
+      // As linhas chegam pelo stream; nada de recarregar a página.
+      avisarResultado(corpo);
     } catch (e) {
       mostrarErro(`Falha de rede: ${e.message}`);
       salvar.disabled = false;

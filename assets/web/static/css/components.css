@@ -816,3 +816,182 @@
     cursor: not-allowed;
     opacity: 0.4;
 }
+
+/* ----------------------------------------
+   Tabela de dispositivos em tempo real
+   ---------------------------------------- */
+
+/* Estados que só existem no cliente: "iniciando" (start em andamento) e
+   "erro" (parado com o último start falho). */
+.led[data-state='starting'] {
+    background: var(--warn);
+    animation: led-pulse 1s var(--ease) infinite;
+}
+
+.led[data-state='error'] {
+    background: var(--warn);
+}
+
+@keyframes led-pulse {
+    50% {
+        opacity: 0.35;
+    }
+}
+
+.badge[data-state='starting'] {
+    background: var(--warn-dim);
+    color: var(--warn);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .led[data-state='starting'] {
+        animation: none;
+    }
+}
+
+.page-head__meta {
+    white-space: nowrap;
+    color: var(--text-low);
+    font-size: var(--size-sm);
+    font-variant-numeric: tabular-nums;
+}
+
+.filters .filters__search {
+    flex: 1 1 18rem;
+}
+
+/* Os selects têm poucas opções curtas; esticados até a borda eles
+   competiam com a busca, que é o filtro mais usado. */
+.filters .field:has(.select) {
+    flex: 0 1 11rem;
+}
+
+.filters > .filters__actions {
+    margin-left: auto;
+}
+
+/* Cabeçalho ordenável: o botão ocupa a célula inteira para o alvo de
+   clique ser a coluna, não só a palavra. */
+.grid__sort {
+    all: unset;
+    cursor: pointer;
+}
+
+.grid__sort:focus-visible {
+    outline: 2px solid var(--signal);
+    outline-offset: 2px;
+}
+
+/* Seta sempre reservada (vazia quando a coluna não ordena), para o rótulo
+   não pular de lugar ao trocar a ordenação. Em coluna numérica a seta vem
+   antes: o rótulo continua alinhado à direita com os números. */
+.grid__sort::after,
+th.num .grid__sort::before {
+    display: inline-block;
+    width: 1em;
+    color: var(--signal);
+    font-size: 0.7em;
+    text-align: center;
+}
+
+.grid__sort::after {
+    content: '';
+}
+
+th.num .grid__sort::after {
+    content: none;
+}
+
+th.num .grid__sort::before {
+    content: '';
+}
+
+th[aria-sort='ascending'] .grid__sort::after,
+th.num[aria-sort='ascending'] .grid__sort::before {
+    content: '▲';
+}
+
+th[aria-sort='descending'] .grid__sort::after,
+th.num[aria-sort='descending'] .grid__sort::before {
+    content: '▼';
+}
+
+th.num[aria-sort] .grid__sort::after {
+    content: none;
+}
+
+.grid tbody tr[aria-selected='true'] td {
+    background: color-mix(in srgb, var(--signal) 7%, transparent);
+}
+
+/* Célula que mudou pelo stream: um realce breve, para a mudança ser
+   percebida sem o operador precisar comparar números. */
+@keyframes cell-changed {
+    from {
+        background: color-mix(in srgb, var(--signal) 22%, transparent);
+    }
+}
+
+.cell--changed {
+    animation: cell-changed 1.2s var(--ease);
+}
+
+@keyframes row-new {
+    from {
+        background: color-mix(in srgb, var(--live) 18%, transparent);
+    }
+}
+
+.row--new td {
+    animation: row-new 2s var(--ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .cell--changed,
+    .row--new td {
+        animation: none;
+    }
+}
+
+/* Barra de ações em lote: aparece só com seleção, presa ao topo da área de
+   conteúdo para continuar alcançável numa tabela longa. */
+.bulk-bar {
+    position: sticky;
+    top: var(--gap-2);
+    z-index: 20;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--gap-2);
+    padding: var(--gap-2) var(--gap-3);
+    margin-bottom: var(--gap-3);
+    background: var(--ink-700);
+    border: 1px solid var(--signal);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-float);
+}
+
+.bulk-bar[hidden] {
+    display: none;
+}
+
+.bulk-bar__count {
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+}
+
+.bulk-bar__spacer {
+    flex: 1;
+}
+
+.btn--link {
+    border-color: transparent;
+    background: transparent;
+    color: var(--signal);
+}
+
+.btn--link:hover:not(:disabled) {
+    background: transparent;
+    border-color: transparent;
+    text-decoration: underline;
+}

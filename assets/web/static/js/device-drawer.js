@@ -23,6 +23,7 @@
     };
 
     var focoAnterior = null;
+    var ultimoPedido = 0;
 
     function el(id) { return document.getElementById(id); }
 
@@ -40,9 +41,8 @@
         el('users-search').value = '';
         el('drawer-name').textContent = estado.nome + ' — LC ' + id;
 
-        var linha = el('device-' + id);
-        el('drawer-led').setAttribute('data-state',
-            linha ? linha.getAttribute('data-state') : 'stopped');
+        var device = window.FleetStream.get(id);
+        el('drawer-led').setAttribute('data-state', device ? device.status : 'stopped');
 
         focoAnterior = document.activeElement;
 
@@ -115,9 +115,16 @@
     // Usuários
     // ------------------------------------------------------------------
 
-    function carregarUsuarios() {
+    // silencioso: recarga disparada pelo stream. Mantém a lista atual na
+    // tela até a nova chegar, em vez de piscar "Carregando…".
+    function carregarUsuarios(silencioso) {
         var tbody = el('users-body');
-        mensagemNaTabela(tbody, 5, 'Carregando…');
+        if (!silencioso) { mensagemNaTabela(tbody, 5, 'Carregando…'); }
+
+        // Só a resposta mais recente é desenhada: trocar de dispositivo,
+        // página ou busca rápido demais não pode deixar a lista de uma
+        // consulta antiga na tela.
+        var pedido = ++ultimoPedido;
 
         var params = new URLSearchParams({
             page: String(estado.pagina),
@@ -131,11 +138,13 @@
                 return resposta.json();
             })
             .then(function (dados) {
+                if (pedido !== ultimoPedido) { return; }
                 estado.total = dados.total || 0;
                 renderUsuarios(dados.users || []);
                 renderPaginacao();
             })
             .catch(function (erro) {
+                if (pedido !== ultimoPedido) { return; }
                 mensagemNaTabela(tbody, 5,
                     'Erro ao carregar usuários: ' + erro.message, 'erro');
                 el('users-summary').textContent = '';
@@ -230,14 +239,7 @@
         var tbody = el('settings-body');
         mensagemNaTabela(tbody, 2, 'Carregando…');
 
-        var linha = el('device-' + estado.id);
-        var log = linha ? linha.querySelector('.log-check') : null;
-        el('drawer-log').checked = log ? log.checked : false;
-        // O emulador precisa estar parado para trocar a flag de log — mesma
-        // regra que a tabela aplica na coluna Log.
-        var parado = !!linha && linha.getAttribute('data-state') === 'stopped';
-        el('drawer-log').disabled = !parado;
-        el('drawer-save-log').disabled = !parado;
+        pintarLog(window.FleetStream.get(estado.id));
 
         fetch('/api/devices/' + estado.id + '/settings')
             .then(function (resposta) {
@@ -271,28 +273,38 @@
         });
     }
 
+    // O emulador precisa estar parado para trocar a flag de log — mesma
+    // regra da coluna Log da tabela.
+    function pintarLog(device) {
+        var log = el('drawer-log');
+        log.checked = !!device && device.log_enabled === 1;
+        log.disabled = !device || device.status !== 'stopped';
+        el('drawer-log-help').textContent = log.disabled
+            ? 'Pare o emulador para trocar.'
+            : 'Grava na hora.';
+    }
+
+    // Grava na hora, como a tabela. A confirmação de volta chega pelo
+    // stream e repinta a tabela e o drawer.
     function salvarLog() {
-        var botao = el('drawer-save-log');
-        botao.disabled = true;
+        var log = el('drawer-log');
+        var ligado = log.checked;
+        log.disabled = true;
 
         fetch('/api/devices/' + estado.id + '/settings', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ log_enabled: el('drawer-log').checked })
+            body: JSON.stringify({ log_enabled: ligado })
         })
             .then(function (resposta) {
                 if (!resposta.ok) { throw new Error('HTTP ' + resposta.status); }
-                window.Toast.ok('Configuração de log salva');
-
-                // Mantém a coluna Log da tabela em sincronia, sem recarregar.
-                var linha = el('device-' + estado.id);
-                var log = linha ? linha.querySelector('.log-check') : null;
-                if (log) { log.checked = el('drawer-log').checked; }
+                window.Toast.ok('Log ' + (ligado ? 'ligado' : 'desligado'));
             })
             .catch(function () {
+                log.checked = !ligado;
                 window.Toast.err('Não foi possível salvar a configuração de log');
             })
-            .then(function () { botao.disabled = false; });
+            .then(function () { pintarLog(window.FleetStream.get(estado.id)); });
     }
 
     // ------------------------------------------------------------------
@@ -304,7 +316,7 @@
 
         el('drawer-close').addEventListener('click', fechar);
         el('drawer-scrim').addEventListener('click', fechar);
-        el('drawer-save-log').addEventListener('click', salvarLog);
+        el('drawer-log').addEventListener('change', salvarLog);
 
         var abas = document.querySelectorAll('.drawer__tab');
         for (var i = 0; i < abas.length; i++) {
@@ -342,16 +354,30 @@
             if (evento.key === 'Escape' && estado.id !== null) { fechar(); }
         });
 
-        // O LED do drawer e a disponibilidade do toggle de log acompanham o
-        // dispositivo aberto em tempo real.
-        window.FleetStream.subscribe('device', function (dados) {
-            if (!dados.device || String(dados.device.id) !== String(estado.id)) { return; }
+        // O drawer acompanha o dispositivo aberto: LED, log, nome e — quando
+        // o gerenciador grava ou apaga usuários — a lista de usuários.
+        window.FleetStream.subscribe('delta', function (dados) {
+            if (estado.id === null) { return; }
+            var id = Number(estado.id);
 
-            el('drawer-led').setAttribute('data-state', dados.device.status);
+            if (dados.removed.indexOf(id) !== -1) {
+                window.Toast.info('O dispositivo ' + id + ' foi removido');
+                fechar();
+                return;
+            }
 
-            var parado = dados.device.status === 'stopped';
-            el('drawer-log').disabled = !parado;
-            el('drawer-save-log').disabled = !parado;
+            var device = null;
+            dados.devices.forEach(function (d) { if (d.id === id) { device = d; } });
+            if (!device) { return; }
+
+            var antes = dados.previous[id];
+            el('drawer-led').setAttribute('data-state', device.status);
+            el('drawer-name').textContent = device.name + ' — LC ' + id;
+            pintarLog(device);
+
+            if (antes && antes.total_users !== device.total_users) {
+                carregarUsuarios(true);
+            }
         });
     });
 

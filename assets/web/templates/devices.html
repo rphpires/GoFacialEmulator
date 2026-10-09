@@ -4,6 +4,7 @@
 
 <div class="page-head">
   <h1>Dispositivos</h1>
+  <span class="page-head__meta" id="grid-summary" aria-live="polite"></span>
   <div class="page-head__actions">
     <button type="button" class="btn btn--action" id="new-emulator">
       <svg class="icon" aria-hidden="true"><use href="/static/icons.svg#plus"></use></svg>
@@ -13,24 +14,12 @@
       <svg class="icon" aria-hidden="true"><use href="/static/icons.svg#devices"></use></svg>
       Criar em lote
     </button>
-    <button type="button" class="btn btn--go" id="start-selected" disabled>
-      <svg class="icon" aria-hidden="true"><use href="/static/icons.svg#play"></use></svg>
-      Iniciar selecionados
-    </button>
-    <button type="button" class="btn btn--halt" id="stop-selected" disabled>
-      <svg class="icon" aria-hidden="true"><use href="/static/icons.svg#stop"></use></svg>
-      Parar selecionados
-    </button>
-    <button type="button" class="btn btn--halt" id="delete-selected" disabled>
-      <svg class="icon" aria-hidden="true"><use href="/static/icons.svg#close"></use></svg>
-      Excluir selecionados
-    </button>
   </div>
 </div>
 
 <!-- A falha mais cara do emulador não emite sinal nenhum: os emuladores
      sobem, a tela fica toda verde e o W-Access mostra tudo offline. O aviso
-     só existe quando há o que avisar — devices.js o revela. -->
+     só existe quando há o que avisar — devices.js o revela e o esconde. -->
 <div id="reachability-alert-row" hidden>
   <div class="notice notice--warn" id="reachability-alert" role="alert">
     <svg class="icon" aria-hidden="true"><use href="/static/icons.svg#alert"></use></svg>
@@ -38,39 +27,73 @@
       <p class="notice__headline" id="reachability-headline"></p>
       <p class="notice__reason" id="reachability-reason"></p>
       <p class="notice__help" id="reachability-help"></p>
-      <button type="button" class="btn btn--sm" id="reachability-toggle">ver a lista</button>
+      <button type="button" class="btn btn--sm" id="reachability-toggle"
+              aria-expanded="false" aria-controls="reachability-list">ver a lista</button>
       <ul class="notice__list" id="reachability-list" hidden></ul>
     </div>
   </div>
 </div>
 
-<!-- Filtros sempre visíveis. O card colapsável antigo custava dois cliques
-     e mais um estado para três campos de texto. -->
-<form class="filters" id="filter-form" method="get" action="/">
-  <div class="field">
-    <label class="field__label" for="filter-id">LocalControllerID</label>
-    <input class="input input--mono" type="number" id="filter-id" name="id"
-           placeholder="123" value="{{ .filters.id }}">
+<!-- Filtro instantâneo: cada tecla filtra a frota que já está na tela, sem
+     ida ao servidor. O estado vai para a URL, então um link ou um F5
+     continuam mostrando o mesmo recorte. -->
+<form class="filters" id="filter-form" role="search" autocomplete="off">
+  <div class="field filters__search">
+    <label class="field__label" for="filter-q">Buscar</label>
+    <input class="input" type="search" id="filter-q" name="q"
+           placeholder="ID, nome ou porta">
   </div>
   <div class="field">
-    <label class="field__label" for="filter-name">Nome</label>
-    <input class="input" type="text" id="filter-name" name="name"
-           placeholder="Portaria" value="{{ .filters.name }}">
+    <label class="field__label" for="filter-status">Estado</label>
+    <select class="select" id="filter-status" name="status">
+      <option value="">Todos</option>
+      <option value="running">Ativos</option>
+      <option value="stopped">Parados</option>
+      <option value="error">Com erro</option>
+      <option value="disabled">Desabilitados</option>
+    </select>
   </div>
   <div class="field">
-    <label class="field__label" for="filter-port">Porta</label>
-    <input class="input input--mono" type="number" id="filter-port" name="port"
-           placeholder="7070" value="{{ .filters.port }}">
+    <label class="field__label" for="filter-model">Modelo</label>
+    <select class="select" id="filter-model" name="model">
+      <option value="">Todos</option>
+      <option value="Hikvision">Hikvision</option>
+      <option value="Dahua">Dahua</option>
+    </select>
   </div>
-  <input type="hidden" name="per_page" value="{{ .per_page }}">
+  <div class="field">
+    <label class="field__label" for="filter-source">Origem</label>
+    <select class="select" id="filter-source" name="source">
+      <option value="">Todas</option>
+      <option value="manual">Manual</option>
+      <option value="wxs">W-Access</option>
+    </select>
+  </div>
   <div class="filters__actions">
-    <button type="submit" class="btn btn--action">
-      <svg class="icon" aria-hidden="true"><use href="/static/icons.svg#search"></use></svg>
-      Filtrar
-    </button>
-    <a class="btn" href="/?per_page={{ .per_page }}">Limpar</a>
+    <button type="reset" class="btn" id="filter-clear">Limpar</button>
   </div>
 </form>
+
+<!-- Ações em lote só aparecem com seleção. Antes eram três botões
+     desabilitados ocupando o cabeçalho o tempo todo. -->
+<div class="bulk-bar" id="bulk-bar" role="region" aria-label="Ações em lote" hidden>
+  <span class="bulk-bar__count" id="bulk-count" aria-live="polite"></span>
+  <button type="button" class="btn btn--sm btn--link" id="select-filtered"></button>
+  <span class="bulk-bar__spacer"></span>
+  <button type="button" class="btn btn--sm btn--go" id="start-selected">
+    <svg class="icon" aria-hidden="true"><use href="/static/icons.svg#play"></use></svg>
+    Iniciar
+  </button>
+  <button type="button" class="btn btn--sm btn--halt" id="stop-selected">
+    <svg class="icon" aria-hidden="true"><use href="/static/icons.svg#stop"></use></svg>
+    Parar
+  </button>
+  <button type="button" class="btn btn--sm btn--halt" id="delete-selected">
+    <svg class="icon" aria-hidden="true"><use href="/static/icons.svg#close"></use></svg>
+    Excluir
+  </button>
+  <button type="button" class="btn btn--sm" id="clear-selection">Limpar seleção</button>
+</div>
 
 <div class="table-wrap">
   <table class="grid" id="device-grid">
@@ -78,134 +101,22 @@
       <tr>
         <th class="center">
           <input type="checkbox" class="check" id="select-all"
-                 aria-label="Selecionar todos os dispositivos">
+                 aria-label="Selecionar os dispositivos desta página">
         </th>
-        <th>ID</th>
-        <th>Nome</th>
-        <th>Modelo</th>
+        <th aria-sort="ascending"><button type="button" class="grid__sort" data-sort="id">ID</button></th>
+        <th aria-sort="none"><button type="button" class="grid__sort" data-sort="name">Nome</button></th>
+        <th aria-sort="none"><button type="button" class="grid__sort" data-sort="model">Modelo</button></th>
         <th>Origem</th>
-        <th class="num">Porta</th>
+        <th class="num" aria-sort="none"><button type="button" class="grid__sort" data-sort="port">Porta</button></th>
         <th>Modo</th>
         <th class="center">Log</th>
         <th class="num">Intervalo</th>
-        <th class="num">Usuários</th>
-        <th>Estado</th>
+        <th class="num" aria-sort="none"><button type="button" class="grid__sort" data-sort="users">Usuários</button></th>
+        <th aria-sort="none"><button type="button" class="grid__sort" data-sort="status">Estado</button></th>
         <th class="center">Ações</th>
       </tr>
     </thead>
-    <tbody>
-      {{ range .devices }}
-      <tr id="device-{{ .lc_id }}" data-id="{{ .lc_id }}" data-state="{{ .status }}">
-        <td class="center">
-          <input type="checkbox" class="check device-check"
-                 aria-label="Selecionar {{ .name }}">
-        </td>
-        <td>
-          <span class="grid__id">
-            <span class="led" data-state="{{ .status }}" aria-hidden="true"></span>
-            {{ .lc_id }}
-          </span>
-        </td>
-        <td class="grid__name device-name-cell" title="{{ .name }}">{{ .name }}</td>
-        <td>{{ .model }}</td>
-        <td>
-          <!-- Origem manda em quais ações a linha oferece: o que veio do
-               W-Access é sobrescrito pelo próximo sync, então editar ali
-               seria uma promessa que o serviço não cumpre. -->
-          {{ if eq .source "manual" }}
-          <span class="badge badge--manual">Manual</span>
-          {{ else }}
-          <span class="badge badge--wxs">W-Access</span>
-          {{ end }}
-        </td>
-        <td class="num">{{ .port }}</td>
-        <td class="center">
-          <!-- LocalAuthentication só é lido pelo emulador Dahua; os demais
-               modelos ignoram a configuração. Um select ali seria um
-               controle que não faz nada. -->
-          {{ if eq .model "Dahua" }}
-          <select class="select device-mode" data-device-id="{{ .lc_id }}"
-                  aria-label="Modo de {{ .name }}">
-            <option value="online" {{ if eq .local_auth "online" }}selected{{ end }}>Online</option>
-            <option value="standalone" {{ if eq .local_auth "standalone" }}selected{{ end }}>Standalone</option>
-          </select>
-          {{ else }}
-          <span class="text-low" title="Este modelo não usa esta configuração">&mdash;</span>
-          {{ end }}
-        </td>
-        <td class="center">
-          <input type="checkbox" class="check log-check" data-id="{{ .lc_id }}"
-                 aria-label="Habilitar log para {{ .name }}"
-                 {{ if eq .log_enabled 1 }}checked{{ end }}
-                 {{ if ne .status "stopped" }}disabled{{ end }}>
-        </td>
-        <td class="num">{{ .interval }}s</td>
-        <td class="num">{{ .total }}</td>
-        <td>
-          <span class="badge" data-state="{{ .status }}">
-            <span class="led" data-state="{{ .status }}" aria-hidden="true"></span>
-            {{ if eq .status "running" }}ativo{{ else if eq .status "disabled" }}desabilitado{{ else }}parado{{ end }}
-          </span>
-        </td>
-        <td>
-          <!-- <button disabled>, não <a class="disabled">: o link falso
-               continuava focável e acionável por teclado. -->
-          <div class="row-actions">
-            <button type="button" class="btn btn--sm btn--go device-start"
-                    data-id="{{ .lc_id }}" title="Iniciar"
-                    {{ if ne .status "stopped" }}disabled{{ end }}>
-              <svg class="icon" aria-hidden="true"><use href="/static/icons.svg#play"></use></svg>
-              <span class="visually-hidden">Iniciar {{ .name }}</span>
-            </button>
-            <button type="button" class="btn btn--sm btn--halt device-stop"
-                    data-id="{{ .lc_id }}" title="Parar"
-                    {{ if ne .status "running" }}disabled{{ end }}>
-              <svg class="icon" aria-hidden="true"><use href="/static/icons.svg#stop"></use></svg>
-              <span class="visually-hidden">Parar {{ .name }}</span>
-            </button>
-            <button type="button" class="btn btn--sm device-details-btn"
-                    data-device-id="{{ .lc_id }}" title="Acessar dados do dispositivo">
-              <svg class="icon" aria-hidden="true"><use href="/static/icons.svg#users"></use></svg>
-              <span class="visually-hidden">Detalhes de {{ .name }}</span>
-            </button>
-            {{ if eq .source "manual" }}
-            <!-- data-ip/data-interval/data-enabled alimentam o formulário de
-                 edição direto do que o servidor já colocou nesta linha —
-                 sem eles, corpoComum() em emulator-form.js leria os campos
-                 do modal ainda com o valor padrão do template (IP
-                 127.0.0.1, intervalo 10, habilitado marcado) e o PUT, que é
-                 substituição total, reescreveria esses três campos do
-                 dispositivo com o valor errado. -->
-            <button type="button" class="btn btn--sm device-edit"
-                    data-id="{{ .lc_id }}" title="Editar"
-                    data-ip="{{ .ip_address }}"
-                    data-interval="{{ .interval }}"
-                    data-enabled="{{ .enabled }}"
-                    {{ if eq .status "running" }}disabled{{ end }}>
-              <svg class="icon" aria-hidden="true"><use href="/static/icons.svg#gear"></use></svg>
-              <span class="visually-hidden">Editar {{ .name }}</span>
-            </button>
-            <button type="button" class="btn btn--sm btn--halt device-remove"
-                    data-id="{{ .lc_id }}" data-name="{{ .name }}" title="Remover">
-              <svg class="icon" aria-hidden="true"><use href="/static/icons.svg#close"></use></svg>
-              <span class="visually-hidden">Remover {{ .name }}</span>
-            </button>
-            {{ end }}
-          </div>
-        </td>
-      </tr>
-      {{ else }}
-      <tr>
-        <td colspan="12">
-          <div class="empty">
-            <p class="empty__title">Nenhum dispositivo encontrado</p>
-            <p>Ajuste os filtros ou sincronize com o W-Access para trazer os dispositivos.</p>
-            <a class="btn btn--action" href="/?per_page={{ .per_page }}">Limpar filtros</a>
-          </div>
-        </td>
-      </tr>
-      {{ end }}
-    </tbody>
+    <tbody id="device-rows"></tbody>
   </table>
 </div>
 
@@ -213,28 +124,19 @@
   <div class="field field--inline">
     <label class="field__label" for="per-page">Itens por página</label>
     <select class="select" id="per-page">
-      <option value="5" {{ if eq .per_page 5 }}selected{{ end }}>5</option>
-      <option value="10" {{ if eq .per_page 10 }}selected{{ end }}>10</option>
-      <option value="20" {{ if eq .per_page 20 }}selected{{ end }}>20</option>
-      <option value="50" {{ if eq .per_page 50 }}selected{{ end }}>50</option>
+      <option value="10">10</option>
+      <option value="25">25</option>
+      <option value="50">50</option>
+      <option value="100">100</option>
     </select>
   </div>
 
-  <nav class="pager__pages" aria-label="Paginação">
-    <a class="pager__page" href="/?page={{ sub .page 1 }}&per_page={{ .per_page }}{{ if .filters.id }}&id={{ .filters.id }}{{ end }}{{ if .filters.name }}&name={{ .filters.name }}{{ end }}{{ if .filters.port }}&port={{ .filters.port }}{{ end }}"
-       {{ if eq .page 1 }}aria-disabled="true"{{ end }} aria-label="Página anterior">
-      <svg class="icon" aria-hidden="true"><use href="/static/icons.svg#chevron-left"></use></svg>
-    </a>
-    {{ range $p := .page_range }}
-    <a class="pager__page" href="/?page={{ $p }}&per_page={{ $.per_page }}{{ if $.filters.id }}&id={{ $.filters.id }}{{ end }}{{ if $.filters.name }}&name={{ $.filters.name }}{{ end }}{{ if $.filters.port }}&port={{ $.filters.port }}{{ end }}"
-       {{ if eq $.page $p }}aria-current="page"{{ end }}>{{ $p }}</a>
-    {{ end }}
-    <a class="pager__page" href="/?page={{ add .page 1 }}&per_page={{ .per_page }}{{ if .filters.id }}&id={{ .filters.id }}{{ end }}{{ if .filters.name }}&name={{ .filters.name }}{{ end }}{{ if .filters.port }}&port={{ .filters.port }}{{ end }}"
-       {{ if eq .page .total_pages }}aria-disabled="true"{{ end }} aria-label="Próxima página">
-      <svg class="icon" aria-hidden="true"><use href="/static/icons.svg#chevron-right"></use></svg>
-    </a>
-  </nav>
+  <nav class="pager__pages" id="pager-pages" aria-label="Paginação"></nav>
 </div>
+
+<!-- Frota no momento da renderização: a primeira pintura não espera o
+     snapshot do stream. -->
+<script type="application/json" id="fleet-initial">{{ .fleet }}</script>
 
 <div class="drawer-scrim" id="drawer-scrim" hidden></div>
 
@@ -295,7 +197,7 @@
             <input type="checkbox" class="check" id="drawer-log">
             <span>Gravar log de eventos</span>
           </label>
-          <button type="button" class="btn btn--action self-start" id="drawer-save-log">Salvar</button>
+          <p class="field__help" id="drawer-log-help">Grava na hora. Só pode ser trocado com o emulador parado.</p>
         </div>
       </div>
 

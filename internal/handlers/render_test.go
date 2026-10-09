@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -83,55 +84,17 @@ func TestRenderPage_EscapaHTML(t *testing.T) {
 	}
 }
 
-// TestRenderDevices_ColunaModo trava a coluna Modo na interface
-// redesenhada. Ela nasceu em feat/rede-e-modo-dispositivo escrita em
-// Bootstrap sobre um main.js que não existe mais; o merge não a traz de
-// volta sozinha, e sem ela o capítulo do manual descreve uma coluna
-// invisível.
+// TestRenderDevices_ColunaModo garante o cabeçalho da coluna Modo. O
+// seletor por linha (só Dahua) é desenhado por devices.js a partir do
+// campo mode da frota.
 func TestRenderDevices_ColunaModo(t *testing.T) {
-	h := &Handler{
-		templates:  buildTemplateCache(),
-		appVersion: "teste",
-	}
-
-	rec := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(rec)
-	c.Request = httptest.NewRequest(http.MethodGet, "/", nil)
-
-	h.renderPage(c, "devices.html", http.StatusOK, gin.H{
-		"devices": []gin.H{
-			{"lc_id": 1, "name": "Portaria", "model": "Dahua", "port": 4001,
-				"status": "running", "log_enabled": 0, "interval": 30,
-				"total": 12, "local_auth": "standalone"},
-			{"lc_id": 2, "name": "Garagem", "model": "Hikvision", "port": 4002,
-				"status": "stopped", "log_enabled": 0, "interval": 30,
-				"total": 8, "local_auth": "online"},
-		},
-		"filters":       gin.H{"id": "", "name": "", "port": ""},
-		"page":          1,
-		"total_pages":   1,
-		"per_page":      50,
-		"page_range":    []int{1},
-		"counter_cards": FleetCounts{Total: 2, Running: 1, Stopped: 1, Disabled: 0}.toMap(),
-	})
-
-	corpo := rec.Body.String()
+	corpo := renderizarDevices(t, []deviceView{{ID: 1, Model: "Dahua", Mode: modoStandalone}})
 
 	if !strings.Contains(corpo, "<th>Modo</th>") {
 		t.Errorf("a grade não tem cabeçalho da coluna Modo:\n%s", corpo)
 	}
-	// Dahua ganha o seletor; os demais modelos ignoram LocalAuthentication e
-	// mostram um traço, então um select ali seria um controle que não faz nada.
-	if !strings.Contains(corpo, `class="select device-mode" data-device-id="1"`) {
-		t.Errorf("o dispositivo Dahua deveria ter o seletor de modo:\n%s", corpo)
-	}
-	if strings.Contains(corpo, `device-mode" data-device-id="2"`) {
-		t.Errorf("o dispositivo Hikvision não deveria ter seletor de modo:\n%s", corpo)
-	}
-	// O valor gravado tem de vir selecionado, senão a tela mente sobre o
-	// estado do dispositivo.
-	if !strings.Contains(corpo, `value="standalone" selected`) {
-		t.Errorf("o modo gravado não veio selecionado:\n%s", corpo)
+	if !strings.Contains(corpo, `"mode":"standalone"`) {
+		t.Errorf("o modo gravado não veio na frota embutida:\n%s", corpo)
 	}
 }
 
@@ -150,13 +113,8 @@ func TestRenderDevices_BlocoDeAlcancabilidade(t *testing.T) {
 	c.Request = httptest.NewRequest(http.MethodGet, "/", nil)
 
 	h.renderPage(c, "devices.html", http.StatusOK, gin.H{
-		"devices":       []gin.H{},
-		"filters":       gin.H{"id": "", "name": "", "port": ""},
-		"page":          1,
-		"total_pages":   1,
-		"per_page":      50,
-		"page_range":    []int{1},
-		"counter_cards": FleetCounts{Total: 0, Running: 0, Stopped: 0, Disabled: 0}.toMap(),
+		"fleet":         []deviceView{},
+		"counter_cards": FleetCounts{}.toMap(),
 	})
 
 	corpo := rec.Body.String()
@@ -185,36 +143,21 @@ func TestRenderDevices_BlocoDeAlcancabilidade(t *testing.T) {
 	}
 }
 
-// TestRenderDevices_BotoesEmLote garante que o botão de exclusão em lote
-// nasce desabilitado, como os outros dois. Habilitado sem seleção ele
-// dispararia o confirm de uma operação irreversível sobre nada — e o
-// devices.js só reabilita quando há linha marcada.
+// TestRenderDevices_BotoesEmLote garante que as ações em lote nascem
+// escondidas dentro da barra de seleção. Visíveis sem seleção elas
+// disparariam o confirm de uma operação irreversível sobre nada — e o
+// devices.js só revela a barra quando há dispositivo marcado.
 func TestRenderDevices_BotoesEmLote(t *testing.T) {
-	h := &Handler{
-		templates:  buildTemplateCache(),
-		appVersion: "teste",
+	corpo := renderizarDevices(t, nil)
+
+	re := regexp.MustCompile(`(?s)<div class="bulk-bar" id="bulk-bar"[^>]*hidden>(.*?)</div>`)
+	m := re.FindStringSubmatch(corpo)
+	if m == nil {
+		t.Fatalf("barra de ações em lote ausente ou já visível:\n%s", corpo)
 	}
-
-	rec := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(rec)
-	c.Request = httptest.NewRequest(http.MethodGet, "/", nil)
-
-	h.renderPage(c, "devices.html", http.StatusOK, gin.H{
-		"devices":       []gin.H{},
-		"filters":       gin.H{"id": "", "name": "", "port": ""},
-		"page":          1,
-		"total_pages":   1,
-		"per_page":      50,
-		"page_range":    []int{1},
-		"counter_cards": FleetCounts{Total: 0, Running: 0, Stopped: 0, Disabled: 0}.toMap(),
-	})
-
-	corpo := rec.Body.String()
-
 	for _, id := range []string{"start-selected", "stop-selected", "delete-selected"} {
-		marcador := `id="` + id + `" disabled`
-		if !strings.Contains(corpo, marcador) {
-			t.Errorf("botão em lote %q ausente ou já habilitado:\n%s", id, corpo)
+		if !strings.Contains(m[1], `id="`+id+`"`) {
+			t.Errorf("botão em lote %q fora da barra de seleção", id)
 		}
 	}
 }

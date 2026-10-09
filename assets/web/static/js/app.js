@@ -161,13 +161,7 @@
             disabled: Number(meter.getAttribute('data-disabled'))
         });
 
-        window.FleetStream.subscribe('snapshot', function (dados) {
-            FleetMeter.render(dados.counts);
-        });
-
-        window.FleetStream.subscribe('device', function (dados) {
-            FleetMeter.render(dados.counts);
-        });
+        window.FleetStream.subscribe('counts', FleetMeter.render);
 
         window.FleetStream.subscribe('status', function (estado) {
             // Reconectando não apaga os números: só avisa que podem estar
@@ -206,7 +200,7 @@
         if (iniciarTodos) {
             iniciarTodos.addEventListener('click', function () {
                 iniciarTodos.disabled = true;
-                postar('/start', { devices: ['all'], enable_log: {} })
+                postar('/start', { devices: ['all'] })
                     .then(function () { window.Toast.ok('Iniciando todos os emuladores'); })
                     .catch(function () { window.Toast.err('Não foi possível iniciar os emuladores'); })
                     .then(function () { iniciarTodos.disabled = false; });
@@ -256,13 +250,15 @@
                 return aguardarConclusao();
             })
             .then(function () {
-                window.Toast.ok('Sincronização concluída. Recarregando…');
-                window.setTimeout(function () { window.location.reload(); }, 800);
+                // Os dispositivos novos e removidos chegam pelo stream (o
+                // servidor manda um snapshot ao fim do sync). Não há mais
+                // recarga da página.
+                window.Toast.ok('Sincronização concluída');
             })
             .catch(function (erro) {
                 window.Toast.err(erro && erro.tratado ? erro.message : 'Falha ao sincronizar com o W-Access');
-                botao.disabled = false;
-            });
+            })
+            .then(function () { botao.disabled = false; });
     }
 
     // O refresh roda em background no servidor; /api/refresh-status é o
