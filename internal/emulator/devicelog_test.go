@@ -65,3 +65,20 @@ func TestDeleteDeviceApagaLogs(t *testing.T) {
 		t.Errorf("DeleteDevice não apagou os logs: %v", fs)
 	}
 }
+
+// Dispositivo que sumiu do W-Access também leva os logs: um ID reaproveitado
+// não pode continuar o arquivo do antigo.
+func TestCleanupOrphanedDevicesApagaLogs(t *testing.T) {
+	db := &dbFalso{queryRows: &rowsFalsas{linhas: [][]interface{}{
+		{5, "Some", "10.0.0.1", 4005, "Dahua", 1, 0, "stopped", 0, 0, 1, "wxs"},
+	}}}
+	m, o := managerComLogs(t, db)
+	_ = m.Logs.SetEnabled(devicelog.Info{ID: 5}, true)
+
+	if err := m.cleanupOrphanedDevices(context.Background(), nil); err != nil {
+		t.Fatal(err)
+	}
+	if fs := o.Files(5); len(fs) != 0 {
+		t.Errorf("logs do órfão ficaram: %v", fs)
+	}
+}

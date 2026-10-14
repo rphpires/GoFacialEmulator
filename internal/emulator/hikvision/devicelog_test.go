@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"GoFacialEmulator/internal/devicelog"
+
+	"github.com/gin-gonic/gin"
 )
 
 func logDeTeste(t *testing.T) (*devicelog.Logger, string) {
@@ -106,4 +108,24 @@ func TestHikvisionSemLoggerNaoQuebra(t *testing.T) {
 	if resp.StatusCode != http.StatusNotFound {
 		t.Errorf("status %d", resp.StatusCode)
 	}
+}
+
+// Um handler que entra em pânico vira 500 e precisa aparecer no log: é o
+// erro que o operador mais quer ver.
+func TestHikvisionLogRegistraRequisicaoQueEntrouEmPanico(t *testing.T) {
+	e := newTestEmulator(t)
+	dlog, caminho := logDeTeste(t)
+	e.dlog = dlog
+
+	r := e.newRouter()
+	r.GET("/panico", func(c *gin.Context) { panic("teste") })
+	srv := httptest.NewServer(r)
+	defer srv.Close()
+
+	resp, err := http.Get(srv.URL + "/panico")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	esperarNoLog(t, caminho, "GET /panico -> 500 ")
 }

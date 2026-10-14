@@ -269,39 +269,68 @@ func (l *Logger) report(err error) {
 	}
 }
 
-// WriteZip escreve um zip com todos os arquivos do dispositivo. Segura o
-// lock para não pegar uma rotação no meio.
+// WriteZip escreve um zip com todos os arquivos do dispositivo. Abre os
+// arquivos sob o lock, para não pegar uma rotação no meio, e comprime fora
+// dele: o middleware e o ConnState do emulador não podem esperar o download.
+// Um rename depois da abertura não afeta o descritor já aberto.
 func (l *Logger) WriteZip(w io.Writer) error {
 	if l == nil {
 		return ErrNoLogs
 	}
 	l.mu.Lock()
-	defer l.mu.Unlock()
 	if l.file != nil {
 		_ = l.file.Sync()
 	}
-	return writeZip(w, l.opts.Files(l.info.ID))
+	abertos, err := openAll(l.opts.Files(l.info.ID))
+	l.mu.Unlock()
+	if err != nil {
+		return err
+	}
+	return zipOpened(w, abertos)
 }
 
 func writeZip(w io.Writer, files []string) error {
-	if len(files) == 0 {
-		return ErrNoLogs
+	abertos, err := openAll(files)
+	if err != nil {
+		return err
 	}
-	zw := zip.NewWriter(w)
+	return zipOpened(w, abertos)
+}
+
+func openAll(files []string) ([]*os.File, error) {
+	if len(files) == 0 {
+		return nil, ErrNoLogs
+	}
+	var abertos []*os.File
 	for _, p := range files {
-		if err := addToZip(zw, p); err != nil {
+		f, err := os.Open(p)
+		if err != nil {
+			for _, a := range abertos {
+				a.Close()
+			}
+			return nil, err
+		}
+		abertos = append(abertos, f)
+	}
+	return abertos, nil
+}
+
+func zipOpened(w io.Writer, files []*os.File) error {
+	defer func() {
+		for _, f := range files {
+			f.Close()
+		}
+	}()
+	zw := zip.NewWriter(w)
+	for _, f := range files {
+		if err := addToZip(zw, f); err != nil {
 			return err
 		}
 	}
 	return zw.Close()
 }
 
-func addToZip(zw *zip.Writer, path string) error {
-	f, err := os.Open(path)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
+func addToZip(zw *zip.Writer, f *os.File) error {
 	st, err := f.Stat()
 	if err != nil {
 		return err
@@ -310,7 +339,7 @@ func addToZip(zw *zip.Writer, path string) error {
 	if err != nil {
 		return err
 	}
-	hdr.Name = filepath.Base(path)
+	hdr.Name = filepath.Base(f.Name())
 	hdr.Method = zip.Deflate
 	dst, err := zw.CreateHeader(hdr)
 	if err != nil {

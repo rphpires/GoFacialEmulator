@@ -309,6 +309,9 @@ func (m *Manager) cleanupOrphanedDevices(ctx context.Context, controllers []map[
 		if err != nil {
 			m.Tracer.Error("Failed to delete orphaned device %d: %v", id, err)
 		}
+		if err := m.Logs.Remove(id); err != nil {
+			m.Tracer.Warning("apagando logs do dispositivo %d: %v", id, err)
+		}
 
 		m.watchdogMutex.Lock()
 		delete(m.watchdog, id)

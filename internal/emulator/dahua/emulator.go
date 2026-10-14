@@ -280,8 +280,10 @@ func (e *Emulator) initializeRemoteSettings() {
 func (e *Emulator) newRouter() *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
-	router.Use(gin.Recovery())
+	// O log fica por fora do Recovery: assim registra o 500 de um handler
+	// que entrou em pânico.
 	router.Use(e.dlog.Gin())
+	router.Use(gin.Recovery())
 
 	// Middleware de diagnostico: loga toda requisicao que entra neste emulador
 	// (mesmo par [REQ]/[RES] do Hikvision).

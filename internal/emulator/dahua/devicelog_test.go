@@ -11,6 +11,8 @@ import (
 
 	"GoFacialEmulator/internal/devicelog"
 	"GoFacialEmulator/internal/trace"
+
+	"github.com/gin-gonic/gin"
 )
 
 func logDeTeste(t *testing.T) (*devicelog.Logger, string) {
@@ -99,4 +101,23 @@ func TestDahuaPostNotificationRegistraSaida(t *testing.T) {
 	esperarNoLog(t, caminho,
 		"OUT -> POST "+alvo.URL+"/notification -> 200 ",
 		"Code=DoorStatus Status=Open")
+}
+
+// Um handler que entra em pânico vira 500 e precisa aparecer no log: é o
+// erro que o operador mais quer ver.
+func TestDahuaLogRegistraRequisicaoQueEntrouEmPanico(t *testing.T) {
+	dlog, caminho := logDeTeste(t)
+	e := emuladorDahuaDeTeste(dlog)
+
+	r := e.newRouter()
+	r.GET("/panico", func(c *gin.Context) { panic("teste") })
+	srv := httptest.NewServer(r)
+	defer srv.Close()
+
+	resp, err := http.Get(srv.URL + "/panico")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	esperarNoLog(t, caminho, "GET /panico -> 500 ")
 }

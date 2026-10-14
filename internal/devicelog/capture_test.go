@@ -208,3 +208,19 @@ func TestOutRegistraSucessoEErro(t *testing.T) {
 		}
 	}
 }
+
+// Os CGIs do Dahua levam senha de cartão/usuário na query string.
+func TestGinMascaraSenhaNaQuery(t *testing.T) {
+	l, o := ligado(t)
+	r := routerDeTeste(l, func(c *gin.Context) { c.Status(200) })
+	r.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest("GET",
+		"/cgi-bin/recordUpdater.cgi?action=insert&CardNo=1&Password=s3cret&CardPassword=abc", nil))
+
+	got := ler(t, o.FilePath(1, 0))
+	if strings.Contains(got, "s3cret") || strings.Contains(got, "abc") {
+		t.Fatalf("senha vazou:\n%s", got)
+	}
+	if !strings.Contains(got, "Password=***&CardPassword=***") {
+		t.Errorf("query não mascarada:\n%s", got)
+	}
+}

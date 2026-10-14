@@ -128,8 +128,10 @@ func (e *Emulator) sortearSubEvento() int {
 func (e *Emulator) newRouter() *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
-	router.Use(gin.Recovery())
+	// O log fica por fora do Recovery: assim registra o 500 de um handler
+	// que entrou em pânico.
 	router.Use(e.dlog.Gin())
+	router.Use(gin.Recovery())
 
 	// Middleware de diagnóstico: loga toda requisição que entra neste emulador.
 	router.Use(func(c *gin.Context) {

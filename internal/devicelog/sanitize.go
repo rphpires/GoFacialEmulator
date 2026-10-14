@@ -38,7 +38,7 @@ var (
 	reBase64     = regexp.MustCompile(`[A-Za-z0-9+/=]{257,}`)
 	reXMLPass    = regexp.MustCompile(`(?is)<(password|pwd)>[^<]*</(password|pwd)>`)
 	reJSONPass   = regexp.MustCompile(`(?i)"(password|pwd)"\s*:\s*"[^"]*"`)
-	reFormPass   = regexp.MustCompile(`(?i)\b(password|pwd)=[^&\s]*`)
+	reFormPass   = regexp.MustCompile(`(?i)([\w.\[\]]*(?:password|pwd))=[^&\s]*`)
 	reXMLBetween = regexp.MustCompile(`>\s+<`)
 	reSpaces     = regexp.MustCompile(`\s+`)
 	reXMLField   = regexp.MustCompile(`<([A-Za-z]\w*)>([^<]{0,200})</([A-Za-z]\w*)>`)
@@ -136,6 +136,12 @@ func cleanText(s string) string {
 	s = reXMLBetween.ReplaceAllString(s, "><")
 	s = reSpaces.ReplaceAllString(s, " ")
 	return strings.TrimSpace(s)
+}
+
+// maskURI esconde senhas da query string (os CGIs do Dahua mandam senha de
+// cartão e de usuário por ali).
+func maskURI(uri string) string {
+	return reFormPass.ReplaceAllString(uri, "$1=***")
 }
 
 func truncate(s string, max int) string {

@@ -146,3 +146,10 @@ func TestHumanSize(t *testing.T) {
 		}
 	}
 }
+
+func TestDescribeMascaraSenhaComPrefixo(t *testing.T) {
+	got := Describe("application/x-www-form-urlencoded", []byte("CardNo=1&CardPassword=abc123&user.Password=xyz789"))
+	if strings.Contains(got, "abc123") || strings.Contains(got, "xyz789") {
+		t.Errorf("senha vazou: %s", got)
+	}
+}

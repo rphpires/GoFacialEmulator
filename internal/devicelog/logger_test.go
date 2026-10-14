@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
 func optsDeTeste(t *testing.T) Options {
@@ -203,5 +204,44 @@ func TestWriteZipSemArquivos(t *testing.T) {
 	l := New(optsDeTeste(t), infoDeTeste(), nil)
 	if err := l.WriteZip(&bytes.Buffer{}); err != ErrNoLogs {
 		t.Errorf("err = %v, quero ErrNoLogs", err)
+	}
+}
+
+// travaEscrita segura a primeira escrita até ser liberada, simulando um
+// download lento do zip.
+type travaEscrita struct {
+	comecou chan struct{}
+	libera  chan struct{}
+	once    sync.Once
+}
+
+func (w *travaEscrita) Write(p []byte) (int, error) {
+	w.once.Do(func() { close(w.comecou) })
+	<-w.libera
+	return len(p), nil
+}
+
+// Montar o zip não pode segurar o lock do logger: o middleware e o
+// ConnState do emulador esperariam o download inteiro.
+func TestWriteZipNaoBloqueiaEscritas(t *testing.T) {
+	o := optsDeTeste(t)
+	l := New(o, infoDeTeste(), nil)
+	_ = l.SetEnabled(true)
+	l.Printf("IN", "antes")
+
+	w := &travaEscrita{comecou: make(chan struct{}), libera: make(chan struct{})}
+	go func() { _ = l.WriteZip(w) }()
+	<-w.comecou
+	defer close(w.libera)
+
+	feito := make(chan struct{})
+	go func() {
+		l.Printf("IN", "durante o zip")
+		close(feito)
+	}()
+	select {
+	case <-feito:
+	case <-time.After(time.Second):
+		t.Fatal("Printf bloqueou enquanto o zip era escrito")
 	}
 }

@@ -109,7 +109,7 @@ func (l *Logger) Gin() gin.HandlerFunc {
 		if u := UserFromAuth(req.Header.Get("Authorization")); u != "" {
 			b.WriteString(" user=" + u)
 		}
-		fmt.Fprintf(&b, " %s %s -> %d %dms (%s/%s)", req.Method, req.URL.RequestURI(),
+		fmt.Fprintf(&b, " %s %s -> %d %dms (%s/%s)", req.Method, maskURI(req.URL.RequestURI()),
 			w.Status(), time.Since(inicio).Milliseconds(), tamReq, humanSize(respSize))
 		ct := req.Header.Get("Content-Type")
 		if f := KeyFields(ct, reqBody, req.URL.Query()); f != "" {
