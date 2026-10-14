@@ -231,7 +231,7 @@
         },
         {
             classe: 'center',
-            sig: function (d) { return d.log_enabled + '|' + d.status; },
+            sig: function (d) { return String(d.log_enabled); },
             render: function (td, d) {
                 var c = td.firstChild;
                 if (!c) {
@@ -240,9 +240,8 @@
                     td.appendChild(c);
                 }
                 c.checked = d.log_enabled === 1;
-                c.disabled = d.status !== 'stopped';
                 c.setAttribute('aria-label', 'Gravar log de ' + d.name);
-                c.title = c.disabled ? 'Pare o emulador para trocar' : 'Gravar log de eventos';
+                c.title = 'Gravar log de eventos';
             }
         },
         {
@@ -810,6 +809,10 @@
     // checkbox parecia não fazer nada.
     function trocarLog(alvo, id) {
         var ligado = alvo.checked;
+        if (!ligado && !window.confirm('Desligar apaga os logs deste emulador. Continuar?')) {
+            alvo.checked = true;
+            return;
+        }
         alvo.disabled = true;
         enviar('/api/devices/' + id + '/settings', 'PUT', { log_enabled: ligado })
             .then(function () {

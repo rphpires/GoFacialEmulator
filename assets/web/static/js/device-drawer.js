@@ -273,15 +273,20 @@
         });
     }
 
-    // O emulador precisa estar parado para trocar a flag de log — mesma
-    // regra da coluna Log da tabela.
+    var AVISO_DESLIGAR_LOG = 'Desligar apaga os logs deste emulador. Continuar?';
+
+    // A flag troca com o emulador em qualquer estado. Os links só aparecem
+    // com o log ligado, porque desligar apaga os arquivos.
     function pintarLog(device) {
         var log = el('drawer-log');
-        log.checked = !!device && device.log_enabled === 1;
-        log.disabled = !device || device.status !== 'stopped';
-        el('drawer-log-help').textContent = log.disabled
-            ? 'Pare o emulador para trocar.'
-            : 'Grava na hora.';
+        var ligado = !!device && device.log_enabled === 1;
+        log.checked = ligado;
+        log.disabled = !device;
+        el('drawer-log-links').hidden = !ligado;
+        if (device) {
+            el('drawer-log-view').href = '/api/devices/' + device.id + '/log';
+            el('drawer-log-zip').href = '/api/devices/' + device.id + '/log.zip';
+        }
     }
 
     // Grava na hora, como a tabela. A confirmação de volta chega pelo
@@ -289,6 +294,10 @@
     function salvarLog() {
         var log = el('drawer-log');
         var ligado = log.checked;
+        if (!ligado && !window.confirm(AVISO_DESLIGAR_LOG)) {
+            log.checked = true;
+            return;
+        }
         log.disabled = true;
 
         fetch('/api/devices/' + estado.id + '/settings', {

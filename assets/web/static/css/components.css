@@ -229,6 +229,16 @@
     color: var(--text-low);
 }
 
+.log-links {
+    display: flex;
+    gap: var(--gap-2);
+    margin-top: var(--gap-2);
+}
+
+.log-links[hidden] {
+    display: none;
+}
+
 .input,
 .select {
     height: 32px;
