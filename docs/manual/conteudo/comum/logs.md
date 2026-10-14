@@ -24,12 +24,26 @@ se não conseguiu iniciar.
 
 ## O log de um dispositivo específico
 
-O log de um dispositivo não fica junto do log geral da aplicação. Ele sai
-pela gaveta de detalhes daquele dispositivo: na aba Configurações, marque
-**Gravar log de eventos** e clique em **Salvar** para ligar o registro; a
-partir daí, os eventos desse dispositivo passam a ser gravados em
-arquivo. Veja o capítulo Conhecer o console, na seção sobre a gaveta de
-detalhes, para a explicação completa da tela.
+Cada emulador pode gravar o próprio log, separado do log geral. Ele
+registra quem conectou (endereço e porta de origem — útil para descobrir
+dois gerenciadores falando com o mesmo emulador), cada requisição recebida
+com os dados principais do objeto (usuário, cartão, evento) e cada evento
+que o emulador enviou ao gerenciador.
+
+Para ligar, abra a gaveta de detalhes do dispositivo, aba Configurações, e
+marque **Gravar log de eventos**. Vale na hora, com o emulador rodando ou
+parado. Com o log ligado aparecem dois links:
+
+- **Ver log** — abre o arquivo mais recente no navegador.
+- **Baixar logs (.zip)** — baixa todos os arquivos daquele emulador.
+
+Os arquivos ficam em `sistema/logs/devices/` (`device-<id>.log` é o atual;
+`device-<id>.1.log` a `.7.log` são os anteriores). São guardados no máximo
+8 arquivos de 3MB por emulador; o mais antigo é apagado ao passar disso.
+
+**Desligar o log apaga os arquivos daquele emulador** — a tela pede
+confirmação. Baixe o zip antes se quiser guardar. Excluir o emulador também
+apaga os arquivos.
 
 ## O log de instalação
 
