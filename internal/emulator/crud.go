@@ -317,6 +317,10 @@ func (m *Manager) DeleteDevice(ctx context.Context, id int) error {
 		return fmt.Errorf("erro ao confirmar remoção: %w", err)
 	}
 
+	if err := m.Logs.Remove(id); err != nil {
+		m.Tracer.Warning("apagando logs do dispositivo %d: %v", id, err)
+	}
+
 	m.watchdogMutex.Lock()
 	delete(m.watchdog, id)
 	m.watchdogMutex.Unlock()

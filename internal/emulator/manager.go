@@ -1,6 +1,7 @@
 package emulator
 
 import (
+	"GoFacialEmulator/internal/devicelog"
 	"context"
 	"fmt"
 	"strconv"
@@ -26,6 +27,10 @@ type Manager struct {
 	// nela produziria um dispositivo que nunca consegue subir, e o erro
 	// apareceria só no start, longe da causa.
 	ServicePort int
+
+	// Logs guarda o log de cada dispositivo (checkbox "Gravar log de
+	// eventos"). Exportado para os handlers servirem os arquivos.
+	Logs *devicelog.Registry
 
 	// Mapa de emuladores ativos (equivalente ao devices_watchdog do Python)
 	emulators     map[int]Emulator
@@ -78,6 +83,9 @@ func NewManager(serviceDB database.DBInterface, emulatorDB database.DBInterface,
 		shutdownChan:   make(chan struct{}),
 		watchdogTicker: time.NewTicker(10 * time.Second), // Equivalente ao schedule.every(10).seconds
 		starting:       make(map[int]bool),
+		Logs: devicelog.NewRegistry(devicelog.DefaultOptions(), func(err error) {
+			tracer.Error("%v", err)
+		}),
 	}
 }
 
@@ -549,6 +557,20 @@ func (m *Manager) startReserved(id int) error {
 	return nil
 }
 
+// logInfo é o que vai no cabeçalho de cada arquivo de log do dispositivo.
+func logInfo(device models.Device) devicelog.Info {
+	return devicelog.Info{ID: device.ID, Name: device.Name, Type: device.Model, Port: device.Port}
+}
+
+// deviceLog devolve o logger do dispositivo com a flag do banco aplicada.
+func (m *Manager) deviceLog(device models.Device) *devicelog.Logger {
+	l := m.Logs.For(logInfo(device))
+	if err := l.SetEnabled(device.LogEnabled == 1); err != nil {
+		m.Tracer.Warning("log do dispositivo %d: %v", device.ID, err)
+	}
+	return l
+}
+
 // createEmulator cria um emulador baseado no tipo de dispositivo
 func (m *Manager) createEmulator(device models.Device) (Emulator, error) {
 	switch device.Model {
@@ -638,10 +660,10 @@ func (m *Manager) StartAll() error {
 
 	// Configurações otimizadas para inicialização massiva
 	const (
-		maxConcurrent = 20                        // Aumentado para 20 emuladores simultâneos
-		delayBetween  = 200 * time.Millisecond    // Delay reduzido entre batches
-		maxRetries    = 3                         // Aumentado para 3 tentativas
-		retryDelay    = 1 * time.Second           // Retry mais rápido
+		maxConcurrent = 20                     // Aumentado para 20 emuladores simultâneos
+		delayBetween  = 200 * time.Millisecond // Delay reduzido entre batches
+		maxRetries    = 3                      // Aumentado para 3 tentativas
+		retryDelay    = 1 * time.Second        // Retry mais rápido
 	)
 
 	// Semáforo para controlar concorrência
@@ -889,6 +911,15 @@ func (m *Manager) UpdateDeviceSettings(id int, logEnabled bool) error {
 
 	if err != nil {
 		return fmt.Errorf("failed to update device settings: %w", err)
+	}
+
+	// Vale com o emulador rodando: o logger é o mesmo que ele já usa.
+	info := devicelog.Info{ID: id}
+	if dev, err := m.GetDevice(id); err == nil {
+		info = logInfo(dev)
+	}
+	if err := m.Logs.SetEnabled(info, logEnabled); err != nil {
+		m.Tracer.Warning("log do dispositivo %d: %v", id, err)
 	}
 
 	m.NotifyChanged(id)
