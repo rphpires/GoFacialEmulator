@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"GoFacialEmulator/internal/devicelog"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -1307,6 +1309,10 @@ func (e *Emulator) handleGetAlertStream(c *gin.Context) {
 		return
 	}
 	defer conn.Close()
+	devicelog.MarkStream(c)
+	remote := conn.RemoteAddr().String()
+	e.dlog.StreamOpen(remote, c.Request.URL.RequestURI())
+	defer e.dlog.StreamClose(remote)
 	e.tracer.Info("[alertStream] connection hijacked from %s", conn.RemoteAddr())
 
 	// Limpa deadlines herdadas de ReadTimeout/WriteTimeout do http.Server;

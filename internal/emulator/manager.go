@@ -573,11 +573,12 @@ func (m *Manager) deviceLog(device models.Device) *devicelog.Logger {
 
 // createEmulator cria um emulador baseado no tipo de dispositivo
 func (m *Manager) createEmulator(device models.Device) (Emulator, error) {
+	dlog := m.deviceLog(device)
 	switch device.Model {
 	case "Dahua":
 		return dahua.NewEmulator(m.EmulatorDB, device, m.Tracer), nil
 	case "Hikvision":
-		return hikvision.NewEmulator(m.EmulatorDB, device, m.Tracer), nil
+		return hikvision.NewEmulator(m.EmulatorDB, device, m.Tracer, dlog), nil
 	default:
 		return nil, fmt.Errorf("unsupported device model: %s", device.Model)
 	}

@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"GoFacialEmulator/internal/database"
+	"GoFacialEmulator/internal/devicelog"
 	"GoFacialEmulator/internal/models"
 	"GoFacialEmulator/internal/trace"
 	"GoFacialEmulator/internal/utils"
@@ -48,6 +49,10 @@ type Emulator struct {
 	// eventLog é o histórico de eventos que o dispositivo "tem em memória",
 	// consultado por POST AcsEvent e purgado por StorageCfg mode=time.
 	eventLog *eventLog
+
+	// dlog é o log deste dispositivo (checkbox "Gravar log de eventos").
+	// Pode ser nil: todo método do devicelog vira no-op.
+	dlog *devicelog.Logger
 }
 
 // intPtr retorna um ponteiro para o int fornecido (usado em campos de evento
@@ -64,7 +69,7 @@ func nextSerialNo() int {
 }
 
 // NewEmulator cria uma nova instância do emulador Hikvision
-func NewEmulator(db database.DBInterface, device models.Device, tracer *trace.Tracer) *Emulator {
+func NewEmulator(db database.DBInterface, device models.Device, tracer *trace.Tracer, dlog *devicelog.Logger) *Emulator {
 	tracer.Info("Initializing Hikvision emulator model: %s", device.Name)
 
 	repo := NewRepository(db, device.ID)
@@ -80,6 +85,7 @@ func NewEmulator(db database.DBInterface, device models.Device, tracer *trace.Tr
 		stopChan:         make(chan struct{}),
 		eventRand:        rand.New(rand.NewSource(time.Now().UnixNano())),
 		eventLog:         newEventLog(500),
+		dlog:             dlog,
 	}
 
 	emulator.deleteCardsFn = repo.DeleteCardsByEmployeeNo
@@ -118,6 +124,33 @@ func (e *Emulator) sortearSubEvento() int {
 	return pickStandaloneSubEvent(e.eventRand)
 }
 
+// newRouter monta o router do emulador com os middlewares de diagnóstico.
+func (e *Emulator) newRouter() *gin.Engine {
+	gin.SetMode(gin.ReleaseMode)
+	router := gin.New()
+	router.Use(gin.Recovery())
+	router.Use(e.dlog.Gin())
+
+	// Middleware de diagnóstico: loga toda requisição que entra neste emulador.
+	router.Use(func(c *gin.Context) {
+		e.tracer.Info("[REQ] %s %s from %s (CL=%d CT=%q)",
+			c.Request.Method, c.Request.URL.Path, c.Request.RemoteAddr,
+			c.Request.ContentLength, c.Request.Header.Get("Content-Type"))
+		c.Next()
+		e.tracer.Info("[RES] %s %s -> %d (%d bytes)",
+			c.Request.Method, c.Request.URL.Path, c.Writer.Status(), c.Writer.Size())
+	})
+
+	// NoRoute: loga tentativas de rota não registrada (evita resposta silenciosa).
+	router.NoRoute(func(c *gin.Context) {
+		e.tracer.Error("[NOROUTE] %s %s not matched", c.Request.Method, c.Request.URL.Path)
+		c.String(http.StatusNotFound, "not found: %s %s", c.Request.Method, c.Request.URL.Path)
+	})
+
+	e.SetupRoutes(router)
+	return router
+}
+
 // Start inicia o servidor do emulador
 func (e *Emulator) Start() error {
 	if e.running {
@@ -143,28 +176,7 @@ func (e *Emulator) Start() error {
 		}
 	}
 
-	// Configura o router (modo release para melhor performance)
-	gin.SetMode(gin.ReleaseMode)
-	router := gin.New()
-	router.Use(gin.Recovery())
-
-	// Middleware de diagnóstico: loga toda requisição que entra neste emulador.
-	router.Use(func(c *gin.Context) {
-		e.tracer.Info("[REQ] %s %s from %s (CL=%d CT=%q)",
-			c.Request.Method, c.Request.URL.Path, c.Request.RemoteAddr,
-			c.Request.ContentLength, c.Request.Header.Get("Content-Type"))
-		c.Next()
-		e.tracer.Info("[RES] %s %s -> %d (%d bytes)",
-			c.Request.Method, c.Request.URL.Path, c.Writer.Status(), c.Writer.Size())
-	})
-
-	// NoRoute: loga tentativas de rota não registrada (evita resposta silenciosa).
-	router.NoRoute(func(c *gin.Context) {
-		e.tracer.Error("[NOROUTE] %s %s not matched", c.Request.Method, c.Request.URL.Path)
-		c.String(http.StatusNotFound, "not found: %s %s", c.Request.Method, c.Request.URL.Path)
-	})
-
-	e.SetupRoutes(router)
+	router := e.newRouter()
 
 	// Inicia o servidor HTTP
 	// Usar 0.0.0.0 para aceitar conexões de qualquer interface (necessário para Docker)
@@ -177,6 +189,7 @@ func (e *Emulator) Start() error {
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  60 * time.Second,
+		ConnState:    e.dlog.ConnState,
 	}
 
 	// Canal para capturar erro de inicialização
@@ -199,6 +212,7 @@ func (e *Emulator) Start() error {
 	}
 
 	e.running = true
+	e.dlog.Printf("START", "emulador %q na porta %d", e.device.Name, e.device.Port)
 
 	// Registrar horário de início
 	now := time.Now()
@@ -223,6 +237,7 @@ func (e *Emulator) Stop() error {
 	// Sinalizar parada
 	close(e.stopChan)
 	e.running = false
+	e.dlog.Printf("STOP", "emulador parado")
 
 	// Parar servidor HTTP se estiver rodando
 	if e.server != nil {
@@ -434,30 +449,44 @@ func (e *Emulator) sendEventToRemoteServer(event *Event) error {
 	remoteURL := fmt.Sprintf("http://%s:%s%s", server, port, path)
 	e.tracer.Info("Sending event to server: %s", remoteURL)
 
-	// Faz a requisição HTTP
-	req, err := http.NewRequest("POST", remoteURL, bytes.NewReader(body))
-	if err != nil {
-		return fmt.Errorf("failed to create request: %w", err)
-	}
 	// multipart/form-data: o receptor WXS (/w-access) lê os campos via
 	// request.form (Werkzeug), que só popula para form-data. x-mixed-replace
 	// é o content-type do alertStream (streaming), não do POST de push — com
 	// ele o WXS responde 200 mas request.form fica vazio e o evento é ignorado.
-	req.Header.Set("Content-Type", fmt.Sprintf("multipart/form-data; boundary=%s", boundary))
-
-	client := &http.Client{Timeout: 5 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("failed to send request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	// Verifica a resposta
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("unexpected response: %s", resp.Status)
+	contentType := fmt.Sprintf("multipart/form-data; boundary=%s", boundary)
+	if err := e.postEvent(remoteURL, contentType, body, 5*time.Second); err != nil {
+		return err
 	}
 
 	e.tracer.Info("Event sent successfully to %s", remoteURL)
+	return nil
+}
+
+// postEvent faz o POST de push ao gerenciador e registra a saída no log do
+// dispositivo, com sucesso ou erro.
+func (e *Emulator) postEvent(remoteURL, contentType string, body []byte, timeout time.Duration) error {
+	req, err := http.NewRequest("POST", remoteURL, bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Content-Type", contentType)
+
+	inicio := time.Now()
+	client := &http.Client{Timeout: timeout}
+	resp, err := client.Do(req)
+	status := 0
+	if resp != nil {
+		status = resp.StatusCode
+		defer resp.Body.Close()
+	}
+	e.dlog.Out("POST", remoteURL, contentType, body, status, err, time.Since(inicio))
+
+	if err != nil {
+		return fmt.Errorf("failed to send request: %w", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("unexpected response: %s", resp.Status)
+	}
 	return nil
 }
 
@@ -738,6 +767,8 @@ func (e *Emulator) handleEventStream(conn net.Conn, bufrw *bufio.ReadWriter) {
 						e.tracer.Error("Failed to flush event data: %v (client disconnected)", err)
 						return
 					}
+					e.dlog.StreamEvent(conn.RemoteAddr().String(),
+						devicelog.KeyFields("", eventData, nil), len(eventData))
 					heartbeatCounter = now
 				}
 			}
