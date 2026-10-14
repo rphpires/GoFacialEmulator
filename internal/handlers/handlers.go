@@ -13,6 +13,7 @@ import (
 	"GoFacialEmulator/assets"
 	"GoFacialEmulator/internal/config"
 	"GoFacialEmulator/internal/database"
+	"GoFacialEmulator/internal/devicelog"
 	"GoFacialEmulator/internal/emulator"
 	"GoFacialEmulator/internal/monitoring"
 	"GoFacialEmulator/internal/reachability"
@@ -34,6 +35,7 @@ type Handler struct {
 	metrics       *monitoring.Metrics
 	templates     map[string]*template.Template
 	env           reachability.Environment
+	logs          *devicelog.Registry
 }
 
 // NewHandler cria uma nova instância de Handler
@@ -91,6 +93,7 @@ func NewHandler(manager *emulator.Manager, serviceDB database.DBInterface, wxsDB
 
 	return &Handler{
 		manager:       manager,
+		logs:          manager.Logs,
 		serviceDB:     serviceDB,
 		wxsDB:         wxsDB,
 		appVersion:    appVersion,
@@ -242,6 +245,8 @@ func (h *Handler) setupAPIRoutes(router *gin.Engine) {
 			devices.PUT("/:id/settings", h.updateDeviceSettings)
 			devices.GET("/:id/users", h.getDeviceUsers)
 			devices.GET("/:id/settings", h.getDeviceSettings)
+			devices.GET("/:id/log", h.getDeviceLog)
+			devices.GET("/:id/log.zip", h.getDeviceLogZip)
 			devices.GET("/:id/mode", h.apiGetDeviceMode)
 			devices.POST("/:id/mode", h.apiSetDeviceMode)
 		}
