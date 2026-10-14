@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"GoFacialEmulator/internal/database"
+	"GoFacialEmulator/internal/devicelog"
 	"GoFacialEmulator/internal/models"
 	"GoFacialEmulator/internal/trace"
 	"GoFacialEmulator/internal/utils"
@@ -55,10 +56,14 @@ type Emulator struct {
 
 	// enrollFn dispara o evento de enroll. Injetável para teste.
 	enrollFn func(userID string)
+
+	// dlog é o log deste dispositivo (checkbox "Gravar log de eventos").
+	// Pode ser nil: todo método do devicelog vira no-op.
+	dlog *devicelog.Logger
 }
 
 // NewEmulator cria uma nova instância do emulador Dahua
-func NewEmulator(db database.DBInterface, device models.Device, tracer *trace.Tracer) *Emulator {
+func NewEmulator(db database.DBInterface, device models.Device, tracer *trace.Tracer, dlog *devicelog.Logger) *Emulator {
 	tracer.Info("Initializing Dahua emulator model: %s v1.1", device.Name)
 
 	repo := NewRepository(db, device.ID)
@@ -74,6 +79,7 @@ func NewEmulator(db database.DBInterface, device models.Device, tracer *trace.Tr
 		configs:    newConfigStore(macAddress),
 		eventLog:   newDahuaEventLog(500),
 		pushChan:   make(chan []byte, 8),
+		dlog:       dlog,
 	}
 
 	emulator.enrollFn = emulator.enviarEventoEnrollDigital
@@ -164,7 +170,13 @@ func (e *Emulator) startKeepAlive() {
 				ultimo = agora
 
 				url := e.remoteServerURL + path
+				inicio := time.Now()
 				resp, err := client.Get(url)
+				status := 0
+				if resp != nil {
+					status = resp.StatusCode
+				}
+				e.dlog.Out("GET", url, "", nil, status, err, time.Since(inicio))
 				if err != nil {
 					e.tracer.Warning("[keepalive] %s falhou: %v", url, err)
 					continue
@@ -264,6 +276,37 @@ func (e *Emulator) initializeRemoteSettings() {
 	e.tracer.Info("Remote server URL: %s", e.remoteServerURL)
 }
 
+// newRouter monta o router do emulador com os middlewares de diagnóstico.
+func (e *Emulator) newRouter() *gin.Engine {
+	gin.SetMode(gin.ReleaseMode)
+	router := gin.New()
+	router.Use(gin.Recovery())
+	router.Use(e.dlog.Gin())
+
+	// Middleware de diagnostico: loga toda requisicao que entra neste emulador
+	// (mesmo par [REQ]/[RES] do Hikvision).
+	router.Use(func(c *gin.Context) {
+		e.tracer.Info("[REQ] %s %s?%s from %s (CL=%d CT=%q)",
+			c.Request.Method, c.Request.URL.Path, c.Request.URL.RawQuery,
+			c.Request.RemoteAddr, c.Request.ContentLength,
+			c.Request.Header.Get("Content-Type"))
+		c.Next()
+		e.tracer.Info("[RES] %s %s -> %d (%d bytes)",
+			c.Request.Method, c.Request.URL.Path, c.Writer.Status(), c.Writer.Size())
+	})
+
+	// NoRoute: sem isto, um endpoint que o gerenciador chama e o emulador nao
+	// implementa vira 404 silencioso.
+	router.NoRoute(func(c *gin.Context) {
+		e.tracer.Error("[NOROUTE] %s %s?%s not matched",
+			c.Request.Method, c.Request.URL.Path, c.Request.URL.RawQuery)
+		c.String(http.StatusNotFound, "not found: %s %s", c.Request.Method, c.Request.URL.Path)
+	})
+
+	e.SetupRoutes(router)
+	return router
+}
+
 // Start inicia o servidor do emulador
 func (e *Emulator) Start() error {
 	if e.running {
@@ -289,32 +332,7 @@ func (e *Emulator) Start() error {
 		}
 	}
 
-	// Configura o router (modo release para melhor performance)
-	gin.SetMode(gin.ReleaseMode)
-	router := gin.New()
-	router.Use(gin.Recovery())
-
-	// Middleware de diagnostico: loga toda requisicao que entra neste emulador
-	// (mesmo par [REQ]/[RES] do Hikvision).
-	router.Use(func(c *gin.Context) {
-		e.tracer.Info("[REQ] %s %s?%s from %s (CL=%d CT=%q)",
-			c.Request.Method, c.Request.URL.Path, c.Request.URL.RawQuery,
-			c.Request.RemoteAddr, c.Request.ContentLength,
-			c.Request.Header.Get("Content-Type"))
-		c.Next()
-		e.tracer.Info("[RES] %s %s -> %d (%d bytes)",
-			c.Request.Method, c.Request.URL.Path, c.Writer.Status(), c.Writer.Size())
-	})
-
-	// NoRoute: sem isto, um endpoint que o gerenciador chama e o emulador nao
-	// implementa vira 404 silencioso.
-	router.NoRoute(func(c *gin.Context) {
-		e.tracer.Error("[NOROUTE] %s %s?%s not matched",
-			c.Request.Method, c.Request.URL.Path, c.Request.URL.RawQuery)
-		c.String(http.StatusNotFound, "not found: %s %s", c.Request.Method, c.Request.URL.Path)
-	})
-
-	e.SetupRoutes(router)
+	router := e.newRouter()
 
 	// Inicia o servidor HTTP
 	// Usar 0.0.0.0 para aceitar conexões de qualquer interface (necessário para Docker)
@@ -327,6 +345,7 @@ func (e *Emulator) Start() error {
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  60 * time.Second,
+		ConnState:    e.dlog.ConnState,
 	}
 
 	// Canal para capturar erro de inicialização
@@ -349,6 +368,7 @@ func (e *Emulator) Start() error {
 	}
 
 	e.running = true
+	e.dlog.Printf("START", "emulador %q na porta %d", e.device.Name, e.device.Port)
 
 	// Inicia o gerador de eventos se configurado
 	if e.device.EventInterval > 0 {
@@ -373,6 +393,7 @@ func (e *Emulator) Stop() error {
 	// Sinalizar parada
 	close(e.stopChan)
 	e.running = false
+	e.dlog.Printf("STOP", "emulador parado")
 
 	// Parar servidor HTTP se estiver rodando
 	if e.server != nil {
@@ -680,36 +701,15 @@ func (e *Emulator) sendOnlineEventToServer(textPart, imagePart string, imageData
 	remoteURL := e.remoteServerURL + "/notification"
 	e.tracer.Info("Sending online event to server: %s (total size: %d bytes)", remoteURL, totalLength)
 
-	// Construir o body completo
 	var body bytes.Buffer
 	body.WriteString(textPart)
 	body.WriteString(imagePart)
 	body.Write(imageData)
 	body.WriteString(closingPart)
 
-	// Criar requisição HTTP no formato do dispositivo real Dahua
-	req, err := http.NewRequest("POST", remoteURL, &body)
-	if err != nil {
-		return fmt.Errorf("failed to create request: %w", err)
+	if err := e.postNotification(remoteURL, body.Bytes(), 10*time.Second); err != nil {
+		return err
 	}
-
-	// Headers no formato do dispositivo real Dahua
-	req.Header.Set("Connection", "Keep-Alive")
-	req.Header.Set("Content-Type", "multipart/mixed; boundary=myboundary")
-	req.Header.Set("Content-Length", fmt.Sprintf("%d", totalLength))
-
-	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("failed to send request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	// Verificar a resposta
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("unexpected response: %s", resp.Status)
-	}
-
 	e.tracer.Info("Online event sent successfully to %s", remoteURL)
 	return nil
 }
@@ -766,27 +766,41 @@ func (e *Emulator) sendTextEventToServer(body string) error {
 	remoteURL := e.remoteServerURL + "/notification"
 	e.tracer.Info("Sending text event to server: %s", remoteURL)
 
-	req, err := http.NewRequest("POST", remoteURL, strings.NewReader(body))
+	if err := e.postNotification(remoteURL, []byte(body), 5*time.Second); err != nil {
+		return err
+	}
+	e.tracer.Info("Text event sent successfully to %s", remoteURL)
+	return nil
+}
+
+// postNotification faz o POST /notification com os headers do dispositivo
+// real e registra a saída no log do dispositivo.
+func (e *Emulator) postNotification(remoteURL string, payload []byte, timeout time.Duration) error {
+	const contentType = "multipart/mixed; boundary=myboundary"
+	req, err := http.NewRequest("POST", remoteURL, bytes.NewReader(payload))
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
-
 	req.Header.Set("Connection", "Keep-Alive")
-	req.Header.Set("Content-Type", "multipart/mixed; boundary=myboundary")
-	req.Header.Set("Content-Length", fmt.Sprintf("%d", len(body)))
+	req.Header.Set("Content-Type", contentType)
+	req.Header.Set("Content-Length", fmt.Sprintf("%d", len(payload)))
 
-	client := &http.Client{Timeout: 5 * time.Second}
+	inicio := time.Now()
+	client := &http.Client{Timeout: timeout}
 	resp, err := client.Do(req)
+	status := 0
+	if resp != nil {
+		status = resp.StatusCode
+		defer resp.Body.Close()
+	}
+	e.dlog.Out("POST", remoteURL, contentType, payload, status, err, time.Since(inicio))
+
 	if err != nil {
 		return fmt.Errorf("failed to send request: %w", err)
 	}
-	defer resp.Body.Close()
-
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("unexpected response: %s", resp.Status)
 	}
-
-	e.tracer.Info("Text event sent successfully to %s", remoteURL)
 	return nil
 }
 

@@ -576,7 +576,7 @@ func (m *Manager) createEmulator(device models.Device) (Emulator, error) {
 	dlog := m.deviceLog(device)
 	switch device.Model {
 	case "Dahua":
-		return dahua.NewEmulator(m.EmulatorDB, device, m.Tracer), nil
+		return dahua.NewEmulator(m.EmulatorDB, device, m.Tracer, dlog), nil
 	case "Hikvision":
 		return hikvision.NewEmulator(m.EmulatorDB, device, m.Tracer, dlog), nil
 	default:

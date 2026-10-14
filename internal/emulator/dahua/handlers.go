@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"GoFacialEmulator/internal/devicelog"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -623,6 +625,10 @@ func (e *Emulator) handleSnapManager(c *gin.Context) {
 		return
 	}
 	defer conn.Close()
+	devicelog.MarkStream(c)
+	remote := conn.RemoteAddr().String()
+	e.dlog.StreamOpen(remote, c.Request.URL.RequestURI())
+	defer e.dlog.StreamClose(remote)
 
 	e.tracer.Info("Connection hijacked successfully, writing raw HTTP response...")
 
@@ -673,6 +679,10 @@ func (e *Emulator) handleEventManager(c *gin.Context) {
 		return
 	}
 	defer conn.Close()
+	devicelog.MarkStream(c)
+	remote := conn.RemoteAddr().String()
+	e.dlog.StreamOpen(remote, c.Request.URL.RequestURI())
+	defer e.dlog.StreamClose(remote)
 
 	httpResponse := "HTTP/1.1 200 OK" + crlf +
 		"Cache-Control: no-cache" + crlf +
@@ -739,6 +749,8 @@ func (e *Emulator) handleEventStream(conn net.Conn, bufrw *bufio.ReadWriter, com
 					}
 					bufrw.Flush()
 					e.tracer.Info("[stream] part empurrada: %d bytes", len(part))
+					e.dlog.StreamEvent(conn.RemoteAddr().String(),
+						devicelog.KeyFields("", part, nil), len(part))
 					heartbeatCounter = now
 				default:
 					drenando = false
@@ -776,6 +788,8 @@ func (e *Emulator) handleEventStream(conn net.Conn, bufrw *bufio.ReadWriter, com
 							bufrw.Flush()
 						}
 						e.tracer.Info("Event sent: %d total bytes (text=%d + image=%d)", msgTextPart+msgImagePart, msgTextPart, msgImagePart)
+						e.dlog.StreamEvent(conn.RemoteAddr().String(),
+							devicelog.KeyFields("", textPart, nil), msgTextPart+msgImagePart)
 
 						// Resetar contador de heartbeat
 						heartbeatCounter = time.Now()
