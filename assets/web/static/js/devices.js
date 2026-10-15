@@ -291,7 +291,7 @@
                 acoes.appendChild(botao('device-details-btn', 'users', 'Usuários e configurações', 'Detalhes de ' + d.name));
 
                 if (d.source === 'manual') {
-                    var editar = botao('device-edit', 'gear', 'Editar', 'Editar ' + d.name);
+                    var editar = botao('device-edit', 'pencil', 'Editar', 'Editar ' + d.name);
                     editar.disabled = d.status !== 'stopped';
                     if (editar.disabled) { editar.title = 'Pare o emulador para editar'; }
                     acoes.appendChild(editar);
